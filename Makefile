@@ -33,10 +33,10 @@ flash-avr: $(BUILD_PREFIX).hex
 	avrdude -c arduino -b 57600 -p $(MCU) -D -U flash:w:$<:i
 
 
-flash-digispark: $(MICRONUCLEUS) $(BUILD_PREFIX).hex
+flash-digispark: $(BUILD_PREFIX).hex
 	/home/shashankgopikrishna/.arduino15/packages/digistump/tools/micronucleus/2.0a4/launcher -cdigispark --timeout 60 -Uflash:w:$(BUILD_PREFIX).hex:i
 
-flash-micronucleus:
+flash-micronucleus: $(MICRONUCLEUS)
 	$(MICRONUCLEUS) --timeout 60 $(BUILD_PREFIX).hex --run
 
 
