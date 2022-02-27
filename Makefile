@@ -2,6 +2,7 @@ MCU=attiny85
 MICRONUCLEUS=vendor/micronucleus/commandline/micronucleus
 BUILD_PREFIX=build/main
 
+SRC=main.asm
 
 all: $(BUILD_PREFIX).hex
 
@@ -15,18 +16,19 @@ $(MICRONUCLEUS):
 
 
 $(BUILD_PREFIX).o: build
-	avr-as -Wall -mmcu=$(MCU) -a=$(BUILD_PREFIX).list -o $@ main.asm
+	avr-as -Wall -mmcu=$(MCU) -a=$(BUILD_PREFIX).list -o $@ $(SRC)
 
 $(KERNEL_PREFIX).o: build
 	avr-gcc -Wall -mmcu=$(MCU) -o $@ -c kernel.c
 
 
 $(BUILD_PREFIX).elf: $(BUILD_PREFIX).o
-	avr-gcc -Os -mmcu=$(MCU) -o $@ $<
+	avr-gcc -g -O1 -mmcu=$(MCU) -o $@ $< -nostartfiles -DF_CPU=16500000L
 
 
 $(BUILD_PREFIX).hex: $(BUILD_PREFIX).elf
-	avr-objcopy -O ihex $< $@
+	avr-objcopy -j .text -j .data -O ihex $< $@
+	avr-objdump -h -S $< > $(BUILD_PREFIX).dis
 
 
 flash-avr: $(BUILD_PREFIX).hex
@@ -42,3 +44,9 @@ flash-micronucleus: $(MICRONUCLEUS)
 
 clean:
 	rm -rf build
+
+# simulator and gdb setup
+sim:
+	simavr -m attiny85 -f 16500000 $(BUILD_PREFIX).hex  -g
+gdb:
+	avr-gdb --command=debug.gdb
