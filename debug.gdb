@@ -17,23 +17,27 @@ end
 # end
 
 
-b timer0_1sec
-command
-info r r16
-shell echo $(date +%s.%N) - $(cat gdb_timer) | bc -l
-shell echo $(date +%s.%N) > gdb_timer
-continue
-end
+# b timer0_scaled
+# command
+# info r r16
+# shell echo $(date +%s.%N) - $(cat gdb_timer) | bc -l
+# shell echo $(date +%s.%N) > gdb_timer
+# continue
+# end
 
 b on
 command
 info r r25
+shell echo $(date +%s.%N) - $(cat gdb_timer) | bc -l
+shell echo $(date +%s.%N) > gdb_timer
 continue
 end
 
 b off
 command
 info r r25
+shell echo $(date +%s.%N) - $(cat gdb_timer) | bc -l
+shell echo $(date +%s.%N) > gdb_timer
 continue
 end
 
@@ -42,6 +46,3 @@ command
 info r r16
 info r r17
 end
-
-display /t PORTB
-display /t DDRB

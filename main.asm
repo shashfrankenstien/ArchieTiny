@@ -24,10 +24,14 @@
 .equ    TIFR,           0x38        ; TIFR – Timer/Counter Interrupt Flag Register
 
 .equ    COUNTER_CTRL_A,    0b00000010   ; mode - 10 = Clear Timer on Compare Match (CTC) mode
-.equ    COUNTER_CTRL_B,    0b00000101   ; clk setting (101 = 16 MHz / 1024)
+.equ    COUNTER_CTRL_B,    0b00000101   ; clk setting (101 = 16.5 MHz / 1024)
 .equ    TIMER_INT_MASK,    0b00010000   ; Timer 0 compare match A interrupt
 
-.equ    TIMER_COMPVAL_A,   161       ; counts from 0 to TIMER_COMPVAL_A, then resets to 0
+.equ    TIMER_COMPVAL_A,   16           ; timer counts from 0 to TIMER_COMPVAL_A, then resets to 0
+                                        ; TIMER_COMPVAL_A value 16 = 1 millisecond
+                                        ; this was arrived at using the below equation
+                                        ; TIMER_COMPVAL_A = 0.001 * f_cpu / prescale_div
+                                        ; if f_cpu = 16.5 MHz and selected prescale_div = 1024, TIMER_COMPVAL_A ~ 16
 
 
 ; custom special purpose registers
@@ -84,8 +88,9 @@ main:                               ; initialize
     ldi r16, TIMER_INT_MASK
     out TIMSK, r16                  ; enable interrupt
 
-    clr r20             ; custom counter to scale timers
-    ldi r21, 50         ; limit - with current settings, the unit here is milliseconds
+    clr r20             ; custom scaling on timer
+    ldi r21, 250        ; custom scaling limit - with current settings, the unit here is millisecond
+                        ; a value of 250 = 0.25 second
     sei
 
 pool:
@@ -99,7 +104,7 @@ timer0_isr:
     cpse r20, r21
     reti
     clr r20
-timer0_1sec:
+timer0_scaled:
     sbrc r25, LED_PIN-1         ; if value is unset, continue to "on", else unset it in the "off" label
     rjmp off
 on:
