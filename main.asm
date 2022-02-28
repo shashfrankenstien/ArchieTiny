@@ -32,7 +32,8 @@
 .equ    DDRB,           0x17
 .equ    PORTB,          0x18
 .equ    LED_PIN,        1
-
+.equ    SOFT_DELAY,     100             ; custom software scaling limit - with current settings, the unit here is millisecond
+                                        ; a value of 250 = 0.25 second
 
 ; custom special purpose registers
 
@@ -78,28 +79,16 @@ init_timer:
 
 
 timer0_isr:
-    inc r20
-    cpse r20, r21
+    rcall blink
     reti
-    clr r20
-timer0_scaled:
-    sbrc r25, LED_PIN-1         ; if value is unset, continue to "on", else unset it in the "off" label
-    rjmp off
-on:
-    sbi PORTB, LED_PIN              ; set bit
-    sbr r25, LED_PIN
-    reti
-off:
-    cbi PORTB, LED_PIN              ; clear bit
-    cbr r25, LED_PIN
-    reti
-
 
 
 init_onboard_led:
     sbi DDRB, LED_PIN               ; setup output pin 1 (P1)
     out PORTB, 0
     ldi r25, LED_PIN                ; use r25 to toggle
+    clr r20                         ; software scaling counter to blink LED
+    ldi r21, SOFT_DELAY             ; software scaling limit
     ret
 
 
@@ -114,9 +103,6 @@ main:                               ; initialize
     rcall init_timer                ; set timer / counter options
     rcall init_onboard_led          ; set LED output pin
 
-    clr r20             ; custom scaling on timer
-    ldi r21, 100        ; custom scaling limit - with current settings, the unit here is millisecond
-                        ; a value of 250 = 0.25 second
     rcall test1
     sei
 
@@ -124,6 +110,24 @@ pool:
     sleep                           ; (required for simavr to perform correctly)
     rjmp pool
 
+
+
+
+blink:
+    inc r20
+    cpse r20, r21
+    ret
+    clr r20
+    sbrc r25, LED_PIN-1         ; if value is unset, continue to "on", else unset it in the "off" label
+    rjmp off
+on:
+    sbi PORTB, LED_PIN              ; set bit
+    sbr r25, LED_PIN
+    ret
+off:
+    cbi PORTB, LED_PIN              ; clear bit
+    cbr r25, LED_PIN
+    ret
 
 
 
