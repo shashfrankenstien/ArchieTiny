@@ -47,6 +47,6 @@ clean:
 
 # simulator and gdb setup
 sim:
-	simavr -m attiny85 -f 16500000 $(BUILD_PREFIX).hex  -g
+	simavr -m attiny85 -f 16500000 $(BUILD_PREFIX).elf  -g
 gdb:
 	avr-gdb --command=debug.gdb

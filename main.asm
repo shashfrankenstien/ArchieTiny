@@ -1,17 +1,12 @@
 ; General registers / addresses
 
-.equ	SRAM_START,     0x0060
-.equ	SRAM_SIZE,      512
-.equ	RAMEND,         0x025f
+.equ    SRAM_START,     0x0060
+.equ    SRAM_SIZE,      512
+.equ    RAMEND,         0x025f
 
-.equ	SPL,            0x3d
-.equ	SPH,            0x3e
+.equ    SPL,            0x3d
+.equ    SPH,            0x3e
 .equ    SREG,           0x3f
-
-; built-in LED control
-.equ	DDRB,           0x17
-.equ	PORTB,          0x18
-.equ    LED_PIN,        1
 
 
 ; timer / counter control
@@ -32,6 +27,11 @@
                                         ; this was arrived at using the below equation
                                         ; TIMER_COMPVAL_A = 0.001 * f_cpu / prescale_div
                                         ; if f_cpu = 16.5 MHz and selected prescale_div = 1024, TIMER_COMPVAL_A ~ 16
+
+; built-in LED control
+.equ    DDRB,           0x17
+.equ    PORTB,          0x18
+.equ    LED_PIN,        1
 
 
 ; custom special purpose registers
@@ -56,26 +56,13 @@ reti                                ; Address 0x0008 - ADC_ISR
 reti                                ; Address 0x0009 - TIM1_COMPB_ISR
 rjmp timer0_isr                     ; Address 0x000A - TIM0_COMPA_ISR
 reti                                ; Address 0x000B - TIM0_COMPB_ISR
-rjmp ohno                           ; Address 0x000C - WDT_ISR
+reti                                ; Address 0x000C - WDT_ISR
 reti                                ; Address 0x000D - USI_START_ISR
 reti                                ; Address 0x000E - USI_OVF_ISR
 
 
 
-main:                               ; initialize
-    cli
-    ; set stack pointer
-    ldi r16, lo8(RAMEND)            ; set stack pointer low bits to low(RAMEND)
-    out SPL, r16
-    ldi r16, hi8(RAMEND)            ; set stack pointer high bits to high(RAMEND)
-    out SPH, r16
-
-    ; set LED output pin
-    sbi DDRB, LED_PIN               ; setup output pin 1 (P1)
-    out PORTB, 0
-    ldi r25, LED_PIN
-
-    ; set timer / counter options
+init_timer:
     ldi r16, COUNTER_CTRL_A
     out TCCR0A, r16                  ; mode select
 
@@ -87,16 +74,7 @@ main:                               ; initialize
 
     ldi r16, TIMER_INT_MASK
     out TIMSK, r16                  ; enable interrupt
-
-    clr r20             ; custom scaling on timer
-    ldi r21, 250        ; custom scaling limit - with current settings, the unit here is millisecond
-                        ; a value of 250 = 0.25 second
-    sei
-
-pool:
-    sleep
-    rjmp pool
-
+    ret
 
 
 timer0_isr:
@@ -118,5 +96,50 @@ off:
 
 
 
-ohno:
-    reti
+init_onboard_led:
+    sbi DDRB, LED_PIN               ; setup output pin 1 (P1)
+    out PORTB, 0
+    ldi r25, LED_PIN                ; use r25 to toggle
+    ret
+
+
+
+main:                               ; initialize
+    cli
+    ldi r16, lo8(RAMEND)            ; set stack pointer low bits to low(RAMEND)
+    out SPL, r16
+    ldi r16, hi8(RAMEND)            ; set stack pointer high bits to high(RAMEND)
+    out SPH, r16
+
+    rcall init_timer                ; set timer / counter options
+    rcall init_onboard_led          ; set LED output pin
+
+    clr r20             ; custom scaling on timer
+    ldi r21, 100        ; custom scaling limit - with current settings, the unit here is millisecond
+                        ; a value of 250 = 0.25 second
+    rcall test1
+    sei
+
+pool:
+    sleep                           ; (required for simavr to perform correctly)
+    rjmp pool
+
+
+
+
+test1:
+    ldi r31, hi8(data_table_1)       ; Initialize Z-pointer
+    ldi r30, lo8(data_table_1)
+    lpm r16, Z+                     ; Load constant from Program
+                                    ; Memory pointed to by Z (r31:r30)
+    lpm r17, Z+
+    lpm r19, Z+
+    lpm r18, Z
+test1_breakpoint:
+    ret
+
+
+data_table_1:
+    .word 0x5276                        ; 0x76 is addresses when ZLSB = 0
+                                        ; 0x58 is addresses when ZLSB = 1
+    .word 0x9911

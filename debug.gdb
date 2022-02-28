@@ -1,11 +1,13 @@
+# set debug infrun 1
+# layout next
 file build/main.elf
 target remote: 1234
 
-b *main+4
-command
-info r r16
-info r r17
-end
+# b main
+# command
+# info r r16
+# info r r17
+# end
 
 # b pool
 # command
@@ -41,8 +43,10 @@ shell echo $(date +%s.%N) > gdb_timer
 continue
 end
 
-b ohno
+b test1_breakpoint
 command
 info r r16
 info r r17
+info r r18
+info r r19
 end
