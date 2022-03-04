@@ -25,3 +25,30 @@ sudo apt install simavr
 - use simavr + gdb combo - see Makefile sim: and gdb: labels
 - simavr clock seems difficult to manage (need to verify) - https://github.com/buserror/simavr/issues/201
 - see debug.gdb for hacky time estimation command
+
+
+# Digispark fuses
+- Low fuse: 0xe1  -- 16 MHz mode with no clock divide
+- High fuse: 0x5d -- EEPROM not preserved, Watchdog timer always on
+- Extended fuse:  -- Self-programming enabled
+
+# Raw attiny85 using ESP8266
+
+https://github.com/vince-br-549/ESP8266-as-ISP
+
+Also just grab the
+
+Function| ESP8266 | ATtiny85
+---|---|---
+SCK | D5 | pin 7
+MISO | D6 | pin 6
+MOSI | D7 | pin 5
+RESET | 10 | pin 1
+GND | GND | pin 4
+VCC | 3.3v | pin 8
+
+
+
+# Some STM8S stuff
+
+- https://lujji.github.io/blog/

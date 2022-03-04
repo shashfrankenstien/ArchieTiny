@@ -32,7 +32,10 @@ $(BUILD_PREFIX).hex: $(BUILD_PREFIX).elf
 
 
 flash-avr: $(BUILD_PREFIX).hex
-	avrdude -c arduino -b 57600 -p $(MCU) -D -U flash:w:$<:i
+# avrdude -P /dev/ttyUSB0 -c stk500v1 -b 19200 -p $(MCU)
+	avrdude -v -v -v -v -p$(MCU) -cstk500v1 -P/dev/ttyUSB0 -b19200 -e -Uefuse:w:0xff:m -Uhfuse:w:0xdf:m -Ulfuse:w:0x62:m
+	avrdude -P /dev/ttyUSB0 -c stk500v1 -b 19200 -p $(MCU) -D -U flash:w:$<:i
+
 
 
 flash-digispark: $(BUILD_PREFIX).hex
