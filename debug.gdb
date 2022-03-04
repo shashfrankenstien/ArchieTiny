@@ -3,10 +3,16 @@
 file build/main.elf
 target remote: 1234
 
-# b main
+# b blink
 # command
-# info r r16
-# info r r17
+# info r r20
+# info r r0
+# end
+#
+# b timer0_isr
+# command
+# info r r20
+# info r r0
 # end
 
 # b pool
@@ -43,10 +49,3 @@ shell echo $(date +%s.%N) > gdb_timer
 continue
 end
 
-b test1_breakpoint
-command
-info r r16
-info r r17
-info r r18
-info r r19
-end
