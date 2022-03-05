@@ -48,4 +48,3 @@ shell echo $(date +%s.%N) - $(cat gdb_timer) | bc -l
 shell echo $(date +%s.%N) > gdb_timer
 continue
 end
-

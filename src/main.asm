@@ -66,49 +66,11 @@ reti                                ; Address 0x000C - WDT_ISR
 reti                                ; Address 0x000D - USI_START_ISR
 reti                                ; Address 0x000E - USI_OVF_ISR
 
-tasks_jump_table:
-    .word blink
-    .word test1
-    .word test2
-    .word 0x0000
-
 
 timer0_isr:
     inc r20
-    .irp param,0,1,2,3,4,30,31
-        push r\param
-    .endr
-    in r4, SREG
-
-    lpm r0, Z+                  ; copy low byte
-    lpm r1, Z+                  ; copy high byte
-    lpm r2, Z+                  ; copy next low byte to check end of jump table
-    lpm r3, Z                   ; copy next low byte to check end of jump table
-    mov r30, r0                 ; set ZL
-    mov r31, r1                 ; set ZH
-    lsr r31                     ; Divide r31:r30 by 2
-    ror r30                     ; r31:r30 is an unsigned 2-byte integer
-                                ; division by 2 seems important here
-                                ; because since icall seems to be multiplying the value by 2 :/
-    icall                       ; call the current task subroutine
-    pop r31
-    pop r30
-    clr r0
-    cpse r2, r0                 ; here r2 and r3 make the next tasks_jump_table word. check to see if end reached (0x0000)
-    rjmp timer0_isr_done1       ;
-    cpse r3, r0                 ;
-    rjmp timer0_isr_done1       ;
-    rcall init_taskmanager      ; reached the end. init task manager to reset to the top of tasks_jump_table
-    rjmp timer0_isr_done2
-timer0_isr_done1:               ; if we jump here, there are more tasks in the jump table
-    adiw r30, 2                 ; increment Z pointer by 2 to the next task (16 bit addressing)
-timer0_isr_done2:
-    out SREG, r4
-    .irp param,4,3,2,1,0
-        pop r\param
-    .endr
+    rcall TaskMan_exec_next
     reti
-
 
 
 init_timer:
@@ -119,23 +81,17 @@ init_timer:
     out TCCR0B, r16                 ; clk select
 
     ldi r16, TIMER_COMPVAL_A
-    out OCR0A, r16
+    out OCR0A, r16                  ; load compare A register
 
     ldi r16, TIMER_INT_MASK
     out TIMSK, r16                  ; enable interrupt
     ret
 
 
-init_taskmanager:
-    ldi r31, hi8(tasks_jump_table)      ; Initialize Z-pointer with address to tasks_jump_table
-    ldi r30, lo8(tasks_jump_table)
-    ret
-
-
 init_onboard_led:
     sbi DDRB, LED_PIN               ; setup output pin 1 (P1)
     out PORTB, 0
-    ldi r25, (1<<(LED_PIN-1))                ; use r25 to toggle
+    ldi r25, (1<<(LED_PIN-1))       ; use r25 to toggle
     clr r20                         ; software scaling counter to blink LED
     ldi r21, SOFT_DELAY             ; software scaling limit
     ret
@@ -151,11 +107,20 @@ main:                               ; initialize
 
     rcall init_timer                ; set timer / counter options
     rcall init_onboard_led          ; set LED output pin
-    rcall init_taskmanager
+
+    rcall TaskMan_init              ; initialize task manager table
+
+    ldi r17, hi8(blink)             ; add blink task to task manager table
+    ldi r16, lo8(blink)
+    rcall TaskMan_add
+
+    ldi r17, hi8(test1)             ; add test1 task to task manager table
+    ldi r16, lo8(test1)
+    rcall TaskMan_add
     sei
 
 pool:
-    sleep                           ; (required for simavr to perform correctly)
+    sleep                           ; wait for interrupts (required for simavr to perform correctly)
     rjmp pool
 
 
@@ -208,7 +173,7 @@ fuse_high:           ; break here and see r22 for fuse high byte
 
 test1:
     .irp param,16,17,18,30,31
-    push r\param
+        push r\param
     .endr
     in r18, SREG
 
@@ -220,7 +185,7 @@ test1:
 test1_breakpoint:
     out SREG, r18
     .irp param,31,30,18,17,16
-    pop r\param
+        pop r\param
     .endr
     ret
 
