@@ -1,8 +1,7 @@
 ; General registers / addresses
 
-.equ    SRAM_START,     0x0060
-.equ    SRAM_SIZE,      512
-.equ    RAMEND,         0x025f
+.include "config.inc"
+
 
 .equ    SPL,            0x3d
 .equ    SPH,            0x3e
@@ -31,9 +30,6 @@
 ; built-in LED control
 .equ    DDRB,           0x17
 .equ    PORTB,          0x18
-.equ    LED_PIN,        1
-.equ    SOFT_DELAY,     250             ; custom software scaling limit - with current settings, the unit here is millisecond
-                                        ; a value of 250 = 0.25 second
 
 ; repurpose r25 for gpio flags
 ; .req    r25,            r25
@@ -69,7 +65,14 @@ reti                                ; Address 0x000E - USI_OVF_ISR
 
 timer0_isr:
     inc r20
-    rcall TaskMan_exec_next
+    rcall time_tick
+    ; in r26, SPL
+    ; in r27, SPH
+    ; adiw r26, 2     ; back 2 steps
+    ; ld r16, X+
+    ; ld r17, X+
+
+    rcall taskmanager_exec_next
     reti
 
 
@@ -93,7 +96,7 @@ init_onboard_led:
     out PORTB, 0
     ldi r25, (1<<(LED_PIN-1))       ; use r25 to toggle
     clr r20                         ; software scaling counter to blink LED
-    ldi r21, SOFT_DELAY             ; software scaling limit
+    ldi r21, LED_SOFT_DELAY             ; software scaling limit
     ret
 
 
@@ -108,15 +111,21 @@ main:                               ; initialize
     rcall init_timer                ; set timer / counter options
     rcall init_onboard_led          ; set LED output pin
 
-    rcall TaskMan_init              ; initialize task manager table
+    rcall time_init
+
+    rcall taskmanager_init              ; initialize task manager table
 
     ldi r17, hi8(blink)             ; add blink task to task manager table
     ldi r16, lo8(blink)
-    rcall TaskMan_add
+    rcall taskmanager_add
 
     ldi r17, hi8(test1)             ; add test1 task to task manager table
     ldi r16, lo8(test1)
-    rcall TaskMan_add
+    rcall taskmanager_add
+
+    ldi r17, hi8(time_delay_ms_test)             ; add time_delay_ms_test task to task manager table
+    ldi r16, lo8(time_delay_ms_test)
+    rcall taskmanager_add
     sei
 
 pool:
@@ -127,7 +136,7 @@ pool:
 
 
 blink:
-    cpi r20, SOFT_DELAY             ; Compare registers
+    cpi r20, LED_SOFT_DELAY             ; Compare registers
     brsh blink_timeout
     ret
 blink_timeout:

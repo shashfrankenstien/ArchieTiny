@@ -6,7 +6,7 @@
 
 - https://www.youtube.com/watch?v=tFSTG7XEboI&list=PLuCmHWky5GN4iyRNNchJ4GMcVCSOgdOvc&index=5
 
-# Deps
+## Deps
 
 ```
 sudo apt-get install avr-libc binutils-avr gcc-avr avrdude
@@ -14,7 +14,7 @@ sudo apt install simavr
 ```
 
 
-# Simulator
+## Simulator
 
 - use simavr + gdb combo - see Makefile sim: and gdb: labels
 - simavr clock seems difficult to manage (need to verify) - https://github.com/buserror/simavr/issues/201
@@ -29,7 +29,7 @@ sudo apt install simavr
 
 
 
-# Raw attiny85 using ESP8266
+# Raw attiny85 using ESP8266 as ISP
 
 https://github.com/vince-br-549/ESP8266-as-ISP
 
@@ -63,16 +63,16 @@ VCC | 3.3v | pin 8
 - Ugh, need to add `-nostartfiles` to avr-gcc so it doesn't include weird extra code that kills interrupts.
     - This also eliminates need to create and expose a global `main` routine
 
-### task manager (tasks.asm)
+## task manager (tasks.asm)
 Tasks Table is set up starting at RAM address TASK_TABLE_START (Should be greater than 0x60 = 32 general registers + 64 I/O registers).
 
-##### Task table
+### Task table
 - First byte will be the TASK_COUNTER
 - Second byte will be current TASK_POINTER
 - Next addresses will contain word size addresses to registered tasks
-    - Note: Because of how the `Z` register works with `icall`, this address should be divided by 2. `icall` will then multiply it by 2 before executing
+    - Note: Because of how the `Z` register works with `icall`, task address should be divided by 2. `icall` will then multiply it by 2 before executing
 
-##### Task workflow
+### Task workflow
 - init
     - set TASK_COUNTER and TASK_POINTER to 0
 - add new task
@@ -82,10 +82,11 @@ Tasks Table is set up starting at RAM address TASK_TABLE_START (Should be greate
     - read TASK_COUNTER, if eq 0, simply return because there are no registered tasks
     - read TASK_POINTER and increment to go to next task
         - initially, TASK_POINTER will be 0. First increment will move it to where the first task address is stored
-    - load X pointer with pointer to where the next task's address is stored
+    - load X pointer to where the next task's address is stored
     - read task address into Z register
     - icall!
     - finally, if TASK_POINTER = TASK_COUNTER (reached end of task table), set TASK_POINTER back to 0
+- task swapping (TODO)
 
 -----
 

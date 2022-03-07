@@ -1,15 +1,16 @@
-.equ    TASK_TABLE_START,   0x0070                      ; Task vector start address
+.include "config.inc"                                   ; TASK_TABLE_START
+
 .equ    TASK_COUNTER,       TASK_TABLE_START            ; Task counter
 .equ    TASK_POINTER,       TASK_TABLE_START + 1        ; Current task pointer
 
 
-TaskMan_init:
+taskmanager_init:
     sts TASK_COUNTER, 0x0
     sts TASK_POINTER, 0x0
     ret
 
 
-TaskMan_add:                                ; expects task address loaded in r17:r16
+taskmanager_add:                                ; expects task address loaded in r17:r16
     in r15, SREG
     .irp param,16,17,18,26,27
         push r\param
@@ -39,7 +40,7 @@ TaskMan_add:                                ; expects task address loaded in r17
 
 
 
-TaskMan_exec_next:
+taskmanager_exec_next:
     in r15, SREG
     .irp param,16,17,18,26,27,30,31
         push r\param
@@ -68,7 +69,6 @@ _tasks_available:
     rjmp _tasks_done                         ; return if TASK_POINTER is still not equal to TASK_COUNTER
 
     sts TASK_POINTER, 0x0                    ; if TASK_POINTER == TASK_COUNTER, we've reached the end. So, reset TASK_POINTER
-
 _tasks_done:
     .irp param,31,30,27,26,18,17,16
         pop r\param

@@ -3,6 +3,7 @@ MICRONUCLEUS=vendor/micronucleus/commandline/micronucleus
 BUILD_PREFIX=build/main
 
 SRC=src/main.asm \
+	src/time.asm \
 	src/tasks.asm
 
 all: $(BUILD_PREFIX).hex
@@ -17,7 +18,7 @@ $(MICRONUCLEUS):
 
 
 $(BUILD_PREFIX).o: build
-	avr-as -Wall -mmcu=$(MCU) -a=$(BUILD_PREFIX).list -o $@ $(SRC)
+	avr-as -Wall -mmcu=$(MCU) -a=$(BUILD_PREFIX).list -o $@ $(SRC) -I src
 
 $(KERNEL_PREFIX).o: build
 	avr-gcc -Wall -mmcu=$(MCU) -o $@ -c kernel.c
@@ -30,6 +31,7 @@ $(BUILD_PREFIX).elf: $(BUILD_PREFIX).o
 $(BUILD_PREFIX).hex: $(BUILD_PREFIX).elf
 	avr-objcopy -j .text -j .data -O ihex $< $@
 	avr-objdump -h -S $< > $(BUILD_PREFIX).dis
+	ls -all $@
 
 
 flash-avr: $(BUILD_PREFIX).hex

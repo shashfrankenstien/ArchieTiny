@@ -46,5 +46,15 @@ command
 info r r25
 shell echo $(date +%s.%N) - $(cat gdb_timer) | bc -l
 shell echo $(date +%s.%N) > gdb_timer
+x 0x800060
 continue
+end
+
+# b timer0_isr
+
+
+define xx
+    i r SP
+    x/10xb 0x800256
+    si
 end
