@@ -56,7 +56,7 @@ reti                                ; Address 0x0006 - EE_RDY_ISR
 reti                                ; Address 0x0007 - ANA_COMP_ISR
 reti                                ; Address 0x0008 - ADC_ISR
 reti                                ; Address 0x0009 - TIM1_COMPB_ISR
-rjmp timer0_isr                     ; Address 0x000A - TIM0_COMPA_ISR
+rjmp taskmanager_exec_next_isr                     ; Address 0x000A - TIM0_COMPA_ISR
 reti                                ; Address 0x000B - TIM0_COMPB_ISR
 reti                                ; Address 0x000C - WDT_ISR
 reti                                ; Address 0x000D - USI_START_ISR
@@ -72,7 +72,7 @@ timer0_isr:
     ; ld r16, X+
     ; ld r17, X+
 
-    rcall taskmanager_exec_next
+    ; rcall taskmanager_exec_next
     reti
 
 
@@ -93,8 +93,9 @@ init_timer:
 
 init_onboard_led:
     sbi DDRB, LED_PIN               ; setup output pin 1 (P1)
+    sbi DDRB, LED_PIN2               ; setup output pin 1 (P1)
     out PORTB, 0
-    ldi r25, (1<<(LED_PIN-1))       ; use r25 to toggle
+    ldi r25, (1<<(LED_PIN-1)) | (1<<(LED_PIN2-1))       ; use r25 to toggle
     clr r20                         ; software scaling counter to blink LED
     ldi r21, LED_SOFT_DELAY             ; software scaling limit
     ret
@@ -115,17 +116,17 @@ main:                               ; initialize
 
     rcall taskmanager_init              ; initialize task manager table
 
-    ldi r17, hi8(blink)             ; add blink task to task manager table
-    ldi r16, lo8(blink)
+    ldi r17, hi8(blink_old)             ; add blink task to task manager table
+    ldi r16, lo8(blink_old)
     rcall taskmanager_add
 
-    ldi r17, hi8(test1)             ; add test1 task to task manager table
-    ldi r16, lo8(test1)
+    ldi r17, hi8(test3)             ; add test3 task to task manager table
+    ldi r16, lo8(test3)
     rcall taskmanager_add
 
-    ldi r17, hi8(time_delay_ms_test)             ; add time_delay_ms_test task to task manager table
-    ldi r16, lo8(time_delay_ms_test)
-    rcall taskmanager_add
+    ; ldi r17, hi8(time_delay_ms_test)             ; add time_delay_ms_test task to task manager table
+    ; ldi r16, lo8(time_delay_ms_test)
+    ; rcall taskmanager_add
     sei
 
 pool:
@@ -143,11 +144,11 @@ blink_timeout:
     clr r20
     sbrc r25, LED_PIN-1             ; if value is unset, continue to "on", else unset it in the "off" label
     rjmp off
-on:
+; on:
     sbi PORTB, LED_PIN              ; set bit
     sbr r25, (1<<(LED_PIN-1))
     ret
-off:
+; off:
     cbi PORTB, LED_PIN              ; clear bit
     cbr r25, (1<<(LED_PIN-1))
     ret
@@ -203,3 +204,45 @@ data_table_1:
     .word 0x5276                        ; 0x76 is addresses when ZLSB = 0
                                         ; 0x58 is addresses when ZLSB = 1
     .word 0x9911
+
+
+blink_old:
+    sbi PORTB, LED_PIN
+on:
+    rcall delay
+    cbi PORTB, LED_PIN
+off:
+    rcall delay
+    rjmp blink_old
+
+
+delay_small:
+    ldi r16, 0xff
+    ldi r17, 0xff
+    ldi r18, 0x04
+    rcall delay2
+    ret
+
+delay:
+    ldi r16, 0xff
+    ldi r17, 0xff
+    ldi r18, 0x1f
+
+delay2:
+    dec r16
+    brne delay2
+    ldi r16, 0xff
+    dec r17
+    brne delay2
+    ldi r17, 0xff
+    dec r18
+    brne delay2
+    ret
+
+
+test3:
+    sbi PORTB, LED_PIN2
+    rcall delay_small
+    cbi PORTB, LED_PIN2
+    rcall delay_small
+    rjmp test3
