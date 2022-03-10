@@ -1,5 +1,6 @@
 MCU=attiny85
 MICRONUCLEUS=vendor/micronucleus/commandline/micronucleus
+SIMAVR=vendor/simavr/simavr/run_avr
 BUILD_PREFIX=build/main
 
 SRC=src/main.asm \
@@ -15,6 +16,9 @@ build:
 
 $(MICRONUCLEUS):
 	cd vendor/micronucleus/commandline && make
+
+$(SIMAVR):
+	cd vendor/simavr/simavr && make
 
 
 $(BUILD_PREFIX).o: build
@@ -49,6 +53,6 @@ clean:
 
 # simulator and gdb setup
 sim:
-	simavr -m attiny85 -f 16000000 $(BUILD_PREFIX).elf  -g
+	$(SIMAVR) -m attiny85 -f 16000000 $(BUILD_PREFIX).elf  -g
 gdb:
 	avr-gdb --command=debug.gdb

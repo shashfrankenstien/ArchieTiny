@@ -1,3 +1,6 @@
 [submodule "vendor/micronucleus"]
 	path = vendor/micronucleus
 	url = https://github.com/micronucleus/micronucleus.git
+[submodule "vendor/simavr"]
+	path = vendor/simavr
+	url = https://github.com/buserror/simavr.git

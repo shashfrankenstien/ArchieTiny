@@ -3,7 +3,7 @@
 - https://www.youtube.com/playlist?list=PLuCmHWky5GN4iyRNNchJ4GMcVCSOgdOvc
 - http://www.avr-asm-tutorial.net/
 - https://blog.oddbit.com/post/2019-01-22-debugging-attiny-code-pt-1/
-
+- http://www.rjhcoding.com/avr-asm-macros.php
 - https://www.youtube.com/watch?v=tFSTG7XEboI&list=PLuCmHWky5GN4iyRNNchJ4GMcVCSOgdOvc&index=5
 
 ## Deps
@@ -20,6 +20,10 @@ sudo apt install simavr
 - simavr clock seems difficult to manage (need to verify) - https://github.com/buserror/simavr/issues/201
 - see debug.gdb for hacky time estimation command
 
+to compile simavr, we need glut
+```
+sudo apt install freeglut3-dev
+```
 
 # Digispark
 ### fuses
@@ -114,3 +118,10 @@ r31     | “call-used” | Can freely use | Save and restore if using
 # Some STM8S stuff
 
 - https://lujji.github.io/blog/
+
+
+-----
+
+# Some PIC stuff
+
+- https://www.youtube.com/watch?v=DBftApUQ8QI
