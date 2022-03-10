@@ -74,19 +74,23 @@ Tasks Table is set up starting at RAM address TASK_TABLE_START (Should be greate
 
 ### Task workflow
 - init
-    - set TASK_COUNTER and TASK_POINTER to 0
+    - set TASKCTS and TASKPTR to 0
 - add new task
-    - increment TASK_COUNTER
-    - store (program address / 2) at the end of the Task Table (TASK_TABLE_START + (value in TASK_COUNTER * 2))
+    - increment TASKPTR till we find an empty slot in TASK_SP_VECTOR
+    - calculate stack pointer address and store in TASK_SP_VECTOR at TASKPTR index
+    - jump to task's alotted stack
+    - store return address, function pointer + manager pushed registers on the stack
+    - if TASK_SP_VECTOR is full, set FULL flag in TASKCTS
 - exec task
-    - read TASK_COUNTER, if eq 0, simply return because there are no registered tasks
-    - read TASK_POINTER and increment to go to next task
-        - initially, TASK_POINTER will be 0. First increment will move it to where the first task address is stored
-    - load X pointer to where the next task's address is stored
-    - read task address into Z register
-    - icall!
-    - finally, if TASK_POINTER = TASK_COUNTER (reached end of task table), set TASK_POINTER back to 0
-- task swapping (TODO)
+    - read TASKCTS counter, if eq 0, simply return because there are no registered tasks
+    - if RUNNING bit is set, there was previously a task that was running
+    - push registers + SREG to stack, read TASKPTR, save stack pointer in TASK_SP_VECTOR at TASKPTR index
+    - increment TASKPTR to go to next task
+        - initially, TASKPTR will be 0
+        - if TASKPTR overflows beyond TASK_MAX_TASKS, wrap around to 0
+    - load stack pointer value from TASK_SP_VECTOR at TASKPTR index
+    - set new stack pointer, pop all registers + SREG
+    - reti
 
 -----
 

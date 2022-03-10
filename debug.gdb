@@ -56,10 +56,10 @@ info r r20
 continue
 end
 
-#b *main+36
+b *main+30
 #b taskmanager_exec_next_isr
 
-define xx1
+define xx
     i r SP
     x/32xb 0x800240
     print "head"
@@ -78,9 +78,9 @@ define xx2
 end
 
 
-define xsi1
+define xsi
     si
-    xx1
+    xx
 end
 
 define xsi2
