@@ -7,9 +7,7 @@
 
 ; blink config
 .equ    LED_PIN,        1
-.equ    LED_PIN2,        0
-.equ    LED_SOFT_DELAY,     250             ; custom software scaling limit - with current settings, the unit here is millisecond
-                                            ; a value of 250 = 0.25 second
+.equ    LED_PIN2,       4
 
 
 ; time and delay manager

@@ -6,6 +6,11 @@
 - http://www.rjhcoding.com/avr-asm-macros.php
 - https://www.youtube.com/watch?v=tFSTG7XEboI&list=PLuCmHWky5GN4iyRNNchJ4GMcVCSOgdOvc&index=5
 
+
+## Debugging
+- https://randomnerdtutorials.com/arduino-poor-mans-oscilloscope/
+- https://sites.google.com/site/wayneholder/debugwire2
+
 ## Deps
 
 ```

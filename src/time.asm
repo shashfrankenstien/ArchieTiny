@@ -1,8 +1,10 @@
 .include "config.inc"                                   ; TIME_SOFT_COUNTER
 
-; 24 bit time counter
+; 24 bit software time counter
+
 ; HIGH_BYTE:MIDDLE_BYTE:LOW_BYTE
 ; TIME_SOFT_COUNTER+2:TIME_SOFT_COUNTER+1:TIME_SOFT_COUNTER
+
 .equ    HIGH_BYTE,         TIME_SOFT_COUNTER
 .equ    MIDDLE_BYTE,       TIME_SOFT_COUNTER + 1
 .equ    LOW_BYTE,          TIME_SOFT_COUNTER + 2
@@ -23,15 +25,15 @@ time_tick:
 
     lds r16, LOW_BYTE
     inc r16                                 ; increment may cause zero flag to be set
-    sts LOW_BYTE, r16
+    sts LOW_BYTE, r16                       ; does not touch zero flag
     breq _tick_middle                       ; if zero flag is set, branch to next byte
     rjmp _tick_done
 
 _tick_middle:
     lds r16, MIDDLE_BYTE
     inc r16                                 ; increment may cause zero flag to be set
-    sts MIDDLE_BYTE, r16
-    breq _tick_middle                       ; if zero flag is set, branch to next byte
+    sts MIDDLE_BYTE, r16                    ; does not touch zero flag
+    breq _tick_high                       ; if zero flag is set, branch to next byte
     rjmp _tick_done
 
 _tick_high:
@@ -47,36 +49,43 @@ _tick_done:
 
 
 
-time_delay_ms_test:                              ; delay in ms, reads input from r18:r17:r16
-    .irp param,12,13,14,15,16,17,18,19
+time_delay_ms:                              ; delay in ms, reads input from r18:r17:r16
+    .irp param,16,17,18,19,20,21,22
         push r\param
     .endr
-    in r12, SREG
-
-    ldi r16, 200
-    clr r17
-    clr r18
+    in r22, SREG
 
     lds r19, LOW_BYTE
-    adc r16, r19
-    lds r19, MIDDLE_BYTE
-    adc r17, r19
-    lds r19, HIGH_BYTE
-    adc r18, r19
+    lds r20, MIDDLE_BYTE
+    lds r21, HIGH_BYTE
+    ; cli
+    clc
+    add r16, r19
+    adc r17, r20
+    adc r18, r21
+    ; sei
 
 _delay_loop:
-    lds r13, LOW_BYTE
-    lds r14, MIDDLE_BYTE
-    lds r15, HIGH_BYTE
+    lds r19, LOW_BYTE
+    lds r20, MIDDLE_BYTE
+    lds r21, HIGH_BYTE
 
-    sub r13, r16
-    sbc r14, r17
-    sbc r15, r18
-_delay_loop2:
-    ; brmi _delay_loop
+    ; cli
+    clc
+    sub r19, r16
+    sbc r20, r17
+    sbc r21, r18
+    brmi _delay_loop_sei_sleep_jmp
 
-    out SREG, r12
-    .irp param,19,18,17,16,15,14,13,12
+stopper:
+stopper_count:
+    out SREG, r22
+    .irp param,22,21,20,19,18,17,16
         pop r\param
     .endr
     ret
+
+_delay_loop_sei_sleep_jmp:
+    ; sei
+    sleep
+    rjmp _delay_loop

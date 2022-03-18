@@ -3,17 +3,7 @@
 file build/main.elf
 target remote: 1234
 
-# b blink
-# command
-# info r r20
-# info r r0
-# end
-#
-# b timer0_isr
-# command
-# info r r20
-# info r r0
-# end
+
 
 # b pool
 # command
@@ -25,39 +15,59 @@ target remote: 1234
 # end
 
 
-# b timer0_scaled
+# b on
 # command
-# info r r16
+# # xx
+# i r r16
+# i r r17
+# i r r18
+# x/3xb 0x800060
 # shell echo $(date +%s.%N) - $(cat gdb_timer) | bc -l
 # shell echo $(date +%s.%N) > gdb_timer
 # continue
 # end
+# #
+# b off
+# command
+# # xx
+# i r r16
+# i r r17
+# i r r18
+# x/3xb 0x800060
+# shell echo $(date +%s.%N) - $(cat gdb_timer) | bc -l
+# shell echo $(date +%s.%N) > gdb_timer
+# continue
+# end
+# #
+# b test3
+# command
+# # xx
+# i r r16
+# i r r17
+# i r r18
+# i r r19
+# i r r20
+# i r r21
+# x/3xb 0x800060
+# end
 
-b on
-command
-info r r25
-shell echo $(date +%s.%N) - $(cat gdb_timer) | bc -l
-shell echo $(date +%s.%N) > gdb_timer
-continue
-end
+# b time_tick
+# command
+# x/3xb 0x800060
+# end
 
-b off
-command
-info r r25
-shell echo $(date +%s.%N) - $(cat gdb_timer) | bc -l
-shell echo $(date +%s.%N) > gdb_timer
-x 0x800060
-continue
-end
 
-b test3
-command
-info r r20
-continue
-end
 
-b *main+30
-#b taskmanager_exec_next_isr
+# b *main+30
+# b time_delay_ms
+# b _delay_loop
+# command
+# i r r16
+# i r r17
+# i r r18
+# x/3xb 0x800060
+# end
+
 
 define xx
     i r SP
@@ -89,3 +99,22 @@ define xsi2
 end
 
 
+define reg
+i r r16
+i r r17
+i r r18
+i r r19
+i r r20
+i r r21
+end
+
+set $foo = 0
+
+b stopper_count
+command
+set $foo = $foo + 1
+print $foo
+print $r17 * 256 + $r16
+if $foo * 0xff == $r17 * 256 + $r16
+    continue
+end

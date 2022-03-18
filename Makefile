@@ -1,6 +1,7 @@
 MCU=attiny85
 MICRONUCLEUS=vendor/micronucleus/commandline/micronucleus
 SIMAVR=vendor/simavr/simavr/run_avr
+PORT ?= /dev/ttyACM0
 BUILD_PREFIX=build/main
 
 SRC=src/main.asm \
@@ -39,9 +40,15 @@ $(BUILD_PREFIX).hex: $(BUILD_PREFIX).elf
 
 
 flash-avr: $(BUILD_PREFIX).hex
-# avrdude -P /dev/ttyUSB0 -c stk500v1 -b 19200 -p $(MCU)
-	avrdude -v -v -v -v -p$(MCU) -cstk500v1 -P/dev/ttyUSB0 -b19200 -e -U efuse:w:0xff:m -U hfuse:w:0xdf:m -U lfuse:w:0xe1:m
-	avrdude -P /dev/ttyUSB0 -c stk500v1 -b 19200 -p $(MCU) -D -U flash:w:$<:i
+	avrdude -v -v -v -v -p$(MCU) -cstk500v1 -P$(PORT) -b19200 -e -U efuse:w:0xff:m -U hfuse:w:0xdf:m -U lfuse:w:0xe1:m
+	avrdude -P $(PORT) -c stk500v1 -b 19200 -p $(MCU) -D -U flash:w:$<:i
+
+
+test-avr:
+	avrdude -P $(PORT) -c stk500v1 -b 19200 -p $(MCU)
+
+# debug-wire:
+# 	./vendor/debugwire/connect.sh  $(PORT) 115200
 
 
 flash-micronucleus: $(MICRONUCLEUS)
@@ -56,3 +63,6 @@ sim:
 	$(SIMAVR) -m attiny85 -f 16000000 $(BUILD_PREFIX).elf  -g
 gdb:
 	avr-gdb --command=debug.gdb
+sim-bg:
+	make sim &
+	make gdb
