@@ -2,9 +2,9 @@ MCU=attiny85
 MICRONUCLEUS=vendor/micronucleus/commandline/micronucleus
 SIMAVR=vendor/simavr/simavr/run_avr
 PORT ?= /dev/ttyACM0
-BUILD_PREFIX=build/main
+BUILD_PREFIX=build/kernel
 
-SRC=src/main.asm \
+SRC=src/kernel.asm \
 	src/time.asm \
 	src/tasks.asm
 

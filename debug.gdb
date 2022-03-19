@@ -1,6 +1,6 @@
 # set debug infrun 1
 # layout next
-file build/main.elf
+file build/kernel.elf
 target remote: 1234
 
 

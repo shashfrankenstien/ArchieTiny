@@ -10,6 +10,7 @@
 ## Debugging
 - https://randomnerdtutorials.com/arduino-poor-mans-oscilloscope/
 - https://sites.google.com/site/wayneholder/debugwire2
+- https://sites.google.com/site/wayneholder/attiny-fuse-reset
 
 ## Deps
 
@@ -78,8 +79,8 @@ Tasks Table is set up starting at RAM address TASK_TABLE_START (Should be greate
 ### Task table
 - First byte will be the TASK_COUNTER
 - Second byte will be current TASK_POINTER
-- Next addresses will contain word size addresses to registered tasks
-    - Note: Because of how the `Z` register works with `icall`, task address should be divided by 2. `icall` will then multiply it by 2 before executing
+- Next addresses will contain word size values of task stack pointers
+    - Note: Because of how the stack pointer works, task address should be divided by 2. cpu will then multiply it by 2 before executing
 
 ### Task workflow
 - init
