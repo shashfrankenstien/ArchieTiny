@@ -5,9 +5,9 @@
 ;        |_________| --> TASKCTS - task counter and status register (1)
 ;        |_________| --> TASKPTR - current task index / pointer (1)
 ;        |_________| --> task stack pointers vector (TASK_MAX_TASKS*2)
-;        |         | --> task frame 1 (TASK_FRAME_SIZE)
+;        |         | --> task stack 1 (TASK_STACK_SIZE)
 ;        |_________|
-;        |         | --> task frame 2 (TASK_FRAME_SIZE)
+;        |         | --> task stack 2 (TASK_STACK_SIZE)
 ;             .
 ;             .
 ; TASKCTS - task counter and status vector (1)
@@ -30,8 +30,8 @@
 .equ    COUNT0,                 0
 
 ; task stack pointers vector (TASK_MAX_TASKS*2)
-;   - TASK_MAX_TASKS words (TASK_MAX_TASKS*2 bytes) each contain a stack pointer per task frame
-;   - a zero in this place indicates that a task frame is free
+;   - TASK_MAX_TASKS words (TASK_MAX_TASKS*2 bytes) each contain a stack pointer per task
+;   - a zero in this place indicates that a task stack is free
 ;
 ;        |_________|
 ;        |         | --> stack pointer of task 0
@@ -39,15 +39,15 @@
 ;        |         |     .
 ;        |         |     .
 ;        |_________|     stack pointer of task TASK_MAX_TASKS
-;        |         | --> start of task frames of TASK_FRAME_SIZE bytes each
+;        |         | --> start of task stacks of TASK_STACK_SIZE bytes each
 
 .equ    TASK_SP_VECTOR,        TASK_TABLE_START + 2                 ; task stack pointers vector
-.equ    TASK_FRAMES_TOP,       TASK_SP_VECTOR + (TASK_MAX_TASKS*2)  ; start of task frames
+.equ    TASK_STACKS_TOP,       TASK_SP_VECTOR + (TASK_MAX_TASKS*2)  ; start of task stacks
 
-; Task Frame (SRAM)
+; Task stack (SRAM)
 ;
 ;        |_________| --> stack pointers vector
-;        |         | --> start of task frames of TASK_FRAME_SIZE bytes each
+;        |         | --> start of task stacks of TASK_STACK_SIZE bytes each
 ;        |         |
 ;        |         |
 ;        |         |
@@ -62,7 +62,7 @@
 ;        |_________|
 ;        |_________| --> function pointer (2) [popped as soon as task starts]
 ;        |_________| --> return addr (2)
-;        |         | --> next task frame
+;        |         | --> next task stack
 
 ; manager pushed registers (18)
 ;   - r0,r1,r16,r17,r18,r19,r20,r21,r22,r23,r24,r25,r26,r27,r28,r29,r30,r31
@@ -76,7 +76,7 @@ taskmanager_init:
     clr r16
     sts TASKCTS, r16                                    ; initialize task counter to 0
     sts TASKPTR, r16                                    ; initialize current task pointer to 0
-    .irp param,0,1,2,3,4,5,6                            ; initialize task frame addrs vector to 0s
+    .irp param,0,1,2,3,4,5,6                            ; initialize task stack addrs vector to 0s
         sts TASK_SP_VECTOR + (\param * 2), r16
         sts TASK_SP_VECTOR + 1 + (\param * 2), r16
     .endr
@@ -98,13 +98,11 @@ taskmanager_add:                                ; expects task address loaded in
     ldi r26, lo8(TASK_SP_VECTOR)                ; set XL to start of task stack pointers vector
     ldi r27, hi8(TASK_SP_VECTOR)                ; set XH to start of task stack pointers vector
 
-    ldi r28, lo8(TASK_SP_VECTOR)                ; set YL to the start of task frames
-    ldi r29, hi8(TASK_SP_VECTOR)                ; set YH to the start of task frames
+    ldi r28, lo8(TASK_STACKS_TOP)               ; set YL to the start of task stacks
+    ldi r29, hi8(TASK_STACKS_TOP)               ; set YH to the start of task stacks
 
-    adiw r28, TASK_MAX_TASKS*2                  ; point Y to the start of task frames
-
-    clr r22
-    ldi r23, TASK_FRAME_SIZE                    ; setup Y pointer jump range
+    clr r22                                     ; clear r22 to be used as task sp vector index
+    ldi r23, TASK_STACK_SIZE                    ; setup Y pointer stack jump range
 
 _look_for_slot:
     ld r18, X+
@@ -118,7 +116,7 @@ _look_for_slot:
     rjmp _slot_found
 
 _next_slot:
-    add r28, r23                            ; move to next task frame
+    add r28, r23                            ; move Y to next task stack
     adc r29, 0
     inc r22
     cpi r22, TASK_MAX_TASKS                 ; if r22 reached max allowed tasks, exit
@@ -127,16 +125,16 @@ _next_slot:
     rjmp _look_for_slot
 
 _slot_found:
-    sbiw r26, 2                                 ; go back 2 bytes to reach the slot
+    sbiw r26, 2                                 ; move X back 2 bytes to reach the slot
 
-    ldi r23, TASK_FRAME_SIZE -1 -3 -18 -1 -1    ; finding where the stack pointer should point -
+    ldi r23, TASK_STACK_SIZE -1 -3 -18 -1 -1    ; finding where the stack pointer should point -
                                                 ;   -1 to reach the last byte
                                                 ;   -3 from there to allow for 4 bytes to be filled (entry and return addresses)
                                                 ; registers will be popped as soon as the task starts (.irp param,0,1,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31)
                                                 ;   -18 bytes for these registers => len([0,1,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31])
                                                 ;   -1 for SREG
                                                 ;   -1 because the SP should point to the next location
-    add r28, r23                                ; add this offset to the start of frame
+    add r28, r23                                ; add this offset to the start of stack
     adc r29, 0                                  ; this is the address contained in our new stack pointer
 
     st X+, r28                                  ; store the stack pointer low and high bytes
@@ -172,7 +170,7 @@ _slot_found:
     sts TASKCTS, r16
 
     mov r17, r16                            ; copy current counter
-    eor r16, 0x0f                           ; keep the low bits TASKCTS[3:0]
+    andi r16, 0x0f                          ; keep the low bits TASKCTS[3:0]
     cpi r16, TASK_MAX_TASKS-1               ; check if counter has reached TASK_MAX_TASKS
     brne _slot_assigned                     ; if not reached yet, finish up and return
 
@@ -220,7 +218,7 @@ taskmanager_exec_next_isr:
 
     lds r16, TASKCTS
     mov r17, r16
-    eor r17, 0x0f                   ; only see low 4 bits of counter
+    andi r17, 0x0f                  ; only see low 4 bits of counter
     cpi r17, 0                      ; if TASKCTS[3:0] is 0, no tasks are registered
     brne _tasks_available
 
@@ -274,7 +272,7 @@ _check_addr:
     cpi r19, 0
     brne _addr_avail
 
-    inc r16                         ; if we reach here, it means the frame address was 0 (empty)
+    inc r16                         ; if we reach here, it means the stack address was 0 (empty)
     rjmp _start_next_task           ; move to the next task until we find one (Oh no!!!!!!! inf loop feels)
 
 _addr_avail:
