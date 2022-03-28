@@ -8,9 +8,11 @@
 
 
 ## Debugging
+- https://github.com/vince-br-549/ESP8266-as-ISP
 - https://randomnerdtutorials.com/arduino-poor-mans-oscilloscope/
 - https://sites.google.com/site/wayneholder/debugwire2
 - https://sites.google.com/site/wayneholder/attiny-fuse-reset
+- https://sites.google.com/site/wayneholder/attiny-fuse-reset-with-12-volt-charge-pump
 
 ## Deps
 
@@ -39,20 +41,18 @@ sudo apt install freeglut3-dev
 
 
 
-# Raw attiny85 using ESP8266 as ISP
+# Raw attiny85 using ATTinyDebugTools
 
-https://github.com/vince-br-549/ESP8266-as-ISP
+https://github.com/shashfrankenstien/ATTinyDebugTools
 
-Use the [vendor/esp8266_isp.ino](vendor/esp8266_isp.ino) file to convert an ESP8266 into an ISP
-
-Function| ESP8266 | ATtiny85
+Function| ATTinyDebugTools | ATtiny85
 ---|---|---
-SCK | D5 | pin 7
-MISO | D6 | pin 6
-MOSI | D7 | pin 5
-RESET | 10 | pin 1
+SCK | D13 | pin 7
+MISO | D12 | pin 6
+MOSI | D11 | pin 5
+VCC | D10 | pin 8
+RESET | D6 | pin 1
 GND | GND | pin 4
-VCC | 3.3v | pin 8
 
 ### default fuses
 - Low fuse: 0x62  -- 8 MHz mode with clock divide by 8 (1 MHz)

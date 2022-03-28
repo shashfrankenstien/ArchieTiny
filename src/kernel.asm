@@ -190,7 +190,7 @@ pool:
 
 
 blink_old:
-    ldi r16, 0xff                           ; set delay to approximately 1 second (256 * 4 milliseconds)
+    ldi r16, 0xe8                           ; set delay to approximately 1 second (256 * 4 milliseconds)
     ldi r17, 0x03
     clr r18
 blink_loop:
@@ -205,8 +205,8 @@ off:
 
 
 test3:
-    ldi r16, 0xff                           ; set delay to approximately 0.25 second (250 milliseconds)
-    ldi r17, 0x0
+    ldi r16, 0xfa                           ; set delay to 0.25 second (250 milliseconds)
+    clr r17
     clr r18
 test3_loop:
     sbi PORTB, LED_PIN2
