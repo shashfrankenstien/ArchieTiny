@@ -17,6 +17,6 @@
 ; task manager table
 .equ    TASK_TABLE_START,   TIME_SOFT_COUNTER + 3       ; Task vector start address
                                                         ; set this to TIME_SOFT_COUNTER + 3 since the time counter is 24 bits (3 bytes)
-.equ    TASK_FRAME_SIZE,    64                          ; Each task in the task manager get 64 bytes of RAM
-                                                        ;   10 bytes are required for the task manager and the rest are available for the task
-.equ    TASK_MAX_TASKS,     7
+.equ    TASK_STACK_SIZE,    100                         ; Each task in the task manager get TASK_STACK_SIZE bytes of RAM
+                                                        ;   some of these bytes are required for the task manager and the rest are available for the task
+.equ    TASK_MAX_TASKS,     4

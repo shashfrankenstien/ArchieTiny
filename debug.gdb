@@ -75,7 +75,7 @@ define xx
     print "head"
     x/16xb 0x800060
     print "data"
-    x/64xb 0x800073
+    x/110xb 0x80006D
 end
 
 define xx2
@@ -84,7 +84,7 @@ define xx2
     print "head"
     x/16xb 0x800060
     print "data"
-    x/64xb 0x8000b3
+    x/110xb 0x80006D + 110
 end
 
 
@@ -108,13 +108,20 @@ i r r20
 i r r21
 end
 
-set $foo = 0
 
-b stopper_count
-command
-set $foo = $foo + 1
-print $foo
-print $r17 * 256 + $r16
-if $foo * 0xff == $r17 * 256 + $r16
-    continue
-end
+
+
+
+b taskmanager_exec_next_isr
+
+
+# set $foo = 0
+#
+# b stopper_count
+# command
+# set $foo = $foo + 1
+# print $foo
+# print $r17 * 256 + $r16
+# if $foo * 0xff == $r17 * 256 + $r16
+#     continue
+# end
