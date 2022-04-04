@@ -49,21 +49,22 @@ _tick_done:
 
 
 
-time_delay_ms:                              ; delay in ms, reads input from r18:r17:r16
+
+time_delay_ms:                              ; delay in ms, reads input from r22:r21:r20
     .irp param,16,17,18,19,20,21,22
         push r\param
     .endr
-    in r22, SREG
+    in r19, SREG
 
     cli                                     ; read current timer 24 bit value. disable interrupt so this doesn't change while reading
-    lds r19, LOW_BYTE
-    lds r20, MIDDLE_BYTE
-    lds r21, HIGH_BYTE
+    lds r16, LOW_BYTE
+    lds r17, MIDDLE_BYTE
+    lds r18, HIGH_BYTE
 
-    clc                                     ; add current tick to the input values in r16, r17 and r18
-    add r16, r19                            ; this gives us the target tick to wait for in _delay_loop
-    adc r17, r20
-    adc r18, r21
+    clc                                     ; add current tick to the input values in r20, r21 and r22
+    add r20, r16                            ; this gives us the target tick to wait for in _delay_loop
+    adc r21, r17
+    adc r22, r18
     sei                                     ; enable interrupts at the end
 
     rjmp _delay_loop
@@ -73,19 +74,19 @@ _delay_loop_sleep_jmp:
 
 _delay_loop:
     cli                                     ; read current timer 24 bit value. disable interrupt so this doesn't change while reading
-    lds r19, LOW_BYTE
-    lds r20, MIDDLE_BYTE
-    lds r21, HIGH_BYTE
+    lds r16, LOW_BYTE
+    lds r17, MIDDLE_BYTE
+    lds r18, HIGH_BYTE
 
     clc                                     ; subtract target from current tick
-    sub r19, r16                            ; this will be negative if target is in the future
-    sbc r20, r17
-    sbc r21, r18
+    sub r16, r20                            ; this will be negative if target is in the future
+    sbc r17, r21
+    sbc r18, r22
     sei                                     ; sei does not mess with negative or zero flags used by brmi
     brmi _delay_loop_sleep_jmp              ; if subtracting target from current tick yielded a negative result, continue waiting
 
 stopper_count:
-    out SREG, r22
+    out SREG, r19
     .irp param,22,21,20,19,18,17,16
         pop r\param
     .endr

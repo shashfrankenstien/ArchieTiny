@@ -6,7 +6,9 @@ BUILD_PREFIX=build/kernel
 
 SRC=src/kernel.asm \
 	src/time.asm \
-	src/tasks.asm
+	src/tasks.asm \
+	src/usi_i2c.asm \
+	src/sh1106.asm
 
 all: $(BUILD_PREFIX).hex
 
@@ -40,7 +42,7 @@ $(BUILD_PREFIX).hex: $(BUILD_PREFIX).elf
 
 
 flash-avr: $(BUILD_PREFIX).hex
-	avrdude -v -v -v -v -p$(MCU) -cstk500v1 -P$(PORT) -b19200 -e -U efuse:w:0xff:m -U hfuse:w:0xdf:m -U lfuse:w:0xe1:m
+	avrdude -v -p$(MCU) -cstk500v1 -P$(PORT) -b19200 -e -U efuse:w:0xff:m -U hfuse:w:0xdf:m -U lfuse:w:0xe1:m
 	avrdude -P $(PORT) -c stk500v1 -b 19200 -p $(MCU) -D -U flash:w:$<:i
 
 

@@ -9,8 +9,8 @@
 
 
 ; timer / counter control - Timer0
-; .equ    GTCCR,            0x2C            ; GTCCR – General Timer/Counter Control Register
-.equ    TCCR0A,             0x2A            ; TCCR0A – Timer/Counter Control Register A
+; .equ    GTCCR,            0x2c            ; GTCCR – General Timer/Counter Control Register
+.equ    TCCR0A,             0x2a            ; TCCR0A – Timer/Counter Control Register A
 .equ    TCCR0B,             0x33            ; TCCR0B – Timer/Counter Control Register B
 .equ    OCR0A,              0x29            ; OCR0A – Output Compare Register A
 .equ    OCR0B,              0x28            ; OCR0B – Output Compare Register B
@@ -37,8 +37,10 @@
 
 
 ; built-in LED control
-.equ    DDRB,              0x17
-.equ    PORTB,             0x18
+.equ    DDRB,               0x17
+.equ    PORTB,              0x18
+.equ	PINB,               0x16
+
 
 ; repurpose r25 for gpio flags
 ; .req    r25,            r25
@@ -114,9 +116,9 @@ main:                               ; initialize
     rcall init_onboard_led          ; set LED output pin
 
     rcall time_init
+    rcall i2c_init
 
     rcall taskmanager_init              ; initialize task manager table
-
 
     ldi r17, hi8(test3)             ; add test3 task to task manager table
     ldi r16, lo8(test3)
@@ -190,24 +192,36 @@ pool:
 
 
 blink_old:
-    ldi r16, 0xe8                           ; set delay to approximately 1 second (256 * 4 milliseconds)
-    ldi r17, 0x03
-    clr r18
+    ldi r20, 0xe8                           ; set delay to approximately 1 second (250 * 4 milliseconds)
+    ldi r21, 0x03
+    clr r22
+
+    rcall oled_init
 blink_loop:
-    sbi PORTB, LED_PIN
+    ; sbi PORTB, LED_PIN
 on:
     rcall time_delay_ms
-    cbi PORTB, LED_PIN
-off:
+    sbi PORTB, LED_PIN
+    rcall test_oled
+
     rcall time_delay_ms
+    rcall test_oled_read
+
+    rcall time_delay_ms
+    sbi PORTB, LED_PIN
+    rcall test_oled2
+
+    rcall time_delay_ms
+    rcall test_oled_read
+
     rjmp blink_loop
 
 
 
 test3:
-    ldi r16, 0xfa                           ; set delay to 0.25 second (250 milliseconds)
-    clr r17
-    clr r18
+    ldi r20, 0xfa                           ; set delay to 0.25 second (250 milliseconds)
+    clr r21
+    clr r22
 test3_loop:
     sbi PORTB, LED_PIN2
     rcall time_delay_ms

@@ -77,8 +77,8 @@ GND | GND | pin 4
 Tasks Table is set up starting at RAM address TASK_TABLE_START (Should be greater than 0x60 = 32 general registers + 64 I/O registers).
 
 ### Task table
-- First byte will be the TASK_COUNTER
-- Second byte will be current TASK_POINTER
+- First byte will be the task counter (TASKCTS)
+- Second byte will be current task index (TASKPTR)
 - Next addresses will contain word size values of task stack pointers
     - Note: Because of how the stack pointer works, task address should be divided by 2. cpu will then multiply it by 2 before executing
 
@@ -102,6 +102,14 @@ Tasks Table is set up starting at RAM address TASK_TABLE_START (Should be greate
     - set new stack pointer, pop all registers + SREG
     - reti
 
+
+### I2C
+- Built-in USI I2C
+    - outputs USIDR MSB on SDA line on falling edge of SCL
+    - slave devices read on rising edge of SCL
+    - slave addresses seem to be shifted left
+        - for example, in SH1106, documentation says addresses are 0111100 and 0111101, but in reality, device only reponds to 01111000 and 01111001
+- SH1106 Command Table is on page 30 of the datasheet
 -----
 
 [docs/Atmel-AT1886-Mix-C-and-Asm.pdf](docs/Atmel-AT1886-Mix-C-and-Asm.pdf)

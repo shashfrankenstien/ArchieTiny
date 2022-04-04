@@ -110,10 +110,11 @@ end
 
 
 
+b blink_loop
 
-
-b taskmanager_exec_next_isr
-
+# b i2c_check_addr
+# b *i2c_check_addr+26
+# b *i2c_check_addr+36
 
 # set $foo = 0
 #
