@@ -98,7 +98,7 @@ init_timer:
 
 
 init_onboard_led:
-    sbi DDRB, LED_PIN               ; setup output pin 1 (P1)
+    sbi DDRB, LED_PIN                ; setup output pin 1 (P1)
     sbi DDRB, LED_PIN2               ; setup output pin 1 (P1)
     out PORTB, 0
     ret
@@ -117,6 +117,7 @@ main:                               ; initialize
 
     rcall time_init
     rcall i2c_init
+    rcall oled_init
 
     rcall taskmanager_init              ; initialize task manager table
 
@@ -196,7 +197,6 @@ blink_old:
     ldi r21, 0x03
     clr r22
 
-    rcall oled_init
 blink_loop:
     ; sbi PORTB, LED_PIN
 on:
