@@ -110,6 +110,11 @@ Tasks Table is set up starting at RAM address TASK_TABLE_START (Should be greate
     - slave addresses seem to be shifted left
         - for example, in SH1106, documentation says addresses are 0111100 and 0111101, but in reality, device only reponds to 01111000 and 01111001
 - SH1106 Command Table is on page 30 of the datasheet
+
+
+### Button press event manager (TODO)
+
+
 -----
 
 [docs/Atmel-AT1886-Mix-C-and-Asm.pdf](docs/Atmel-AT1886-Mix-C-and-Asm.pdf)

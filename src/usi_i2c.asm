@@ -13,56 +13,9 @@
 
 
 
-; the `time_delay_ms` routine in the `time` module has a max frequency of 1 kHz (1 ms precision)
-; this, however, is too slow to use i2c for anything practical
-; so we will define an accurate clock cycle delay routine
-; note: this is not truely accurate due to interrupts
-;
-; to go about it, we will count out the clock cycles of each instruction
-; setup and tear down are one time. these should be subtracted
-; instructions within the loop are doing the actual chunk of the work. this is the divisor
-; so, the input in r20 should be (required delay - sum of setup and tear down instruction) / sum of loop instructions
-delay_clock_cycles:                 ; create accurate delay
-                                    ; +3 cycles -> rcall into delay_clock_cycles
-    push r16                        ; +2 cycles -> push
-    in r16, SREG                    ; +1 cycle -> in
-
-_consume_clock:                     ; ----- loop -------
-    nop                             ; +1 cycle -> nop
-    dec r20                         ; +1 cycle -> dec
-    brne _consume_clock             ; +2 cycles -> when brne is true
-                                    ; ------------------
-                                    ; -1 cycle -> brne takes only 1 cycle on the last loop, but we counted it as 2
-
-    out SREG, r16                   ; +1 cycle -> out
-    pop r16                         ; +2 cycles -> pop
-    ret                             ; +4 cycles -> ret
-; so finally,
-;   sum of setup and tear down instruction = 12
-;   sum of loop instructions = 4
-; input r20 = (required delay - 12) / 4
-; delay = lambda r20: (r20 * 4) + 12
-
-; minimum delay is 15 clock cycles. r20 = 1
-; common delays lookup table
-; ------------------------------------------------
-;   r20   |  delay (cycles)  | Time (16 MHz clock)
-; ------------------------------------------------
-;    1    |       16         |       1 us           ; min
-;    2    |       20         |       1.25 us
-;    7    |       40         |       2.5 us
-;    17   |       80         |       5 us
-;    22   |       100        |
-;    37   |       160        |       10 us
-;    47   |       200        |
-;    72   |       300        |
-;    197  |       800        |       50 us
-;    255  |       1032       |       64.5 us        ; max
-; ----------------------------
-
-
-
-.equ    I2C_DELAY_CC,         2         ; this delays 1.25 us for 1/2 period. So for the full period, it is 400 kHz
+.equ    I2C_DELAY_CC,         3         ; this delays 1.5 us at 16 MHz. This is used for half a period.
+                                        ; So for the full period, it is 3 us (333.33 kHz)
+                                        ; * see 'time_delay_clock_cycles' in the 'time' module
 
 
 
@@ -83,41 +36,38 @@ i2c_init:
     pop r16
     ret
 
-i2c_deinit:
-    cbi DDRB, I2C_SDA_PIN               ; setup output I2C_SDA_PIN
-    cbi DDRB, I2C_SCL_PIN               ; setup output I2C_SCL_PIN
 
-    cbi PORTB, I2C_SDA_PIN              ; set SDA to high
-    cbi PORTB, I2C_SCL_PIN              ; set SCL to high
+; i2c_deinit:
+;     cbi DDRB, I2C_SDA_PIN               ; setup output I2C_SDA_PIN
+;     cbi DDRB, I2C_SCL_PIN               ; setup output I2C_SCL_PIN
 
-    push r16
-    clr r16
-    out USIDR, r16
-    out USISR, r16
-    out USICR, r16
-    pop r16
-    ret
+;     cbi PORTB, I2C_SDA_PIN              ; set SDA to high
+;     cbi PORTB, I2C_SCL_PIN              ; set SCL to high
+
+;     push r16
+;     clr r16
+;     out USIDR, r16
+;     out USISR, r16
+;     out USICR, r16
+;     pop r16
+;     ret
 
 
 
 
 i2c_do_start_condition:
-    .irp param,20,21,22
-        push r\param
-    .endr
+    push r20
 
-    clr r21
-    clr r22
     ldi r20, I2C_DELAY_CC               ; set delay
 
     ; Release SCL to ensure that (repeated) Start can be performed
     sbi PORTB, I2C_SCL_PIN              ; set SCL to high
     sbi DDRB, I2C_SDA_PIN               ; make sure SDA is set as output
-    rcall delay_clock_cycles
+    rcall time_delay_clock_cycles
 
     ; Generate Start Condition
     cbi PORTB, I2C_SDA_PIN              ; Force SDA LOW.
-    rcall delay_clock_cycles
+    rcall time_delay_clock_cycles
     sbi USICR, 0                        ; Pull SCL LOW.
 
     sbi PORTB, I2C_SDA_PIN              ; Release SDA.
@@ -125,22 +75,16 @@ i2c_do_start_condition:
     ldi r20, I2C_MODE
     out USICR, r20
 
-    .irp param,22,21,20
-        pop r\param
-    .endr
+    pop r20
     ret
 
 
 
 i2c_do_stop_condition:
-    .irp param,20,21,22
-        push r\param
-    .endr
+    push r20
 
-    clr r21
-    clr r22
-    ldi r20, I2C_DELAY_CC                       ; set delay
-    rcall delay_clock_cycles
+    ldi r20, I2C_DELAY_CC               ; set delay
+    rcall time_delay_clock_cycles
 
     ldi r20, 0xff
     out USIDR, r20
@@ -148,35 +92,29 @@ i2c_do_stop_condition:
     ldi r20, 0xf0                       ; Cleaning the flags and the counter is reset
     out USISR, r20
 
-    .irp param,22,21,20
-        pop r\param
-    .endr
+    pop r20
     ret
 
 
 
 _i2c_pulse_till_overflow:
-    .irp param,16,20,21,22
-        push r\param
-    .endr
+    push r20
+    push r16
 
-    clr r21
-    clr r22
-    ldi r20, I2C_DELAY_CC                       ; set delay
+    ldi r20, I2C_DELAY_CC            ; set delay
 
 _next_pulse:
-    rcall delay_clock_cycles
+    rcall time_delay_clock_cycles
     sbi USICR, 0                    ; Generate positive SCL edge.
-    rcall delay_clock_cycles
+    rcall time_delay_clock_cycles
     sbi USICR, 0                    ; Generate negative SCL edge.
 
     in r16, USISR
     sbrs r16, USIOIF                ; Check for transfer complete.
     rjmp _next_pulse
 
-    .irp param,22,21,20,16
-        pop r\param
-    .endr
+    pop r16
+    pop r20
     ret
 
 

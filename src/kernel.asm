@@ -67,19 +67,15 @@ reti                                ; Address 0x0006 - EE_RDY_ISR
 reti                                ; Address 0x0007 - ANA_COMP_ISR
 reti                                ; Address 0x0008 - ADC_ISR
 reti                                ; Address 0x0009 - TIM1_COMPB_ISR
-rjmp timer0_isr                     ; Address 0x000A - TIM0_COMPA_ISR
+rjmp time_tick_isr                  ; Address 0x000A - TIM0_COMPA_ISR
 rjmp taskmanager_exec_next_isr      ; Address 0x000B - TIM0_COMPB_ISR
 reti                                ; Address 0x000C - WDT_ISR
 reti                                ; Address 0x000D - USI_START_ISR
 reti                                ; Address 0x000E - USI_OVF_ISR
 
 
-timer0_isr:
-    rcall time_tick
-    reti
 
-
-init_timer:
+init_timer0:
     ldi r16, COUNTER_CTRL_A
     out TCCR0A, r16                 ; mode select
 
@@ -112,7 +108,7 @@ main:                               ; initialize
     ldi r16, hi8(RAMEND)            ; set stack pointer high bits to high(RAMEND)
     out SPH, r16
 
-    rcall init_timer                ; set timer / counter options
+    rcall init_timer0               ; set timer / counter options
     rcall init_onboard_led          ; set LED output pin
 
     rcall time_init
@@ -121,7 +117,7 @@ main:                               ; initialize
 
     rcall taskmanager_init              ; initialize task manager table
 
-    ldi r17, hi8(test3)             ; add test3 task to task manager table
+    ldi r17, hi8(test3)                 ; add test3 task to task manager table
     ldi r16, lo8(test3)
     rcall taskmanager_add
 
@@ -133,7 +129,7 @@ main:                               ; initialize
     sei
 
 pool:
-    sleep                           ; wait for interrupts (required for simavr to perform correctly)
+    sleep                               ; wait for interrupts (required for simavr to perform correctly. good idea anyway)
     rjmp pool
 
 

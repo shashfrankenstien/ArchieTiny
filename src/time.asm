@@ -1,6 +1,7 @@
 .include "config.inc"                                   ; TIME_SOFT_COUNTER
 
 ; 24 bit software time counter
+; kinda accurate clock cycle counter delay. (see time_delay_clock_cycles)
 
 ; HIGH_BYTE:MIDDLE_BYTE:LOW_BYTE
 ; TIME_SOFT_COUNTER+2:TIME_SOFT_COUNTER+1:TIME_SOFT_COUNTER
@@ -18,7 +19,7 @@ time_init:
 
 
 
-time_tick:
+time_tick_isr:
     push r16
     push r17
     in r17, SREG
@@ -45,7 +46,7 @@ _tick_done:
     out SREG, r17
     pop r17
     pop r16
-    ret
+    reti
 
 
 
@@ -91,3 +92,58 @@ stopper_count:
         pop r\param
     .endr
     ret
+
+
+
+
+
+
+
+; the `time_delay_ms` routine has a max frequency of 1 kHz (1 ms precision)
+; this, however, is too slow to use in some cases (ex: i2c)
+; so we will define an accurate clock cycle delay routine
+; note: this is not truely accurate due to interrupts
+;
+; to go about it, we will count out the clock cycles of each instruction in the routine
+; setup and tear down are one time. these should be subtracted
+; instructions within the loop are doing the actual chunk of the work. this is the divisor
+; so, the input in r20 should be (required delay - sum of setup and tear down instruction) / sum of loop instructions
+time_delay_clock_cycles:            ; create accurate delay
+                                    ; +3 cycles -> rcall into time_delay_clock_cycles
+    push r16                        ; +2 cycles -> push
+    in r16, SREG                    ; +1 cycle -> in
+
+_consume_clock:                     ; ----- loop -------
+    nop                             ; +1 cycle -> nop
+    dec r20                         ; +1 cycle -> dec
+    brne _consume_clock             ; +2 cycles -> when brne is true
+                                    ; ------------------
+                                    ; -1 cycle -> brne takes only 1 cycle on the last loop, but we counted it as 2
+
+    out SREG, r16                   ; +1 cycle -> out
+    pop r16                         ; +2 cycles -> pop
+    ret                             ; +4 cycles -> ret
+; so finally,
+;   sum of setup and tear down instruction = 12
+;   sum of loop instructions = 4
+; input r20 = (required delay - 12) / 4
+; delay = lambda r20: (r20 * 4) + 12
+
+; minimum delay is 16 clock cycles when r20 = 1
+; common delays lookup table
+; -------------------------------------------------
+;   r20   |  delay (cycles)  | Time (16 MHz clock)
+; -------------------------------------------------
+;    1    |       16         |       1 us           ; min
+;    2    |       20         |       1.25 us
+;    3    |       24         |       1.5 us
+;    7    |       40         |       2.5 us
+;    17   |       80         |       5 us
+;    22   |       100        |
+;    37   |       160        |       10 us
+;    47   |       200        |
+;    72   |       300        |
+;    197  |       800        |       50 us
+;    255  |       1032       |       64.5 us        ; max
+; -------------------------------------------------
+
