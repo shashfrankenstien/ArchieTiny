@@ -105,7 +105,7 @@ stopper_count:
 ; note: this is not truely accurate due to interrupts
 ;
 ; to go about it, we will count out the clock cycles of each instruction in the routine
-; setup and tear down are one time. these should be subtracted
+; setup and tear down happen once. these should be subtracted from the required delay
 ; instructions within the loop are doing the actual chunk of the work. this is the divisor
 ; so, the input in r20 should be (required delay - sum of setup and tear down instruction) / sum of loop instructions
 time_delay_clock_cycles:            ; create accurate delay

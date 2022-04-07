@@ -203,6 +203,7 @@ get_sp_slot_addr_in_X:                ; takes a task index in r16,
     ldi r26, lo8(TASK_SP_VECTOR)      ; set XL to start of task stack pointer vector
     ldi r27, hi8(TASK_SP_VECTOR)      ; set XH to start of task stack pointer vector
     add r16, r16                      ; r16 = r16 * 2 -> because address slots are words
+    clc
     add r26, r16                      ; move X pointer to vector table address
     adc r27, 0
 
