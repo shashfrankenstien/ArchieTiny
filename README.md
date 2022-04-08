@@ -109,8 +109,13 @@ Tasks Table is set up starting at RAM address TASK_TABLE_START (Should be greate
     - slave devices read on rising edge of SCL
     - slave addresses seem to be shifted left
         - for example, in SH1106, documentation says addresses are 0111100 and 0111101, but in reality, device only reponds to 01111000 and 01111001
-- SH1106 Command Table is on page 30 of the datasheet
 
+### OLED display (using I2C)
+- SH1106 Command Table is on page 30 of the datasheet
+- fonts - https://github.com/Tecate/bitmap-fonts
+    - bitocra7
+    - cherry
+    - lemon
 
 ### Button press event manager (TODO)
 

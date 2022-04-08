@@ -31,7 +31,7 @@
                                             ; TIMER_COMPVAL_A = 0.001 * f_cpu / prescale_div
                                             ; if f_cpu = 16 MHz and selected prescale_div = 64, TIMER_COMPVAL_A = 250
 
-.equ    TIMER_COMPVAL_B,    200             ; compare match B interrupt is triggered when TCNT0 reaches this value
+.equ    TIMER_COMPVAL_B,    150             ; compare match B interrupt is triggered when TCNT0 reaches this value
                                             ; however, this interrupt will not reset the counter. It will always count up to TIMER_COMPVAL_A
                                             ; hence, the compare match B interrupt has the same frequency as compare match A
 
@@ -193,22 +193,23 @@ blink_old:
     ldi r21, 0x03
     clr r22
 
+    ldi r16, 0xff                           ; oled fill byte
 blink_loop:
     ; sbi PORTB, LED_PIN
-on:
     rcall time_delay_ms
     sbi PORTB, LED_PIN
     rcall test_oled
+    dec r16
 
-    rcall time_delay_ms
-    rcall test_oled_read
+    ; rcall time_delay_ms
+    ; rcall test_oled_read
 
-    rcall time_delay_ms
-    sbi PORTB, LED_PIN
-    rcall test_oled2
+    ; rcall time_delay_ms
+    ; sbi PORTB, LED_PIN
+    ; rcall test_oled2
 
-    rcall time_delay_ms
-    rcall test_oled_read
+    ; rcall time_delay_ms
+    ; rcall test_oled_read
 
     rjmp blink_loop
 

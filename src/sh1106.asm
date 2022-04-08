@@ -176,7 +176,7 @@ test_oled:
         push r\param
     .endr
 
-    ldi r16, 0b00110011                        ; fill byte = 0b00110011
+    ; ldi r16, 0b00110011                        ; oled fill byte = 0b00110011
     ldi r17, 30                                ; x1
     ldi r18, 90                                ; x2
     ldi r19, 2                                 ; y1
@@ -191,25 +191,6 @@ test_oled:
     .endr
     ret
 
-test_oled2:
-    .irp param,16,17,18,19,20
-        push r\param
-    .endr
-
-    ldi r16, 0x0f                              ; fill byte = 0x0f
-    ldi r17, 30                                ; x1
-    ldi r18, 90                                ; x2
-    ldi r19, 2                                 ; y1
-    ldi r20, 5                                 ; y2
-    rcall oled_fill_rect                       ; fill oled with data in r16
-
-    sbrs r16, 0
-    cbi PORTB, 1
-
-    .irp param,20,19,18,17,16
-        pop r\param
-    .endr
-    ret
 
 
 test_oled_read:
