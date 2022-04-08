@@ -35,6 +35,7 @@
 
 
 
+
 oled_init:
     .irp param,16,17,18,19,20
         push r\param
@@ -77,6 +78,54 @@ oled_init:
 
 
 
+
+; oled_set_cursor takes page address in r16 and column address in r17
+; performs a set page and set column address
+oled_set_cursor:
+    .irp param,16,17,18,19
+        push r\param
+    .endr
+    mov r19, r16
+
+    inc r17
+    inc r17                                    ; screen is somehow offset by 2 columns ?? :/
+
+    mov r18, r17
+    lsr r18
+    lsr r18
+    lsr r18
+    lsr r18                                    ; keep high bits of column address by shifting right 4 times
+    ori r18, SET_COLUMN_H                      ; set column start addr high bits
+
+    andi r17, 0x0f                             ; keep low bits of column address
+    ori r17, SET_COLUMN_L                      ; set column start addr low bits
+
+    rcall i2c_do_start_condition
+
+    ldi r16, OLED_WRITE_ADDR
+    rcall i2c_send_byte
+    ldi r16, OLED_WRITE_CMD_LIST
+    rcall i2c_send_byte
+
+    mov r16, r19                               ; get current page number (in range y1 to y2)
+    ori r16, SET_PAGE_ADDRESS                  ; OR with SET_PAGE_ADDRESS cmd
+    rcall i2c_send_byte
+
+    ; set cursor to precomputed column low and high commands saved in r17 and r18
+    mov r16, r17
+    rcall i2c_send_byte
+    mov r16, r18
+    rcall i2c_send_byte
+
+    rcall i2c_do_stop_condition
+
+    .irp param,19,18,17,16
+        pop r\param
+    .endr
+    ret
+
+
+
 ; oled_fill_rect takes 4 coordinates - x1, x2, y1, y2
 ; it will fill the rectangle between (x1,y1) (x1,y2) (x2,y1) (x2,y2)
 ; registers used -
@@ -88,63 +137,34 @@ oled_init:
 ;
 ; so what we've got here is that
 ;   x1 and x2 indicate column addresses
-;   y1 and y2 indicate row addresses (page address can be derived from this, but it gets complicated)
-
+;   y1 and y2 indicate row addresses (this is page address resolution for now; further resolution gets complicated)
 oled_fill_rect:                                ; fill rect on screen with value in r16
                                                ; r16 through r20 are inputs. calling routine should push and pop these
-    .irp param,13,14,15,21,22
+    .irp param,13,14,15
         push r\param
     .endr
     in r15, SREG
 
     ; pre calc some stuff
+    mov r13, r16                               ; save away page fill byte till later because we need r16
     mov r14, r17                               ; save away original x1. this needs to be loaded back for each page
     inc r18                                    ; increment x2 so that we can break the loop once x1 overflows original x2
     inc r20                                    ; increment y2 so that we can break the loop once y1 overflows original y2
 
-    inc r17
-    inc r17                                    ; screen is somehow offset by 2 columns ?? :/
-    mov r21, r17
-    andi r21, 0x0f                             ; keep low bits of x1
-    ori r21, SET_COLUMN_L                      ; set column start addr low bits
-
-    mov r22, r17
-    lsr r22
-    lsr r22
-    lsr r22
-    lsr r22                                    ; keep high bits of x1 by shifting right 4 times
-    ori r22, SET_COLUMN_H                      ; set column start addr high bits
-
-    mov r13, r16                               ; save away page fill byte till later because we need r16
-
 _next_page:                                    ; iterate pages y1 to y2
-    rcall i2c_do_stop_condition
+
+    mov r16, r19                               ; get current page number (in range y1 to y2)
+    mov r17, r14                               ; reload original x1
+    rcall oled_set_cursor                      ; set cursor to start writing data
+
     rcall i2c_do_start_condition
 
     ldi r16, OLED_WRITE_ADDR
     rcall i2c_send_byte
 
-    ldi r16, OLED_WRITE_CMD
-    rcall i2c_send_byte
-    mov r16, r19                               ; get current page number (in range y1 to y2)
-    ori r16, SET_PAGE_ADDRESS                  ; OR with SET_PAGE_ADDRESS cmd
-    rcall i2c_send_byte
-
-    ; set cursor to precomputed x1 low and high saved in r21 and r22
-    ldi r16, OLED_WRITE_CMD
-    rcall i2c_send_byte
-    mov r16, r21
-    rcall i2c_send_byte
-
-    ldi r16, OLED_WRITE_CMD
-    rcall i2c_send_byte
-    mov r16, r22
-    rcall i2c_send_byte
-
     ldi r16, OLED_WRITE_DATA_LIST              ; this tells the device to expect a list of data bytes until stop condition
     rcall i2c_send_byte
 
-    mov r17, r14                               ; load original x2
 _next_column:
     mov r16, r13                               ; load back fill byte that was originally saved away
     rcall i2c_send_byte                        ; i2c_send_byte modifies r16, so we need to reload r16 at every iteration
@@ -152,20 +172,25 @@ _next_column:
     cp r17, r18
     brne _next_column
 
+    rcall i2c_do_stop_condition                 ; finished writing a page
+
     inc r19
     cp r19, r20
     brne _next_page
 
-    rcall i2c_do_stop_condition
-
     out SREG, r15
-    .irp param,22,21,15,14,13
+    .irp param,15,14,13
         pop r\param
     .endr                                      ; r16 through r20 are inputs. calling routine should push and pop these
     ret                                        ; return value r16 will contain ACK from last byte transfered
 
 
 
+
+; oled_put_char:
+;     push r16
+;     push r17
+;     mov r17, r16
 
 
 
@@ -194,7 +219,6 @@ test_oled:
 
 
 test_oled_read:
-    ; rcall i2c_init
     rcall i2c_do_start_condition
     push r16
     ldi r16, OLED_READ_ADDR
