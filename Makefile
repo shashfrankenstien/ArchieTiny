@@ -10,7 +10,7 @@ SRC=src/kernel.asm \
 	src/usi_i2c.asm \
 	src/math.asm \
 	src/sh1106.asm \
-	src/font_lemon.asm
+	src/fonts/lemon.asm
 
 all: $(BUILD_PREFIX).hex
 

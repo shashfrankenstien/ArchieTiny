@@ -1,6 +1,8 @@
 ; http://www.avr-asm-tutorial.net/avr_en/calc/MULTIPLICATION.html
 
-; Flow of multiplication
+;======= Software multiplication function ============================
+; deviates from MUL op-code in that it overwrites the
+;   8 bit input registers r16 and r17 with the 16 bit return value r17:r16
 ;
 ;     decimal example:
 ; ------------------------
@@ -13,6 +15,7 @@
 ;     1234 * 567 =  699678
 ; ========================
 ;
+; Flow of multiplication
 ; 1.The binary multiplier, is shifted bitwise
 ;   into the carry bit. If carry is 1, the binary multiplicand
 ;   is added to the result
@@ -24,7 +27,6 @@
 ;   multiplication loop is repeated. If it is zero, the
 ;   multiplication is complete.
 ;
-;======= Software multiplication function (implementing mul) ============================
 ; input
 ;   r16    ; multiplicand
 ;   r17    ; multiplier
@@ -67,3 +69,4 @@ _mul_2:
     pop r18
     ret
 
+;-----------------------------------------------------------------------------------

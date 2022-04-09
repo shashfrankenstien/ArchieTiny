@@ -1,6 +1,6 @@
 ; This file contains lemon font lookup table (font_lut)
-; bdf_to_asm.py generated file contain some words size entries for "j" and "|"
-; 	this file is modified by converting them to bytes
+; bdf_to_asm.py generated file contain some larger entries for "j" and "|"
+; 	this file is modified by manually converting them to bytes
 
 
 .equ	FONT_WIDTH,			5			; number of bytes per character
