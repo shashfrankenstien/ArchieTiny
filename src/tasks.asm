@@ -86,10 +86,12 @@ taskmanager_init:
 
 
 taskmanager_add:                                ; expects task address loaded in r17:r16
-    .irp param,15,18,19,22,23,26,27,28,29
+    .irp param,15,18,19,22,23,24,26,27,28,29
         push r\param
     .endr
     in r15, SREG
+
+    clr r24                                     ; r24 will be our NULL register (will be 0 throughout this routine)
 
     lds r22, TASKCTS
     sbrc r22, FULL                              ; test if tasm manager is full
@@ -117,7 +119,7 @@ _look_for_slot:
 
 _next_slot:
     add r28, r23                            ; move Y to next task stack
-    adc r29, 0
+    adc r29, r24                            ; include any carry to the high byte by adding 0 with carry
     inc r22
     cpi r22, TASK_MAX_TASKS                 ; if r22 reached max allowed tasks, exit
     breq _no_slots_found
@@ -135,7 +137,7 @@ _slot_found:
                                                 ;   -1 for SREG
                                                 ;   -1 because the SP should point to the next location
     add r28, r23                                ; add this offset to the start of stack
-    adc r29, 0                                  ; this is the address contained in our new stack pointer
+    adc r29, r24                                ; this is the address contained in our new stack pointer
 
     st X+, r28                                  ; store the stack pointer low and high bytes
     st X, r29
@@ -187,7 +189,7 @@ _no_slots_found:
 _add_done:
     clr r17
     out SREG, r15
-    .irp param,29,28,27,26,23,22,19,18,15
+    .irp param,29,28,27,26,24,23,22,19,18,15
         pop r\param
     .endr
     ret
@@ -205,7 +207,8 @@ get_sp_slot_addr_in_X:                ; takes a task index in r16,
     add r16, r16                      ; r16 = r16 * 2 -> because address slots are words
     clc
     add r26, r16                      ; move X pointer to vector table address
-    adc r27, 0
+    clr r16
+    adc r27, r16
 
     pop r16
     ret

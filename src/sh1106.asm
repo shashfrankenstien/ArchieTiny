@@ -140,21 +140,21 @@ oled_set_cursor:
 ;   y1 and y2 indicate row addresses (this is page address resolution for now; further resolution gets complicated)
 oled_fill_rect:                                ; fill rect on screen with value in r16
                                                ; r16 through r20 are inputs. calling routine should push and pop these
-    .irp param,13,14,15
+    .irp param,21,22,23
         push r\param
     .endr
-    in r15, SREG
+    in r21, SREG
 
     ; pre calc some stuff
-    mov r13, r16                               ; save away page fill byte till later because we need r16
-    mov r14, r17                               ; save away original x1. this needs to be loaded back for each page
+    mov r22, r16                               ; save away page fill byte till later because we need r16
+    mov r23, r17                               ; save away original x1. this needs to be loaded back for each page
     inc r18                                    ; increment x2 so that we can break the loop once x1 overflows original x2
     inc r20                                    ; increment y2 so that we can break the loop once y1 overflows original y2
 
 _next_page:                                    ; iterate pages y1 to y2
 
     mov r16, r19                               ; get current page number (in range y1 to y2)
-    mov r17, r14                               ; reload original x1
+    mov r17, r23                               ; reload original x1
     rcall oled_set_cursor                      ; set cursor to start writing data
 
     rcall i2c_do_start_condition
@@ -166,7 +166,7 @@ _next_page:                                    ; iterate pages y1 to y2
     rcall i2c_send_byte
 
 _next_column:
-    mov r16, r13                               ; load back fill byte that was originally saved away
+    mov r16, r22                               ; load back fill byte that was originally saved away
     rcall i2c_send_byte                        ; i2c_send_byte modifies r16, so we need to reload r16 at every iteration
     inc r17
     cp r17, r18
@@ -178,8 +178,8 @@ _next_column:
     cp r19, r20
     brne _next_page
 
-    out SREG, r15
-    .irp param,15,14,13
+    out SREG, r21
+    .irp param,23,22,21
         pop r\param
     .endr                                      ; r16 through r20 are inputs. calling routine should push and pop these
     ret                                        ; return value r16 will contain ACK from last byte transfered
@@ -187,10 +187,48 @@ _next_column:
 
 
 
-; oled_put_char:
-;     push r16
-;     push r17
-;     mov r17, r16
+; oled_put_char depends on a font being included. it will expect
+;   - a label 'font_lut' that contains the lookup table for characters
+;   - FONT_WIDTH constant which indicates how many bytes need to be written per character
+;   - FONT_OFFSET constant which indicates the first ascii charater in the lookup table
+;           consequent characters can be reached by incrementing by FONT_WIDTH
+;
+; it take one character ascii value in r16
+; to write the character, we need to find the index of the character in font_lut
+;   - index = addr of font_lut + ((r16 - FONT_OFFSET) * FONT_WIDTH)
+;
+; oled_put_char assumes that start condition has been signaled and cursor address is set before being called
+; it also expects that the oled is in OLED_WRITE_DATA_LIST mode
+oled_put_char:
+    .irp param,17,18,30,31
+        push r\param
+    .endr
+    in r18, SREG
+
+    ldi r31, hi8(font_lut)          ; Initialize Z-pointer to the start of the font lookup table
+    ldi r30, lo8(font_lut)
+
+    subi r16, FONT_OFFSET           ; (r16 - FONT_OFFSET) * FONT_WIDTH
+    ldi r17, FONT_WIDTH
+    rcall mul8                      ; output is stored in r1:r0 (character index)
+
+    add r30, r16                    ; add the character index to Z pointer
+    adc r31, r17                    ; add the character index to Z pointer
+
+    ldi r17, FONT_WIDTH             ; load loop counter
+_next_font_byte:
+    lpm r16, Z+                     ; Load constant from Program
+                                    ; Memory pointed to by Z (r31:r30)
+    rcall i2c_send_byte
+    dec r17
+    brne _next_font_byte
+
+    out SREG, r18
+    .irp param,31,30,18,17
+        pop r\param
+    .endr
+    ret                             ; return value r16 will contain ACK from last byte transfered
+
 
 
 
@@ -201,12 +239,37 @@ test_oled:
         push r\param
     .endr
 
-    ; ldi r16, 0b00110011                        ; oled fill byte = 0b00110011
+    ; clr r16                        ; oled fill byte = 0b00110011
     ldi r17, 30                                ; x1
     ldi r18, 90                                ; x2
     ldi r19, 2                                 ; y1
     ldi r20, 5                                 ; y2
     rcall oled_fill_rect                       ; fill oled with data in r16
+
+    ; =========
+    ; first character! :D
+    ldi r16, 0
+    ldi r17, 40
+    rcall oled_set_cursor                      ; set cursor to start writing data
+
+    rcall i2c_do_start_condition
+
+    ldi r16, OLED_WRITE_ADDR
+    rcall i2c_send_byte
+
+    ldi r16, OLED_WRITE_DATA_LIST              ; this tells the device to expect a list of data bytes until stop condition
+    rcall i2c_send_byte
+    ldi r16, 65
+    rcall oled_put_char
+    ldi r16, 66
+    rcall oled_put_char
+    ldi r16, 67
+    rcall oled_put_char
+    ldi r16, 68
+    rcall oled_put_char
+    rcall i2c_do_stop_condition
+
+    ; =========
 
     sbrs r16, 0
     cbi PORTB, 1

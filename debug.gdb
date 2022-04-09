@@ -111,6 +111,7 @@ end
 
 
 b blink_loop
+b test3_loop
 
 # b i2c_check_addr
 # b *i2c_check_addr+26

@@ -8,7 +8,9 @@ SRC=src/kernel.asm \
 	src/time.asm \
 	src/tasks.asm \
 	src/usi_i2c.asm \
-	src/sh1106.asm
+	src/math.asm \
+	src/sh1106.asm \
+	src/font_bitocra7.asm
 
 all: $(BUILD_PREFIX).hex
 
