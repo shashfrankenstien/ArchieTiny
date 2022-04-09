@@ -35,7 +35,8 @@
 
 
 
-
+; initialize oled and set default settings
+; rotate oled 180 degrees by flipping both column and page scan directions
 oled_init:
     .irp param,16,17,18,19,20
         push r\param
@@ -205,7 +206,7 @@ oled_put_char:
     .endr
     in r18, SREG
 
-    ldi r31, hi8(font_lut)          ; Initialize Z-pointer to the start of the font lookup table
+    ldi r31, hi8(font_lut)          ; initialize Z-pointer to the start of the font lookup table
     ldi r30, lo8(font_lut)
 
     subi r16, FONT_OFFSET           ; (r16 - FONT_OFFSET) * FONT_WIDTH
@@ -217,8 +218,8 @@ oled_put_char:
 
     ldi r17, FONT_WIDTH             ; load loop counter
 _next_font_byte:
-    lpm r16, Z+                     ; Load constant from Program
-                                    ; Memory pointed to by Z (r31:r30)
+    lpm r16, Z+                     ; load constant from flash
+                                    ; memory pointed to by Z (r31:r30)
     rcall i2c_send_byte
     dec r17
     brne _next_font_byte
@@ -232,25 +233,14 @@ _next_font_byte:
 
 
 
-
-
-test_oled:
-    .irp param,16,17,18,19,20
-        push r\param
-    .endr
-
-    ; clr r16                        ; oled fill byte = 0b00110011
-    ldi r17, 30                                ; x1
-    ldi r18, 90                                ; x2
-    ldi r19, 2                                 ; y1
-    ldi r20, 5                                 ; y2
-    rcall oled_fill_rect                       ; fill oled with data in r16
-
-    ; =========
-    ; first character! :D
-    ldi r16, 0
-    ldi r17, 40
-    rcall oled_set_cursor                      ; set cursor to start writing data
+; oled_put_str_flash expects
+;   - Z pointer set at the start of the string
+;   - string length passed in r16
+oled_put_str_flash:
+    push r17
+    push r18
+    in r17, SREG
+    mov r18, r16                                ; initialize loop counter with string length
 
     rcall i2c_do_start_condition
 
@@ -259,22 +249,62 @@ test_oled:
 
     ldi r16, OLED_WRITE_DATA_LIST              ; this tells the device to expect a list of data bytes until stop condition
     rcall i2c_send_byte
-    ldi r16, 65
+
+_next_char:
+    lpm r16, Z+                     ; load character from flash memory
+                                    ; memory pointed to by Z (r31:r30)
     rcall oled_put_char
-    ldi r16, 66
-    rcall oled_put_char
-    ldi r16, 67
-    rcall oled_put_char
-    ldi r16, 68
-    rcall oled_put_char
+    dec r18
+    brne _next_char
+
+_str_done:
     rcall i2c_do_stop_condition
 
-    ; =========
+    out SREG, r17
+    pop r18
+    pop r17
+    ret                             ; return value r16 will contain ACK from last byte transfered
 
+
+
+
+hello_world:
+    .ascii " Hello World "
+    .equ   hello_world_len ,    . - hello_world      ; calculates the string length
+    .balign 2
+
+
+
+
+
+test_oled:
+    .irp param,16,17,18,19,20,30,31
+        push r\param
+    .endr
+
+    ; clr r16                        ; oled fill byte = 0b00110011
+    ldi r17, 30                                ; x1
+    ldi r18, 90                                ; x2
+    ldi r19, 2                                 ; y1
+    ldi r20, 4                                 ; y2
+    rcall oled_fill_rect                       ; fill oled with data in r16
+
+    ; =========
+    ; Hello World! :D
+    ldi r16, 3
+    ldi r17, 30
+    rcall oled_set_cursor                      ; set cursor to start writing data
+
+    ldi r31, hi8(hello_world)          ; Initialize Z-pointer to the start of the hello_world label
+    ldi r30, lo8(hello_world)
+    ldi r16, hello_world_len
+    rcall oled_put_str_flash
+
+    ; =========
     sbrs r16, 0
     cbi PORTB, 1
 
-    .irp param,20,19,18,17,16
+    .irp param,31,30,20,19,18,17,16
         pop r\param
     .endr
     ret

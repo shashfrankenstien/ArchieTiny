@@ -136,58 +136,6 @@ pool:
 
 
 
-
-; read_fuse:
-;     ldi r22, (1<<RFLB) | (1<<SPMEN)
-;     out SPMCSR, r22
-;     lpm r22,Z+
-;     ret
-
-; test2:
-;     push r30
-;     push r31
-;     push r22
-;     clr r31
-;     clr r30
-;     rcall read_fuse
-; fuse_low:           ; break here and see r22 for fuse low byte
-;     rcall read_fuse
-; lock_bits:           ; break here and see r22 for lock bits
-;     rcall read_fuse
-; fuse_ext:           ; break here and see r22 for fuse ext byte
-;     rcall read_fuse
-; fuse_high:           ; break here and see r22 for fuse high byte
-;     pop r22
-;     pop r31
-;     pop r30
-;     ret
-
-
-; test1:
-;     .irp param,16,17,18,30,31
-;         push r\param
-;     .endr
-;     in r18, SREG
-
-;     ldi r31, hi8(data_table_1)      ; Initialize Z-pointer
-;     ldi r30, lo8(data_table_1)
-;     lpm r16, Z+                     ; Load constant from Program
-;                                     ; Memory pointed to by Z (r31:r30)
-;     lpm r17, Z
-; test1_breakpoint:
-;     out SREG, r18
-;     .irp param,31,30,18,17,16
-;         pop r\param
-;     .endr
-;     ret
-
-
-; data_table_1:
-;     .word 0x5276                        ; 0x76 is addresses when ZLSB = 0
-;                                         ; 0x58 is addresses when ZLSB = 1
-;     .word 0x9911
-
-
 blink_old:
     ldi r20, 0xe8                           ; set delay to approximately 1 second (250 * 4 milliseconds)
     ldi r21, 0x03

@@ -5,6 +5,7 @@
 - https://blog.oddbit.com/post/2019-01-22-debugging-attiny-code-pt-1/
 - http://www.rjhcoding.com/avr-asm-macros.php
 - https://www.youtube.com/watch?v=tFSTG7XEboI&list=PLuCmHWky5GN4iyRNNchJ4GMcVCSOgdOvc&index=5
+- https://ftp.gnu.org/pub/old-gnu/Manuals/gas-2.9.1/html_chapter/as_7.html
 
 
 ## Debugging
@@ -114,8 +115,8 @@ Tasks Table is set up starting at RAM address TASK_TABLE_START (Should be greate
 - SH1106 Command Table is on page 30 of the datasheet
 - fonts - https://github.com/Tecate/bitmap-fonts
     - bitocra7
-    - cherry
     - lemon
+    - spleen
 
 ### Button press event manager (TODO)
 
