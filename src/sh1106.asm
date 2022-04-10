@@ -269,59 +269,16 @@ _str_done:
 
 
 
-
-hello_world:
-    .ascii " Hello World "
-    .equ   hello_world_len ,    . - hello_world      ; calculates the string length
-    .balign 2
-
-
-
-
-
-test_oled:
-    .irp param,16,17,18,19,20,30,31
-        push r\param
-    .endr
-
-    ; clr r16                        ; oled fill byte = 0b00110011
-    ldi r17, 30                                ; x1
-    ldi r18, 90                                ; x2
-    ldi r19, 2                                 ; y1
-    ldi r20, 4                                 ; y2
-    rcall oled_fill_rect                       ; fill oled with data in r16
-
-    ; =========
-    ; Hello World! :D
-    ldi r16, 3
-    ldi r17, 30
-    rcall oled_set_cursor                      ; set cursor to start writing data
-
-    ldi r31, hi8(hello_world)          ; Initialize Z-pointer to the start of the hello_world label
-    ldi r30, lo8(hello_world)
-    ldi r16, hello_world_len
-    rcall oled_put_str_flash
-
-    ; =========
-    sbrs r16, 0
-    cbi PORTB, 1
-
-    .irp param,31,30,20,19,18,17,16
-        pop r\param
-    .endr
-    ret
-
-
-
 test_oled_read:
-    rcall i2c_do_start_condition
     push r16
+    rcall i2c_do_start_condition
+
     ldi r16, OLED_READ_ADDR
     rcall i2c_send_byte
 
     rcall i2c_read_byte_ack
     rcall i2c_read_byte_nack
 
-    pop r16
     rcall i2c_do_stop_condition
+    pop r16
     ret

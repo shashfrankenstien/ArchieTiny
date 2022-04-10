@@ -111,41 +111,70 @@ main:                               ; initialize
     rcall init_timer0               ; set timer / counter options
     rcall init_onboard_led          ; set LED output pin
 
-    rcall time_init
-    rcall i2c_init
-    rcall oled_init
+    rcall time_init                 ; intialize 24bit software counter
+    rcall i2c_init                  ; initialize i2c bus
+    rcall oled_init                 ; initialize i2c oled device (sh1107)
+    rcall taskmanager_init          ; initialize task manager table
 
-    rcall taskmanager_init              ; initialize task manager table
-
-    ldi r17, hi8(test3)                 ; add test3 task to task manager table
+    ldi r17, hi8(test3)             ; add test3 task to task manager table
     ldi r16, lo8(test3)
     rcall taskmanager_add
 
-    ldi r17, hi8(blink_old)             ; add blink task to task manager table
-    ldi r16, lo8(blink_old)
+    ldi r17, hi8(test_oled)         ; add blink task to task manager table
+    ldi r16, lo8(test_oled)
     rcall taskmanager_add
 
     sei
-
 pool:
-    sleep                               ; wait for interrupts (required for simavr to perform correctly. good idea anyway)
+    sleep                           ; wait for interrupts (required for simavr to perform correctly. good idea anyway)
     rjmp pool
 
 
 
 
 
-blink_old:
+
+hello_world:
+    .ascii " Hello World "
+    .equ   hello_world_len ,    . - hello_world      ; calculates the string length
+    .balign 2
+
+
+
+test_oled:
     ldi r20, 0xe8                           ; set delay to approximately 1 second (250 * 4 milliseconds)
     ldi r21, 0x03
     clr r22
 
     ldi r16, 0xff                           ; oled fill byte
-blink_loop:
-    ; sbi PORTB, LED_PIN
+oled_loop:
     rcall time_delay_ms
     sbi PORTB, LED_PIN
-    rcall test_oled
+
+    push r16
+
+    ldi r17, 30                                ; x1
+    ldi r18, 90                                ; x2
+    ldi r19, 2                                 ; y1
+    ldi r20, 4                                 ; y2
+    rcall oled_fill_rect                       ; fill oled with data in r16
+
+    ; =========
+    ; Hello World! :D
+    ldi r16, 3
+    ldi r17, 30
+    rcall oled_set_cursor                      ; set cursor to start writing data
+
+    ldi r31, hi8(hello_world)          ; Initialize Z-pointer to the start of the hello_world label
+    ldi r30, lo8(hello_world)
+    ldi r16, hello_world_len
+    rcall oled_put_str_flash
+
+    ; =========
+    sbrs r16, 0
+    cbi PORTB, LED_PIN
+
+    pop r16
     dec r16
 
     ; rcall time_delay_ms
@@ -158,7 +187,7 @@ blink_loop:
     ; rcall time_delay_ms
     ; rcall test_oled_read
 
-    rjmp blink_loop
+    rjmp oled_loop
 
 
 
