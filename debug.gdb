@@ -109,9 +109,7 @@ i r r21
 end
 
 
-
-b blink_loop
-b test3_loop
+b taskmanager_exec_next_isr
 
 # b i2c_check_addr
 # b *i2c_check_addr+26

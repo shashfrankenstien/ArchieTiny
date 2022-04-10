@@ -7,8 +7,9 @@ BUILD_PREFIX=build/kernel
 SRC=src/kernel.asm \
 	src/time.asm \
 	src/tasks.asm \
-	src/usi_i2c.asm \
 	src/math.asm \
+	src/usi_i2c.asm \
+	src/gpio.asm \
 	src/sh1106.asm \
 	src/fonts/bitocra7.asm
 

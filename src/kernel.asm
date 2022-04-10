@@ -36,20 +36,15 @@
                                             ; hence, the compare match B interrupt has the same frequency as compare match A
 
 
-; built-in LED control
-.equ    DDRB,               0x17
-.equ    PORTB,              0x18
-.equ	PINB,               0x16
-
 
 ; repurpose r25 for gpio flags
 ; .req    r25,            r25
 
 
-; settings to read fuse bits
-.equ    SPMCSR,           0x37            ; SPMCSR - Store Program Memory Control and Status Register
-.equ    RFLB,             3               ; bit 3 allows reading fuse and lock bits
-.equ    SPMEN,            0               ; bit 0 enable program memory control
+; ; settings to read fuse bits
+; .equ    SPMCSR,           0x37            ; SPMCSR - Store Program Memory Control and Status Register
+; .equ    RFLB,             3               ; bit 3 allows reading fuse and lock bits
+; .equ    SPMEN,            0               ; bit 0 enable program memory control
 
 
 
@@ -59,7 +54,7 @@
 ; interrupt vector table
 rjmp main                           ; address 0x0000 - RESET
 reti                                ; address 0x0001 - INT0_ISR
-reti                                ; address 0x0002 - PCINT0_ISR
+rjmp gpio_btn_press_isr             ; address 0x0002 - PCINT0_ISR
 reti                                ; address 0x0003 - TIM1_COMPA_ISR
 reti                                ; address 0x0004 - TIM1_OVF_ISR
 reti                                ; address 0x0005 - TIM0_OVF_ISR
@@ -93,12 +88,6 @@ init_timer0:
     ret
 
 
-init_onboard_led:
-    sbi DDRB, LED_PIN                ; setup output pin 1 (P1)
-    sbi DDRB, LED_PIN2               ; setup output pin 1 (P1)
-    out PORTB, 0
-    ret
-
 
 
 main:                               ; initialize
@@ -114,11 +103,8 @@ main:                               ; initialize
     rcall time_init                 ; intialize 24bit software counter
     rcall i2c_init                  ; initialize i2c bus
     rcall oled_init                 ; initialize i2c oled device (sh1107)
+    rcall gpio_btn_init             ; intialize buttons as input pins and attach pc interrupts
     rcall taskmanager_init          ; initialize task manager table
-
-    ldi r17, hi8(test3)             ; add test3 task to task manager table
-    ldi r16, lo8(test3)
-    rcall taskmanager_add
 
     ldi r17, hi8(test_oled)         ; add blink task to task manager table
     ldi r16, lo8(test_oled)
@@ -148,8 +134,7 @@ test_oled:
 
     ldi r16, 0xff                           ; oled fill byte
 oled_loop:
-    rcall time_delay_ms
-    sbi PORTB, LED_PIN
+    ; sbi PORTB, LED_PIN
 
     push r16
 
@@ -171,8 +156,8 @@ oled_loop:
     rcall oled_put_str_flash
 
     ; =========
-    sbrs r16, 0
-    cbi PORTB, LED_PIN
+    ; sbrs r16, 0
+    ; cbi PORTB, LED_PIN
 
     pop r16
     dec r16
@@ -187,17 +172,18 @@ oled_loop:
     ; rcall time_delay_ms
     ; rcall test_oled_read
 
+    rcall time_delay_ms
     rjmp oled_loop
 
 
 
-test3:
-    ldi r20, 0xfa                           ; set delay to 0.25 second (250 milliseconds)
-    clr r21
-    clr r22
-test3_loop:
-    sbi PORTB, LED_PIN2
-    rcall time_delay_ms
-    cbi PORTB, LED_PIN2
-    rcall time_delay_ms
-    rjmp test3_loop
+; test3:
+;     ldi r20, 0xfa                           ; set delay to 0.25 second (250 milliseconds)
+;     clr r21
+;     clr r22
+; test3_loop:
+;     sbi PORTB, LED_PIN2
+;     rcall time_delay_ms
+;     cbi PORTB, LED_PIN2
+;     rcall time_delay_ms
+;     rjmp test3_loop
