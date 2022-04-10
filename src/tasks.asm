@@ -198,7 +198,7 @@ _add_done:
 
 
 
-get_sp_slot_addr_in_X:                ; takes a task index in r16,
+_get_sp_slot_addr_in_X:                ; takes a task index in r16,
                                       ; returns corresponding task stack pointer slot addr in X
     push r16
 
@@ -222,10 +222,11 @@ taskmanager_exec_next_isr:
 
     lds r16, TASKCTS
     mov r17, r16
-    andi r17, 0x0f                  ; only see low 4 bits of counter
+    andi r17, 0x0f                  ; only see low 4 bits of task counter
     cpi r17, 0                      ; if TASKCTS[3:0] is 0, no tasks are registered
     brne _tasks_available
 
+_no_action_required:
     out SREG, r5
     .irp param,17,16                ; unwind and prepare to save data to stack
         pop r\param
@@ -234,12 +235,18 @@ taskmanager_exec_next_isr:
 
 _tasks_available:
     sbrc r16, RUNNING               ; if RUNNING bit of r16 is clear, then the task manager is not yet running
-    rjmp _save_running_task
+    rjmp _check_swap_required       ; if task manager has been running, we check if task swapping is required
 
-    sbr r16, (1<<RUNNING)            ; set RUNNING bit in TASKCTS
-    sts TASKCTS, r16
+    sbr r16, (1<<RUNNING)           ; we run the following code only on the first call of this routine
+    sts TASKCTS, r16                ; set RUNNING bit in TASKCTS to flag that the first call has been handled
     lds r16, TASKPTR
     rjmp _start_next_task
+
+_check_swap_required:               ; we reach here starting from the second call of this routine
+    cpi r17, 2                      ; r17 contains low 4 bits of task counter (TASKCTS[3:0]). if there is only 1 registered task, no task swapping is required
+    brsh _save_running_task         ; if there are 2 or more tasks registered, jump to save current task and start the next task
+
+    rjmp _no_action_required        ; there's only 1 registered task. so go to clean up section and finish
 
 _save_running_task:
     .irp param,17,16                ; unwind and prepare to save data to stack
@@ -252,7 +259,7 @@ _save_running_task:
     .endr                           ; rest are not stored in order to conserver space
 
     lds r16, TASKPTR
-    rcall get_sp_slot_addr_in_X
+    rcall _get_sp_slot_addr_in_X
 
     in r17, SPL                     ; read in current stack pointer low
     st X+, r17                      ; store stack pointer at the vector
@@ -266,7 +273,7 @@ _start_next_task:                   ; r16 contains pointer to the next task's ad
     brlo _check_addr
     clr r16                         ; if overflowed, reset to 0
 _check_addr:
-    rcall get_sp_slot_addr_in_X
+    rcall _get_sp_slot_addr_in_X
 
     ld r18, X+                      ; read stack pointer from vector
     ld r19, X                       ; load r19:r18 with the value of the stack pointer

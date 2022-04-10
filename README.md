@@ -93,7 +93,7 @@ Tasks Table is set up starting at RAM address TASK_TABLE_START (Should be greate
     - store return address, function pointer + manager pushed registers on the stack
     - if TASK_SP_VECTOR is full, set FULL flag in TASKCTS
 - exec task
-    - read TASKCTS counter, if eq 0, simply return because there are no registered tasks
+    - read TASKCTS counter, if eq 0 or 1, simply return because there is no task switching required
     - if RUNNING bit is set, there was previously a task that was running
     - push registers + SREG to stack, read TASKPTR, save stack pointer in TASK_SP_VECTOR at TASKPTR index
     - increment TASKPTR to go to next task
@@ -117,8 +117,14 @@ Tasks Table is set up starting at RAM address TASK_TABLE_START (Should be greate
     - bitocra7
     - lemon
     - spleen
+- when including strings in program memory, we need to mind byte alignment.
+    use `.balign 2` after each string definition
 
 ### Button press event manager (TODO)
+
+
+### EEPROM FAT-8 File System (TODO)
+- https://www.youtube.com/watch?v=HjVktRd35G8
 
 
 -----

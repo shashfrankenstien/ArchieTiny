@@ -1,3 +1,4 @@
+; hardware I2C interface using USI
 
 .equ    USIDR,                0x0f          ; USIDR – USI Data Register
 .equ    USIBR,                0x10          ; USIBR – USI Buffer Register

@@ -80,8 +80,10 @@ oled_init:
 
 
 
-; oled_set_cursor takes page address in r16 and column address in r17
-; performs a set page and set column address
+; oled_set_cursor takes
+;   - r16 - page address
+;   - r17 - column address
+; performs set page and set column address operations
 oled_set_cursor:
     .irp param,16,17,18,19
         push r\param
@@ -129,7 +131,7 @@ oled_set_cursor:
 
 ; oled_fill_rect takes 4 coordinates - x1, x2, y1, y2
 ; it will fill the rectangle between (x1,y1) (x1,y2) (x2,y1) (x2,y2)
-; registers used -
+; input registers -
 ;   r16 - byte to fill
 ;   r17 - x1
 ;   r18 - x2

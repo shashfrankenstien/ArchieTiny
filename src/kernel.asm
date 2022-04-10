@@ -57,21 +57,21 @@
 
 .org 0                              ; origin - address of next statement
 ; interrupt vector table
-rjmp main                           ; Address 0x0000 - RESET
-reti                                ; Address 0x0001 - INT0_ISR
-reti                                ; Address 0x0002 - PCINT0_ISR
-reti                                ; Address 0x0003 - TIM1_COMPA_ISR
-reti                                ; Address 0x0004 - TIM1_OVF_ISR
-reti                                ; Address 0x0005 - TIM0_OVF_ISR
-reti                                ; Address 0x0006 - EE_RDY_ISR
-reti                                ; Address 0x0007 - ANA_COMP_ISR
-reti                                ; Address 0x0008 - ADC_ISR
-reti                                ; Address 0x0009 - TIM1_COMPB_ISR
-rjmp time_tick_isr                  ; Address 0x000A - TIM0_COMPA_ISR
-rjmp taskmanager_exec_next_isr      ; Address 0x000B - TIM0_COMPB_ISR
-reti                                ; Address 0x000C - WDT_ISR
-reti                                ; Address 0x000D - USI_START_ISR
-reti                                ; Address 0x000E - USI_OVF_ISR
+rjmp main                           ; address 0x0000 - RESET
+reti                                ; address 0x0001 - INT0_ISR
+reti                                ; address 0x0002 - PCINT0_ISR
+reti                                ; address 0x0003 - TIM1_COMPA_ISR
+reti                                ; address 0x0004 - TIM1_OVF_ISR
+reti                                ; address 0x0005 - TIM0_OVF_ISR
+reti                                ; address 0x0006 - EE_RDY_ISR
+reti                                ; address 0x0007 - ANA_COMP_ISR
+reti                                ; address 0x0008 - ADC_ISR
+reti                                ; address 0x0009 - TIM1_COMPB_ISR
+rjmp time_tick_isr                  ; address 0x000A - TIM0_COMPA_ISR
+rjmp taskmanager_exec_next_isr      ; address 0x000B - TIM0_COMPB_ISR
+reti                                ; address 0x000C - WDT_ISR
+reti                                ; address 0x000D - USI_START_ISR
+reti                                ; address 0x000E - USI_OVF_ISR
 
 
 
@@ -120,7 +120,6 @@ main:                               ; initialize
     ldi r17, hi8(test3)                 ; add test3 task to task manager table
     ldi r16, lo8(test3)
     rcall taskmanager_add
-
 
     ldi r17, hi8(blink_old)             ; add blink task to task manager table
     ldi r16, lo8(blink_old)
