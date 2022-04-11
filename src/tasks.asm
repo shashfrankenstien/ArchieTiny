@@ -2,6 +2,7 @@
 
 ; Task Manager (SRAM)
 ;         _________
+;        |_________| --> TASKLKS - task locks byte - each bit is a general purpose lock
 ;        |_________| --> TASKCTS - task counter and status register (1)
 ;        |_________| --> TASKPTR - current task index / pointer (1)
 ;        |_________| --> task stack pointers vector (TASK_MAX_TASKS*2)
@@ -10,14 +11,25 @@
 ;        |         | --> task stack 2 (TASK_STACK_SIZE)
 ;             .
 ;             .
-; TASKCTS - task counter and status vector (1)
+; TASKLKS - general purpose locks register (1)
+;   - register holds 8 general purpose locks
+;   - these locks are used when different tasks need to work on a shared resource,
+;        where the resource does not play well with multitasking
+;   - a lock can be acquired by setting a bit in this register to 1, and released by setting it to 0
+;   - currently only 1 lock bit is assigned to the I2C bus (I2C_BUS_LOCK)
+;      --------------------------------------------------------------------------
+;      |  N/A  |  N/A  |  N/A  |  N/A  |  N/A  |  N/A  |  N/A  |  I2C_BUS_LOCK  |
+;      --------------------------------------------------------------------------
+;
+; TASKCTS - task counter and status register (1)
 ;   - register holds task manager status in top 4 bits and a task counter in the bottom 4
 ;      ----------------------------------------------------------------------
 ;      | RUNNING | FULL | EMPTY | ERROR | COUNT3 | COUNT2 | COUNT1 | COUNT0 |
 ;      ----------------------------------------------------------------------
 
-.equ    TASKCTS,               TASK_TABLE_START            ; task counter and status vector
-.equ    TASKPTR,               TASK_TABLE_START + 1        ; current task pointer
+.equ    TASKLKS,               TASK_TABLE_START
+.equ    TASKCTS,               TASKLKS + 1                 ; task counter and status register
+.equ    TASKPTR,               TASKCTS + 1                 ; current task pointer
 
 ; TASKCTS bits
 .equ    RUNNING,                7
@@ -41,7 +53,7 @@
 ;        |_________|     stack pointer of task TASK_MAX_TASKS
 ;        |         | --> start of task stacks of TASK_STACK_SIZE bytes each
 
-.equ    TASK_SP_VECTOR,        TASK_TABLE_START + 2                 ; task stack pointers vector
+.equ    TASK_SP_VECTOR,        TASKPTR + 1                          ; task stack pointers vector
 .equ    TASK_STACKS_TOP,       TASK_SP_VECTOR + (TASK_MAX_TASKS*2)  ; start of task stacks
 
 ; Task stack (SRAM)
@@ -74,6 +86,7 @@
 taskmanager_init:
     push r16
     clr r16
+    sts TASKLKS, r16                                    ; initialize all locks to 0
     sts TASKCTS, r16                                    ; initialize task counter to 0
     sts TASKPTR, r16                                    ; initialize current task pointer to 0
     .irp param,0,1,2,3,4,5,6                            ; initialize task stack addrs vector to 0s
@@ -321,3 +334,31 @@ _taskmanager_task_complete:
 _wait_loop:
     sleep
     rjmp _wait_loop
+
+
+
+
+
+; ; acquire and release locks
+; ;  - both routines accept lock bit number in r16 ??????
+; taskmanager_lock_acquire:
+;     push r16
+;     push r17
+;     rjmp _locked_wait
+
+; _lock_wait_sleep:
+;     sleep
+; _locked_wait:
+;     lds r17, TASKLKS
+;     sbrc r17, r16
+;     rjmp _lock_wait_sleep
+
+;     sbr r17,
+;     sts I2C_LOCK, r16
+;     pop r17
+;     pop r16
+;     ret
+
+
+; ; accepts lock bit number in r16
+; taskmanager_lock_release:

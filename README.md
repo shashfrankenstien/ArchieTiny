@@ -102,6 +102,12 @@ Tasks Table is set up starting at RAM address TASK_TABLE_START (Should be greate
     - load stack pointer value from TASK_SP_VECTOR at TASKPTR index
     - set new stack pointer, pop all registers + SREG
     - reti
+TASKLKS - general purpose locks register (1)
+    - register holds 8 general purpose locks
+    - these locks are used when different tasks need to work on a shared resource,
+        where the resource does not play well with multitasking
+    - a lock can be acquired by setting a bit in this register to 1, and released by setting it to 0
+    - currently only 1 lock bit is assigned to the I2C bus (I2C_BUS_LOCK)
 
 
 ### I2C

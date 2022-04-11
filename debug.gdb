@@ -93,6 +93,11 @@ define xsi
     xx
 end
 
+define xni
+    ni
+    xx
+end
+
 define xsi2
     si
     xx2
@@ -109,7 +114,7 @@ i r r21
 end
 
 
-b taskmanager_exec_next_isr
+b oled_loop
 
 # b i2c_check_addr
 # b *i2c_check_addr+26

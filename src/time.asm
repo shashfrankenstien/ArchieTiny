@@ -12,9 +12,10 @@
 
 
 time_init:
-    sts LOW_BYTE, 0                          ; intialize counter registers to 0
-    sts MIDDLE_BYTE, 0
-    sts HIGH_BYTE, 0
+    clr r1
+    sts LOW_BYTE, r1                         ; intialize counter registers to 0
+    sts MIDDLE_BYTE, r1
+    sts HIGH_BYTE, r1
     ret
 
 
@@ -110,6 +111,7 @@ stopper_count:
 ; so, the input in r20 should be (required delay - sum of setup and tear down instruction) / sum of loop instructions
 time_delay_clock_cycles:            ; create accurate delay
                                     ; +3 cycles -> rcall into time_delay_clock_cycles
+    push r20                        ; +2 cycles -> push
     push r16                        ; +2 cycles -> push
     in r16, SREG                    ; +1 cycle -> in
 
@@ -122,28 +124,29 @@ _consume_clock:                     ; ----- loop -------
 
     out SREG, r16                   ; +1 cycle -> out
     pop r16                         ; +2 cycles -> pop
+    pop r20                         ; +2 cycles -> pop
     ret                             ; +4 cycles -> ret
 ; so finally,
-;   sum of setup and tear down instruction = 12
+;   sum of setup and tear down instruction = 16
 ;   sum of loop instructions = 4
-; input r20 = (required delay - 12) / 4
-; delay = lambda r20: (r20 * 4) + 12
+; input r20 = (required delay - 16) / 4
+; delay = lambda r20: (r20 * 4) + 16
 
-; minimum delay is 16 clock cycles when r20 = 1
+; minimum delay is 20 clock cycles when r20 = 1
 ; common delays lookup table
 ; -------------------------------------------------
 ;   r20   |  delay (cycles)  | Time (16 MHz clock)
 ; -------------------------------------------------
-;    1    |       16         |       1 us           ; min
-;    2    |       20         |       1.25 us
-;    3    |       24         |       1.5 us
-;    7    |       40         |       2.5 us
-;    17   |       80         |       5 us
-;    22   |       100        |
-;    37   |       160        |       10 us
-;    57   |       240        |       20 us
-;    97   |       400        |       30 us
-;    197  |       800        |       50 us
-;    255  |       1032       |       64.5 us        ; max
+;    1    |       20         |       1.25 us         ; min
+;    2    |       24         |       1.5 us
+;    3    |       28         |       1.75 us
+;    6    |       40         |       2.5 us
+;    16   |       80         |       5 us
+;    21   |       100        |
+;    36   |       160        |       10 us
+;    56   |       240        |       20 us
+;    96   |       400        |       30 us
+;    196  |       800        |       50 us
+;    255  |       1036       |       64.75 us        ; max
 ; -------------------------------------------------
 

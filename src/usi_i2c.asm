@@ -1,3 +1,5 @@
+.include "config.inc"                                   ; TASKLKS and I2C_BUS_LOCK
+
 ; hardware I2C interface using USI
 
 .equ    USIDR,                0x0f          ; USIDR – USI Data Register
@@ -14,7 +16,7 @@
 
 
 
-.equ    I2C_DELAY_CC,         3         ; this delays 1.5 us at 16 MHz. This is used for half a period.
+.equ    I2C_DELAY_CC,         2         ; this delays 1.5 us at 16 MHz. This is used for half a period.
                                         ; So for the full period, it is 3 us (333.33 kHz)
                                         ; * see 'time_delay_clock_cycles' in the 'time' module
 
@@ -35,6 +37,8 @@ i2c_init:
     ldi r16, I2C_MODE
     out USICR, r16
     pop r16
+
+    rcall i2c_lock_release
     ret
 
 
@@ -52,6 +56,43 @@ i2c_init:
 ;     out USICR, r16
 ;     pop r16
 ;     ret
+
+
+; -----------------------------
+; I2C can only be used by one task at a time
+; before using I2C, a task has to acquire the lock
+; i2c_lock_acquire will sleep till lock can be acquired
+;   it returns once it is able to acquire the lock
+i2c_lock_acquire:
+    push r16
+    rjmp _locked_wait
+
+_lock_wait_sleep:
+    sei
+    sleep
+_locked_wait:
+    cli                                 ; stop interrupts while checking and trying to acquire lock bits
+    lds r16, TASKLKS
+    sbrc r16, I2C_BUS_LOCK              ; check if lock is available to acquire
+    rjmp _lock_wait_sleep               ; sleep till lock available
+
+    sbr r16, (1 << I2C_BUS_LOCK)        ; acquire lock
+    sts TASKLKS, r16
+    sei                                 ; enable interrupts and return
+    pop r16
+    ret
+
+
+i2c_lock_release:
+    push r16
+    lds r16, TASKLKS                    ; release the lock
+    cbr r16, (1 << I2C_BUS_LOCK)
+    sts TASKLKS, r16
+    pop r16
+    ret
+
+; -----------------------------
+
 
 
 

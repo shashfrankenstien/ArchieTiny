@@ -190,7 +190,7 @@ _next_column:
 
 
 
-; oled_put_char depends on a font being included. it will expect
+; oled_internal_put_char depends on a font being included. it will expect
 ;   - a label 'font_lut' that contains the lookup table for characters
 ;   - FONT_WIDTH constant which indicates how many bytes need to be written per character
 ;   - FONT_OFFSET constant which indicates the first ascii charater in the lookup table
@@ -200,9 +200,9 @@ _next_column:
 ; to write the character, we need to find the index of the character in font_lut
 ;   - index = addr of font_lut + ((r16 - FONT_OFFSET) * FONT_WIDTH)
 ;
-; oled_put_char assumes that start condition has been signaled and cursor address is set before being called
+; oled_internal_put_char assumes that start condition has been signaled and cursor address is set before being called
 ; it also expects that the oled is in OLED_WRITE_DATA_LIST mode
-oled_put_char:
+oled_internal_put_char:
     .irp param,17,18,30,31
         push r\param
     .endr
@@ -235,7 +235,8 @@ _next_font_byte:
 
 
 
-; oled_put_str_flash expects
+; oled_put_str_flash reads string from flash and writes to oled
+; it expects
 ;   - Z pointer set at the start of the string
 ;   - string length passed in r16
 oled_put_str_flash:
@@ -255,11 +256,10 @@ oled_put_str_flash:
 _next_char:
     lpm r16, Z+                     ; load character from flash memory
                                     ; memory pointed to by Z (r31:r30)
-    rcall oled_put_char
+    rcall oled_internal_put_char
     dec r18
     brne _next_char
 
-_str_done:
     rcall i2c_do_stop_condition
 
     out SREG, r17
@@ -268,17 +268,52 @@ _str_done:
     ret                             ; return value r16 will contain ACK from last byte transfered
 
 
+; oled_put_str_stack reads string from stack and writes to oled
+; it expects
+;   - string length passed in r16
+oled_put_str_stack:
+    pop r5 ; pop off the function return address for later
+    pop r6
 
-test_oled_read:
-    push r16
+    in r7, SREG
+    mov r8, r16                                ; initialize loop counter with string length
+
     rcall i2c_do_start_condition
 
-    ldi r16, OLED_READ_ADDR
+    ldi r16, OLED_WRITE_ADDR
     rcall i2c_send_byte
 
-    rcall i2c_read_byte_ack
-    rcall i2c_read_byte_nack
+    ldi r16, OLED_WRITE_DATA_LIST              ; this tells the device to expect a list of data bytes until stop condition
+    rcall i2c_send_byte
+
+_next_char_stack:
+    pop r16                     ; load character from stack
+    rcall oled_internal_put_char
+    dec r8
+    brne _next_char_stack
 
     rcall i2c_do_stop_condition
-    pop r16
-    ret
+
+    out SREG, r7
+    push r6
+    push r5
+    ret                             ; return value r16 will contain ACK from last byte transfered
+
+
+
+
+
+
+; test_oled_read:
+;     push r16
+;     rcall i2c_do_start_condition
+
+;     ldi r16, OLED_READ_ADDR
+;     rcall i2c_send_byte
+
+;     rcall i2c_read_byte_ack
+;     rcall i2c_read_byte_nack
+
+;     rcall i2c_do_stop_condition
+;     pop r16
+;     ret

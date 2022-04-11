@@ -104,12 +104,16 @@ main:                               ; initialize
     rcall i2c_init                  ; initialize i2c bus
     rcall oled_init                 ; initialize i2c oled device (sh1107)
     rcall gpio_btn_init             ; intialize buttons as input pins and attach pc interrupts
+    rcall gpio_adc_init            ; intialize ADC to read thumb wheel potentiometer
     rcall taskmanager_init          ; initialize task manager table
 
     ldi r17, hi8(test_oled)         ; add blink task to task manager table
     ldi r16, lo8(test_oled)
     rcall taskmanager_add
 
+    ldi r17, hi8(test3)         ; add blink task to task manager table
+    ldi r16, lo8(test3)
+    rcall taskmanager_add
     sei
 pool:
     sleep                           ; wait for interrupts (required for simavr to perform correctly. good idea anyway)
@@ -127,6 +131,8 @@ hello_world:
 
 
 
+
+
 test_oled:
     ldi r20, 0xe8                           ; set delay to approximately 1 second (250 * 4 milliseconds)
     ldi r21, 0x03
@@ -137,7 +143,33 @@ oled_loop:
     ; sbi PORTB, LED_PIN
 
     push r16
+    push r20
 
+    ; =========
+    mov r23, r16
+    ldi r18, 8
+    ldi r19, 48
+_num_loop:
+    clr r17
+    lsr r16
+    rol r17
+    add r17, r19
+    push r17
+    dec r18
+    brne _num_loop
+    ; =========
+
+    rcall i2c_lock_acquire
+
+    ldi r16, 7
+    ldi r17, 40
+    rcall oled_set_cursor                      ; set cursor to start writing data
+
+    ldi r16, 8
+    rcall oled_put_str_stack
+
+    ; =========
+    mov r16, r23
     ldi r17, 30                                ; x1
     ldi r18, 90                                ; x2
     ldi r19, 2                                 ; y1
@@ -156,9 +188,12 @@ oled_loop:
     rcall oled_put_str_flash
 
     ; =========
+
+    rcall i2c_lock_release
     ; sbrs r16, 0
     ; cbi PORTB, LED_PIN
 
+    pop r20
     pop r16
     dec r16
 
@@ -177,13 +212,36 @@ oled_loop:
 
 
 
-; test3:
-;     ldi r20, 0xfa                           ; set delay to 0.25 second (250 milliseconds)
-;     clr r21
-;     clr r22
-; test3_loop:
-;     sbi PORTB, LED_PIN2
-;     rcall time_delay_ms
-;     cbi PORTB, LED_PIN2
-;     rcall time_delay_ms
-;     rjmp test3_loop
+test3:
+    ldi r20, 0xfa                           ; set delay to 0.25 second (250 milliseconds)
+    clr r21
+    clr r22
+test3_loop:
+
+    rcall i2c_lock_acquire
+
+    ldi r16, 6
+    ldi r17, 40
+    rcall oled_set_cursor                      ; set cursor to start writing data
+
+    ; ldi r16, 0xaa
+    rcall gpio_adc_read
+    ; =========
+    ldi r18, 8
+    ldi r19, 48
+_num_loop2:
+    clr r17
+    lsr r16
+    rol r17
+    add r17, r19
+    push r17
+    dec r18
+    brne _num_loop2
+    ; =========
+
+    ldi r16, 8
+    rcall oled_put_str_stack
+    rcall i2c_lock_release
+
+    rcall time_delay_ms
+    rjmp test3_loop
