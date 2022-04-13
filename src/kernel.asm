@@ -150,28 +150,16 @@ oled_loop:
     push r20
     push r23
 
-    rcall i2c_lock_acquire
-
-    ; =========
     mov r23, r16
-    ldi r18, 8
-    ldi r19, 48
-_num_loop:
-    clr r17
-    lsr r16
-    rol r17
-    add r17, r19
-    push r17
-    dec r18
-    brne _num_loop
-    ; =========
+
+    rcall i2c_lock_acquire
 
     ldi r16, 7
     ldi r17, 40
     rcall oled_set_cursor                      ; set cursor to start writing data
 
-    ldi r16, 8
-    rcall oled_put_str_stack
+    mov r16, r23
+    rcall oled_put_binary_digits
 
     ; =========
     mov r16, r23
@@ -232,21 +220,8 @@ test3_loop:
 
     ; ldi r16, 0xaa
     rcall gpio_adc_read
-    ; =========
-    ldi r18, 8
-    ldi r19, 48
-_num_loop2:
-    clr r17
-    lsr r16
-    rol r17
-    add r17, r19
-    push r17
-    dec r18
-    brne _num_loop2
-    ; =========
+    rcall oled_put_binary_digits
 
-    ldi r16, 8
-    rcall oled_put_str_stack
     rcall i2c_lock_release
 
     rcall time_delay_ms

@@ -268,15 +268,15 @@ _next_char:
     ret                             ; return value r16 will contain ACK from last byte transfered
 
 
-; oled_put_str_stack reads string from stack and writes to oled
-; it expects
-;   - string length passed in r16
-oled_put_str_stack:
-    pop r4 ; pop off the function return address for later
-    pop r6
 
-    in r7, SREG
-    mov r8, r16                                ; initialize loop counter with string length
+; oled_put_binary_digits converts r16 to is and 0s and writes to oled
+oled_put_binary_digits:
+    .irp param,17,18,19,20
+        push r\param
+    .endr
+
+    in r17, SREG
+    mov r18, r16                               ; save r16 for later
 
     rcall i2c_do_start_condition
 
@@ -286,17 +286,23 @@ oled_put_str_stack:
     ldi r16, OLED_WRITE_DATA_LIST              ; this tells the device to expect a list of data bytes until stop condition
     rcall i2c_send_byte
 
-_next_char_stack:
-    pop r16                     ; load character from stack
+    ldi r19, 8
+    ldi r20, 48
+_next_bin_char:
+    clr r16
+    lsl r18
+    rol r16
+    add r16, r20
     rcall oled_internal_put_char
-    dec r8
-    brne _next_char_stack
+    dec r19
+    brne _next_bin_char
 
     rcall i2c_do_stop_condition
 
-    out SREG, r7
-    push r6
-    push r4
+    out SREG, r17
+    .irp param,20,19,18,17
+        pop r\param
+    .endr
     ret                             ; return value r16 will contain ACK from last byte transfered
 
 

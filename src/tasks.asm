@@ -16,6 +16,7 @@
 ;   - these locks are used when different tasks need to work on a shared resource,
 ;        where the resource does not play well with multitasking
 ;   - a lock can be acquired by setting a bit in this register to 1, and released by setting it to 0
+;   - tasks using the resource should use wait, aquisitions and release workflow
 ;   - currently only 1 lock bit is assigned to the I2C bus (I2C_BUS_LOCK)
 ;      --------------------------------------------------------------------------
 ;      |  N/A  |  N/A  |  N/A  |  N/A  |  N/A  |  N/A  |  N/A  |  I2C_BUS_LOCK  |
