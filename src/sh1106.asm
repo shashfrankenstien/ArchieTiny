@@ -272,7 +272,7 @@ _next_char:
 ; it expects
 ;   - string length passed in r16
 oled_put_str_stack:
-    pop r5 ; pop off the function return address for later
+    pop r4 ; pop off the function return address for later
     pop r6
 
     in r7, SREG
@@ -296,7 +296,7 @@ _next_char_stack:
 
     out SREG, r7
     push r6
-    push r5
+    push r4
     ret                             ; return value r16 will contain ACK from last byte transfered
 
 

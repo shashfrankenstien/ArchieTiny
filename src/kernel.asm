@@ -97,8 +97,10 @@ main:                               ; initialize
     ldi r16, hi8(RAMEND)            ; set stack pointer high bits to high(RAMEND)
     out SPH, r16
 
-    rcall init_timer0               ; set timer / counter options
     rcall init_onboard_led          ; set LED output pin
+    sbi PORTB, LED_PIN
+
+    rcall init_timer0               ; set timer / counter options
 
     rcall time_init                 ; intialize 24bit software counter
     rcall i2c_init                  ; initialize i2c bus
@@ -114,6 +116,8 @@ main:                               ; initialize
     ldi r17, hi8(test3)         ; add blink task to task manager table
     ldi r16, lo8(test3)
     rcall taskmanager_add
+
+    cbi PORTB, LED_PIN
     sei
 pool:
     sleep                           ; wait for interrupts (required for simavr to perform correctly. good idea anyway)
@@ -144,6 +148,9 @@ oled_loop:
 
     push r16
     push r20
+    push r23
+
+    rcall i2c_lock_acquire
 
     ; =========
     mov r23, r16
@@ -158,8 +165,6 @@ _num_loop:
     dec r18
     brne _num_loop
     ; =========
-
-    rcall i2c_lock_acquire
 
     ldi r16, 7
     ldi r17, 40
@@ -193,6 +198,7 @@ _num_loop:
     ; sbrs r16, 0
     ; cbi PORTB, LED_PIN
 
+    pop r23
     pop r20
     pop r16
     dec r16
