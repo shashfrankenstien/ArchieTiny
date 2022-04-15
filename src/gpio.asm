@@ -66,23 +66,14 @@ gpio_btn_init:
 ; - assumes that debouncing is handled by hardware (simple RC circuit. schmitt trigger may be overkill)
 gpio_btn_press_isr:
     push r16
-    push r20
-
-    ; ldi r20, 0xff
-    ; rcall time_delay_clock_cycles           ; software debouncing
 
     in r16, PINB
-    sbrc r16, BTN1_PIN
+    sbrc r16, BTN1_PIN                        ; active high. continue only on falling edge
     rjmp _pc_int_done
 
-    sbrs r9, 0
-    sbi PORTB, LED_PIN
-    sbrc r9, 0
-    cbi PORTB, LED_PIN
-    ldi r16, 0xff
-    eor r9, r16
+    inc r9
+
 _pc_int_done:
-    pop r20
     pop r16
     reti
 

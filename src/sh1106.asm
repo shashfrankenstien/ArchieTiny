@@ -38,18 +38,11 @@
 ; initialize oled and set default settings
 ; rotate oled 180 degrees by flipping both column and page scan directions
 oled_init:
-    .irp param,16,17,18,19,20
-        push r\param
-    .endr
+    push r16
 
     rcall i2c_do_stop_condition                ; call stop condition just in case (mostly not required)
-    rcall i2c_do_start_condition
 
-    ldi r16, OLED_WRITE_ADDR                   ; i2c communication always starts with the address + read/write flag
-    rcall i2c_send_byte
-
-    ldi r16, OLED_WRITE_CMD_LIST               ; this control byte tells the display to expect a list of commands until stop condition
-    rcall i2c_send_byte
+    rcall oled_io_open_write_cmds
 
     ldi r16, SET_DISPLY_ON                     ; turn on the display
     rcall i2c_send_byte
@@ -63,20 +56,65 @@ oled_init:
     ldi r16, SET_SEGMENT_REMAP_INV             ; reverse the column scan direction
     rcall i2c_send_byte
 
-    rcall i2c_do_stop_condition
+    rcall oled_io_close
 
-    clr r16                                    ; fill byte = 0x00
+    rcall oled_clr_screen
+
+    pop r16
+    ret
+
+
+; ----------------- i2c wrappers ------------------
+
+; use this routine to start a command list write transaction
+oled_io_open_write_cmds:
+    rcall i2c_do_start_condition
+
+    ldi r16, OLED_WRITE_ADDR                   ; i2c communication always starts with the address + read/write flag
+    rcall i2c_send_byte
+
+    ldi r16, OLED_WRITE_CMD_LIST               ; this control byte tells the display to expect a list of commands until stop condition
+    rcall i2c_send_byte
+    ret
+
+
+; use this routine to start a command list write transaction
+oled_io_open_write_data:
+    rcall i2c_do_start_condition
+
+    ldi r16, OLED_WRITE_ADDR                   ; i2c communication always starts with the address + read/write flag
+    rcall i2c_send_byte
+
+    ldi r16, OLED_WRITE_DATA_LIST              ; this tells the device to expect a list of data bytes until stop condition
+    rcall i2c_send_byte
+    ret
+
+
+oled_io_close:
+    rcall i2c_do_stop_condition
+    ret
+
+; -------------------------------------------------
+
+
+
+; write all zeros onto oled
+oled_clr_screen:
+    .irp param,16,17,18,19,20
+        push r\param
+    .endr
+
+    clr r16                                    ; fill byte = 0x00 (all 0s)
     clr r17                                    ; x1 = 0
     ldi r18, 127                               ; x2 = 127
     clr r19                                    ; y2 = 0
     ldi r20, 7                                 ; y2 = 7
-    rcall oled_fill_rect                            ; fill oled with data in r16 (all 0s)
+    rcall oled_fill_rect                       ; fill oled with data in r16
 
     .irp param,20,19,18,17,16
         pop r\param
     .endr
     ret
-
 
 
 
@@ -103,12 +141,7 @@ oled_set_cursor:
     andi r17, 0x0f                             ; keep low bits of column address
     ori r17, SET_COLUMN_L                      ; set column start addr low bits
 
-    rcall i2c_do_start_condition
-
-    ldi r16, OLED_WRITE_ADDR
-    rcall i2c_send_byte
-    ldi r16, OLED_WRITE_CMD_LIST
-    rcall i2c_send_byte
+    rcall oled_io_open_write_cmds
 
     mov r16, r19                               ; get current page number (in range y1 to y2)
     ori r16, SET_PAGE_ADDRESS                  ; OR with SET_PAGE_ADDRESS cmd
@@ -120,7 +153,7 @@ oled_set_cursor:
     mov r16, r18
     rcall i2c_send_byte
 
-    rcall i2c_do_stop_condition
+    rcall oled_io_close
 
     .irp param,19,18,17,16
         pop r\param
@@ -160,13 +193,7 @@ _next_page:                                    ; iterate pages y1 to y2
     mov r17, r23                               ; reload original x1
     rcall oled_set_cursor                      ; set cursor to start writing data
 
-    rcall i2c_do_start_condition
-
-    ldi r16, OLED_WRITE_ADDR
-    rcall i2c_send_byte
-
-    ldi r16, OLED_WRITE_DATA_LIST              ; this tells the device to expect a list of data bytes until stop condition
-    rcall i2c_send_byte
+    rcall oled_io_open_write_data
 
 _next_column:
     mov r16, r22                               ; load back fill byte that was originally saved away
@@ -175,7 +202,7 @@ _next_column:
     cp r17, r18
     brne _next_column
 
-    rcall i2c_do_stop_condition                 ; finished writing a page
+    rcall oled_io_close                        ; finished writing a page
 
     inc r19
     cp r19, r20
@@ -190,7 +217,7 @@ _next_column:
 
 
 
-; oled_internal_put_char depends on a font being included. it will expect
+; oled_io_put_char depends on a font being included. it will expect
 ;   - a label 'font_lut' that contains the lookup table for characters
 ;   - FONT_WIDTH constant which indicates how many bytes need to be written per character
 ;   - FONT_OFFSET constant which indicates the first ascii charater in the lookup table
@@ -200,9 +227,9 @@ _next_column:
 ; to write the character, we need to find the index of the character in font_lut
 ;   - index = addr of font_lut + ((r16 - FONT_OFFSET) * FONT_WIDTH)
 ;
-; oled_internal_put_char assumes that start condition has been signaled and cursor address is set before being called
+; oled_io_put_char assumes that start condition has been signaled and cursor address is set before being called
 ; it also expects that the oled is in OLED_WRITE_DATA_LIST mode
-oled_internal_put_char:
+oled_io_put_char:
     .irp param,17,18,30,31
         push r\param
     .endr
@@ -245,22 +272,16 @@ oled_put_str_flash:
     in r17, SREG
     mov r18, r16                                ; initialize loop counter with string length
 
-    rcall i2c_do_start_condition
-
-    ldi r16, OLED_WRITE_ADDR
-    rcall i2c_send_byte
-
-    ldi r16, OLED_WRITE_DATA_LIST              ; this tells the device to expect a list of data bytes until stop condition
-    rcall i2c_send_byte
+    rcall oled_io_open_write_data               ; this tells the device to expect a list of data bytes until stop condition
 
 _next_char:
     lpm r16, Z+                     ; load character from flash memory
                                     ; memory pointed to by Z (r31:r30)
-    rcall oled_internal_put_char
+    rcall oled_io_put_char
     dec r18
     brne _next_char
 
-    rcall i2c_do_stop_condition
+    rcall oled_io_close
 
     out SREG, r17
     pop r18
@@ -278,13 +299,7 @@ oled_put_binary_digits:
     in r17, SREG
     mov r18, r16                               ; save r16 for later
 
-    rcall i2c_do_start_condition
-
-    ldi r16, OLED_WRITE_ADDR
-    rcall i2c_send_byte
-
-    ldi r16, OLED_WRITE_DATA_LIST              ; this tells the device to expect a list of data bytes until stop condition
-    rcall i2c_send_byte
+    rcall oled_io_open_write_data               ; this tells the device to expect a list of data bytes until stop condition
 
     ldi r19, 8
     ldi r20, 48
@@ -293,11 +308,11 @@ _next_bin_char:
     lsl r18
     rol r16
     add r16, r20
-    rcall oled_internal_put_char
+    rcall oled_io_put_char
     dec r19
     brne _next_bin_char
 
-    rcall i2c_do_stop_condition
+    rcall oled_io_close
 
     out SREG, r17
     .irp param,20,19,18,17

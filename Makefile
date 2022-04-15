@@ -11,6 +11,7 @@ SRC=src/kernel.asm \
 	src/usi_i2c.asm \
 	src/gpio.asm \
 	src/sh1106.asm \
+	src/shell.asm \
 	src/fonts/bitocra7.asm
 
 all: $(BUILD_PREFIX).hex

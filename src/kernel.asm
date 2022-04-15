@@ -41,13 +41,6 @@
 ; .req    r25,            r25
 
 
-; ; settings to read fuse bits
-; .equ    SPMCSR,           0x37            ; SPMCSR - Store Program Memory Control and Status Register
-; .equ    RFLB,             3               ; bit 3 allows reading fuse and lock bits
-; .equ    SPMEN,            0               ; bit 0 enable program memory control
-
-
-
 ; MAIN PROGRAM
 
 .org 0                              ; origin - address of next statement
@@ -109,9 +102,11 @@ main:                               ; initialize
     rcall gpio_adc_init            ; intialize ADC to read thumb wheel potentiometer
     rcall taskmanager_init          ; initialize task manager table
 
-    ldi r17, hi8(test_oled)         ; add blink task to task manager table
-    ldi r16, lo8(test_oled)
-    rcall taskmanager_add
+    ; ui
+    rcall shell_splash_screen
+    ; ldi r17, hi8(test_oled)         ; add blink task to task manager table
+    ; ldi r16, lo8(test_oled)
+    ; rcall taskmanager_add
 
     ldi r17, hi8(test3)         ; add blink task to task manager table
     ldi r16, lo8(test3)
@@ -128,29 +123,11 @@ pool:
 
 
 
-hello_world:
-    .ascii " Hello World "
-    .equ   hello_world_len ,    . - hello_world      ; calculates the string length
-    .balign 2
-
-
-
-
-
-test_oled:
-    ldi r20, 0xe8                           ; set delay to approximately 1 second (250 * 4 milliseconds)
-    ldi r21, 0x03
+test3:
+    ldi r20, 0xf0                           ; set delay to 0.25 second (250 milliseconds)
+    clr r21
     clr r22
-
-    ldi r16, 0xff                           ; oled fill byte
-oled_loop:
-    ; sbi PORTB, LED_PIN
-
-    push r16
-    push r20
-    push r23
-
-    mov r23, r16
+test3_loop:
 
     rcall i2c_lock_acquire
 
@@ -158,61 +135,9 @@ oled_loop:
     ldi r17, 40
     rcall oled_set_cursor                      ; set cursor to start writing data
 
-    mov r16, r23
+    mov r16, r9
     rcall oled_put_binary_digits
 
-    ; =========
-    mov r16, r23
-    ldi r17, 30                                ; x1
-    ldi r18, 90                                ; x2
-    ldi r19, 2                                 ; y1
-    ldi r20, 4                                 ; y2
-    rcall oled_fill_rect                       ; fill oled with data in r16
-
-    ; =========
-    ; Hello World! :D
-    ldi r16, 3
-    ldi r17, 30
-    rcall oled_set_cursor                      ; set cursor to start writing data
-
-    ldi r31, hi8(hello_world)          ; Initialize Z-pointer to the start of the hello_world label
-    ldi r30, lo8(hello_world)
-    ldi r16, hello_world_len
-    rcall oled_put_str_flash
-
-    ; =========
-
-    rcall i2c_lock_release
-    ; sbrs r16, 0
-    ; cbi PORTB, LED_PIN
-
-    pop r23
-    pop r20
-    pop r16
-    dec r16
-
-    ; rcall time_delay_ms
-    ; rcall test_oled_read
-
-    ; rcall time_delay_ms
-    ; sbi PORTB, LED_PIN
-    ; rcall test_oled2
-
-    ; rcall time_delay_ms
-    ; rcall test_oled_read
-
-    rcall time_delay_ms
-    rjmp oled_loop
-
-
-
-test3:
-    ldi r20, 0xfa                           ; set delay to 0.25 second (250 milliseconds)
-    clr r21
-    clr r22
-test3_loop:
-
-    rcall i2c_lock_acquire
 
     ldi r16, 6
     ldi r17, 40
