@@ -104,9 +104,9 @@ main:                               ; initialize
 
     ; ui
     rcall shell_splash_screen
-    ; ldi r17, hi8(test_oled)         ; add blink task to task manager table
-    ; ldi r16, lo8(test_oled)
-    ; rcall taskmanager_add
+    ldi r17, hi8(shell_console)         ; add blink task to task manager table
+    ldi r16, lo8(shell_console)
+    rcall taskmanager_add
 
     ldi r17, hi8(test3)         ; add blink task to task manager table
     ldi r16, lo8(test3)

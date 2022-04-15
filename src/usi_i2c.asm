@@ -1,4 +1,4 @@
-.include "config.inc"                                   ; TASKLKS and I2C_BUS_LOCK
+.include "config.inc"                                   ; SREG_I2C
 
 ; hardware I2C interface using USI
 
@@ -21,6 +21,24 @@
                                         ; * see 'time_delay_clock_cycles' in the 'time' module
 
 
+; SREG_I2C - i2c status register (1)
+;   - register holds 8 i2c status flags
+;   - currently only 1 bit is assigned - I2C bus lock bit (I2C_BUS_LOCK)
+;      --------------------------------------------------------------------------
+;      |  N/A  |  N/A  |  N/A  |  N/A  |  N/A  |  N/A  |  N/A  |  I2C_BUS_LOCK  |
+;      --------------------------------------------------------------------------
+;
+; I2C_BUS_LOCK (bit 0)
+;   - a lock can be acquired by setting I2C_BUS_LOCK bit in SREG_I2C to 1, and released by clearing it to 0
+;   - tasks using i2c should use i2c_lock_acquire and i2c_lock_release
+;       these routines facilitate wait-aquire-release workflow
+.equ    I2C_BUS_LOCK,         0         ; i2c bus lock can be acquired by setting bit 0 of SREG_I2C register
+
+
+
+
+
+
 
 i2c_init:
     sbi PORTB, I2C_SDA_PIN              ; set SDA to high
@@ -36,6 +54,8 @@ i2c_init:
     out USISR, r16
     ldi r16, I2C_MODE
     out USICR, r16
+    clr r16
+    sts SREG_I2C, r16                   ; clear i2c status regiester
     pop r16
 
     rcall i2c_lock_release
@@ -72,12 +92,12 @@ _lock_wait_sleep:
     sleep
 _locked_wait:
     cli                                 ; stop interrupts while checking and trying to acquire lock bits
-    lds r16, TASKLKS
+    lds r16, SREG_I2C
     sbrc r16, I2C_BUS_LOCK              ; check if lock is available to acquire
     rjmp _lock_wait_sleep               ; sleep till lock available
 
     sbr r16, (1 << I2C_BUS_LOCK)        ; acquire lock
-    sts TASKLKS, r16
+    sts SREG_I2C, r16
     sei                                 ; enable interrupts and return
     pop r16
     ret
@@ -85,9 +105,9 @@ _locked_wait:
 
 i2c_lock_release:
     push r16
-    lds r16, TASKLKS                    ; release the lock
+    lds r16, SREG_I2C                    ; release the lock
     cbr r16, (1 << I2C_BUS_LOCK)
-    sts TASKLKS, r16
+    sts SREG_I2C, r16
     pop r16
     ret
 

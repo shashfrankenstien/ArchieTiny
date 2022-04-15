@@ -74,8 +74,28 @@ GND | GND | pin 4
 - Ugh, need to add `-nostartfiles` to avr-gcc so it doesn't include weird extra code that kills interrupts.
     - This also eliminates need to create and expose a global `main` routine
 
-## task manager (tasks.asm)
+## Time and Delays (time.asm)
+- Features
+    - 24 bit software time counter - this requires that `time_tick_isr` is attached to an interrupt that triggers every 1 millisecond
+    - also includes a sort of accurate clock cycle counter delay. (see `time_delay_clock_cycles` subroutine)
+- Ticks are stored in addressed by TIME_SOFT_COUNTER config variable
+    - HIGH_BYTE:MIDDLE_BYTE:LOW_BYTE
+    - TIME_SOFT_COUNTER+2:TIME_SOFT_COUNTER+1:TIME_SOFT_COUNTER
+
+## Resource Status Registers
+- Each of the below resources are allocated 1 register of size 1 byte to store custom status flags
+- Each of these status registers are described within their corresponding modules
+
+Resource | Register config name | Module
+---------|----------------------|-------------
+I2C      | SREG_I2C             | usi_i2c.asm
+Oled     | SREG_OLED            | sh1106.asm
+GPIO     | SREG_GPIO            | gpio.asm
+
+
+## Task Manager (tasks.asm)
 Tasks Table is set up starting at RAM address TASK_TABLE_START (Should be greater than 0x60 = 32 general registers + 64 I/O registers).
+
 
 ### Task table
 - First byte will be the task counter (TASKCTS)
@@ -102,22 +122,23 @@ Tasks Table is set up starting at RAM address TASK_TABLE_START (Should be greate
     - load stack pointer value from TASK_SP_VECTOR at TASKPTR index
     - set new stack pointer, pop all registers + SREG
     - reti
-TASKLKS - general purpose locks register (1)
-    - register holds 8 general purpose locks
-    - these locks are used when different tasks need to work on a shared resource,
-        where the resource does not play well with multitasking
-    - a lock can be acquired by setting a bit in this register to 1, and released by setting it to 0
-    - currently only 1 lock bit is assigned to the I2C bus (I2C_BUS_LOCK)
 
 
-### I2C
+## I2C
 - Built-in USI I2C
     - outputs USIDR MSB on SDA line on falling edge of SCL
     - slave devices read on rising edge of SCL
     - slave addresses seem to be shifted left
         - for example, in SH1106, documentation says addresses are 0111100 and 0111101, but in reality, device only reponds to 01111000 and 01111001
+- SREG_I2C - i2c status register
+    - register holds 8 i2c status flags
+    - currently only 1 bit is assigned - I2C bus lock bit (I2C_BUS_LOCK)
+- I2C_BUS_LOCK (bit 0)
+    - a lock can be acquired by setting I2C_BUS_LOCK bit in SREG_I2C to 1, and released by clearing it to 0
+    - tasks using i2c should use i2c_lock_acquire and i2c_lock_release. these routines facilitate wait-aquire-release workflow
 
-### OLED display (using I2C)
+
+## OLED display (using I2C)
 - SH1106 Command Table is on page 30 of the datasheet
 - fonts - https://github.com/Tecate/bitmap-fonts
     - bitocra7
@@ -126,10 +147,10 @@ TASKLKS - general purpose locks register (1)
 - when including strings in program memory, we need to mind byte alignment.
     use `.balign 2` after each string definition
 
-### Button press event manager (TODO)
+## Button press event manager (TODO)
 
 
-### EEPROM FAT-8 File System (TODO)
+## EEPROM FAT-8 File System (TODO)
 - https://www.youtube.com/watch?v=HjVktRd35G8
 
 

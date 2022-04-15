@@ -47,19 +47,36 @@ shell_splash_screen:
 
 
 
-; ; wait for r9 to change.
-; ; need to move off of using registers for button presses [TODO]
-; shell_console:
-;     rjmp _shell_console_wait
+; wait for r9 to change.
+; [TODO] need to move off of using registers for button presses [TODO]
+shell_console:
+    rjmp _shell_console_wait
 
-; _shell_console_sleep_wait:
-;     sleep
-; _shell_console_wait:
-;     cpi r9, 0
-;     breq _shell_console_sleep_wait
+_shell_console_sleep_wait:
+    sleep
+_shell_console_wait:
+    mov r16, r9
+    cpi r16, 0
+    breq _shell_console_sleep_wait
 
-;     ; shell entered
-;     rcall oled_clr_screen
+    ; shell entered
+    rcall i2c_lock_acquire
+
+    rcall oled_clr_screen
+
+    ldi r16, 0
+    ldi r17, 0
+    rcall oled_set_cursor                      ; set cursor to start writing data
+
+    rcall oled_io_open_write_data
+    ldi r16, '>'
+    rcall oled_io_put_char
+    rcall oled_io_close
+
+    rcall i2c_lock_release
+
+    clr r9
+    rjmp _shell_console_sleep_wait
 
 
 

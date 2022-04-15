@@ -42,6 +42,7 @@ $(BUILD_PREFIX).elf: $(BUILD_PREFIX).o
 $(BUILD_PREFIX).hex: $(BUILD_PREFIX).elf
 	avr-objcopy -j .text -j .data -O ihex $< $@
 	avr-objdump -h -S $< > $(BUILD_PREFIX).dis
+	avr-size $<
 	ls -all $@
 
 
