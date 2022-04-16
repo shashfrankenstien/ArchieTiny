@@ -137,6 +137,12 @@ test3_loop:
     rcall gpio_adc_read
     rcall oled_put_binary_digits
 
+    ldi r16, 6
+    ldi r17, 40
+    rcall oled_set_cursor                      ; set cursor to start writing data
+    lds r16, SREG_GPIO
+    rcall oled_put_binary_digits
+
     rcall i2c_lock_release
 
     rcall time_delay_ms

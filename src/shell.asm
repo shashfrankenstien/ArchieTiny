@@ -17,8 +17,8 @@ shell_splash_screen:
 
     ; =========
     ldi r16, 0xaa
-    ldi r17, 10                                ; x1
-    ldi r18, 118                               ; x2
+    ldi r17, 20                                ; x1
+    ldi r18, 108                               ; x2
     ldi r19, 2                                 ; y1
     ldi r20, 4                                 ; y2
     rcall oled_fill_rect                       ; fill oled with data in r16
@@ -50,17 +50,19 @@ shell_splash_screen:
 
 
 ; wait for r9 to change.
-; [TODO] need to move off of using registers for button presses [TODO]
 shell_console:
     rjmp _shell_console_wait
 
-_shell_console_sleep_wait:
+_shell_console_sei_wait:
+    sei
     sleep
 _shell_console_wait:
-    mov r16, r9
-    cpi r16, 0
-    breq _shell_console_sleep_wait
+    cli
+    lds r16, SREG_GPIO
+    sbrs r16, GPIO_BTN_0_PRS
+    rjmp _shell_console_sei_wait
 
+    sei
     ; shell entered
     rcall i2c_lock_acquire
 
@@ -83,8 +85,11 @@ _shell_console_wait:
 
     rcall i2c_lock_release
 
-    clr r9
-    rjmp _shell_console_sleep_wait
+    cli
+    lds r16, SREG_GPIO
+    cbr r16, (1<<GPIO_BTN_0_PRS)
+    sts SREG_GPIO, r16                          ; clear GPIO_BTN_0_PRS
+    rjmp _shell_console_sei_wait
 
 
 

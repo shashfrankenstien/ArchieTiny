@@ -1,4 +1,4 @@
-.include "config.inc"                       ; LED_PIN, BTN1_PIN, THUMB_WHEEL_CHANNEL, SREG_GPIO
+.include "config.inc"                       ; LED_PIN, GPIO_BTN_0, THUMB_WHEEL_CHANNEL, SREG_GPIO
 
 ; gpio mode, write and read registers
 .equ    DDRB,               0x17
@@ -35,7 +35,29 @@
 .equ    ADCH,               0x05            ; ADCH – The ADC Data Register high byte (read only this when ADLAR is set)
 .equ    ADCL,               0x04            ; ADCL – The ADC Data Register low byte
 
+
+
+; SREG_GPIO - gpio status register
+;   - register holds 8 gpio status flags
+;      -----------------------------------------------------------------------------------------------------------------------
+;      |  N/A  |  N/A  | GPIO_BTN_2_HLD | GPIO_BTN_1_HLD | GPIO_BTN_0_HLD | GPIO_BTN_2_PRS | GPIO_BTN_1_PRS | GPIO_BTN_0_PRS |
+;      -----------------------------------------------------------------------------------------------------------------------
+;
+; GPIO_BTN_x_PRS - where x is 0, 1 or 2
+;   - flag is set when a falling edge is detected on button x
+;   - this flag should be cleared after action is taken about the press
+; GPIO_BTN_x_HLD - where x is 0, 1 or 2
+;   - flag is set when a falling edge is detected and cleared when rising edge is detected on button x
+
+.equ    GPIO_BTN_0_PRS,     0
+.equ    GPIO_BTN_1_PRS,     1
+.equ    GPIO_BTN_2_PRS,     2
+
+.equ    GPIO_BTN_0_HLD,     GPIO_BTN_0_PRS + 3
+.equ    GPIO_BTN_1_HLD,     GPIO_BTN_1_PRS + 3
+.equ    GPIO_BTN_2_HLD,     GPIO_BTN_2_PRS + 3
 ; --------------------------------------------------------------------------------
+
 
 ; digital IO routines
 init_onboard_led:
@@ -49,15 +71,23 @@ init_onboard_led:
 ; intialize PC interrupt
 ; - inputs are set to active low by enabling pull-up registers
 gpio_btn_init:
+    push r16
     ldi r16, (1<<PC_INT_ENABLE)
     out GIMSK, r16
 
-    sbi PORTB, BTN1_PIN                      ; pull high (active low)
-    cbi DDRB, BTN1_PIN
+    sbi PORTB, GPIO_BTN_0                      ; pull high (active low)
+    cbi DDRB, GPIO_BTN_0
 
-    ldi r16, (1<<BTN1_PIN)
-    out PCMSK, r16                           ; enable button 1 pin change interrupt
-    clr r9
+    sbi PORTB, GPIO_BTN_1                      ; pull high (active low)
+    cbi DDRB, GPIO_BTN_1
+
+    ldi r16, (1<<GPIO_BTN_0) | (1<<GPIO_BTN_1)
+    out PCMSK, r16                             ; enable button 1 pin change interrupt
+
+    clr r16
+    sts SREG_GPIO, r16                          ; clear gpio status register
+
+    pop r16
     ret
 
 
@@ -66,11 +96,24 @@ gpio_btn_init:
 ; - assumes that debouncing is handled by hardware (simple RC circuit. schmitt trigger may be overkill)
 gpio_btn_press_isr:
     push r16
+    push r17
+
+    lds r17, SREG_GPIO
 
     in r16, PINB
-    sbrs r16, BTN1_PIN                        ; active low. act only if cleared
-    inc r9
+    sbrs r16, GPIO_BTN_0                        ; active low. act only if cleared
+    ori r17, (1<<GPIO_BTN_0_PRS) | (1<<GPIO_BTN_0_HLD)
+    sbrc r16, GPIO_BTN_0                        ; if button is set, clear HLD flag
+    cbr r17, (1<<GPIO_BTN_0_HLD)
 
+    sbrs r16, GPIO_BTN_1                        ; active low. act only if cleared
+    ori r17, (1<<GPIO_BTN_1_PRS) | (1<<GPIO_BTN_1_HLD)
+    sbrc r16, GPIO_BTN_1                        ; if button is set, clear HLD flag
+    cbr r17, (1<<GPIO_BTN_1_HLD)
+
+    sts SREG_GPIO, r17
+
+    pop r17
     pop r16
     reti
 

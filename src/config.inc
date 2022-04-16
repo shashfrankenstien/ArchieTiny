@@ -7,7 +7,8 @@
 
 ; blink config
 .equ    LED_PIN,        1
-.equ    BTN1_PIN,       3
+.equ    GPIO_BTN_0,     3
+.equ    GPIO_BTN_1,     4
 .equ    THUMB_WHEEL_CHANNEL, 0
 
 ; time and delay manager
