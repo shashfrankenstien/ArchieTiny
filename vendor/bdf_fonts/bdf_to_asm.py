@@ -67,8 +67,8 @@ def test(font, test_string):
     for c in test_string:
         a = font.get(str(ord(c)))
         if a:
-            a = _transpose_bits(a)
-            for i in range(len(a)-1):
+            # a = _transpose_bits(a)
+            for i in range(len(a)):
                 b = a[i]
                 for bit in f'{b:b}'.zfill(8):
                     bit = 'X' if bit == '1' else ' '
@@ -77,22 +77,17 @@ def test(font, test_string):
         print()
 
 
-# bdf_filepath = "vendor/bitmap_fonts/bitmap/tamzen-font/bdf/Tamzen5x9r.bdf"
-# bdf_filepath = "vendor/bitmap_fonts/bitmap/dina/Dina_r400-6.bdf"
-# bdf_filepath = "vendor/bitmap_fonts/bitmap/cherry/cherry-10-b.bdf"
-# bdf_filepath = "vendor/bitmap_fonts/bitmap/artwiz/bdf/edges.bdf"
-# bdf_filepath = "vendor/bitmap_fonts/bitmap/leggie/leggie.bdf"
-# bdf_filepath = "vendor/bitmap_fonts/bitmap/jmk-x11-fonts-3.0/modd-ascii-06x11.bdf"
 
 
-# bdf_filepath = 'vendor/bitmap_fonts/bitmap/bitocra/bitocra7.bdf'
-# bdf_filepath = "vendor/bitmap_fonts/bitmap/spleen/spleen-5x8.bdf"
-bdf_filepath = "vendor/bitmap_fonts/bitmap/phallus/lemon.bdf"
+# bdf_filepath = 'bitocra7.bdf'
+# bdf_filepath = "spleen-5x8.bdf"
+# bdf_filepath = "lemon.bdf"
+bdf_filepath = "miniwi.bdf"
 
 
 
 
-to_asm(bdf_filepath, font_name='lemon', height=8, out_width=5, ascii_range=[32, 127])
+to_asm(bdf_filepath, font_name='miniwi', height=8, out_width=4, ascii_range=[32, 127])
 
 
 font = convert_to_bytes(bdf_filepath)

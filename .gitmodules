@@ -4,9 +4,3 @@
 [submodule "vendor/simavr"]
 	path = vendor/simavr
 	url = https://github.com/buserror/simavr.git
-[submodule "vendor/debugwire"]
-	path = vendor/debugwire
-	url = https://github.com/wholder/DebugWireDebuggerProgrammer.git
-[submodule "vendor/bitmap_fonts"]
-	path = vendor/bitmap_fonts
-	url = https://github.com/Tecate/bitmap-fonts
