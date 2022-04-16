@@ -1,7 +1,6 @@
-; General registers / addresses
-
 .include "config.inc"
 
+; General registers / addresses
 
 .equ    SPL,                0x3d
 .equ    SPH,                0x3e
@@ -135,15 +134,6 @@ test3_loop:
     ldi r17, 40
     rcall oled_set_cursor                      ; set cursor to start writing data
 
-    mov r16, r9
-    rcall oled_put_binary_digits
-
-
-    ldi r16, 6
-    ldi r17, 40
-    rcall oled_set_cursor                      ; set cursor to start writing data
-
-    ; ldi r16, 0xaa
     rcall gpio_adc_read
     rcall oled_put_binary_digits
 

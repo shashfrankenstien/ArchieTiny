@@ -55,7 +55,7 @@ i2c_init:
     ldi r16, I2C_MODE
     out USICR, r16
     clr r16
-    sts SREG_I2C, r16                   ; clear i2c status regiester
+    sts SREG_I2C, r16                   ; clear i2c status register
     pop r16
 
     rcall i2c_lock_release

@@ -29,10 +29,12 @@ shell_splash_screen:
     ldi r17, 30
     rcall oled_set_cursor                      ; set cursor to start writing data
 
+    rcall oled_sreg_color_inv_start
     ldi r31, hi8(hello_world)          ; Initialize Z-pointer to the start of the hello_world label
     ldi r30, lo8(hello_world)
     ldi r16, hello_world_len
     rcall oled_put_str_flash
+    rcall oled_sreg_color_inv_stop
 
     ; =========
 
@@ -71,6 +73,12 @@ _shell_console_wait:
     rcall oled_io_open_write_data
     ldi r16, '>'
     rcall oled_io_put_char
+
+    rcall oled_sreg_color_inv_start
+    ldi r16, ' '
+    rcall oled_io_put_char
+    rcall oled_sreg_color_inv_stop
+
     rcall oled_io_close
 
     rcall i2c_lock_release

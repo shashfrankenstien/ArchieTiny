@@ -1,4 +1,4 @@
-.include "config.inc"                       ; LED_PIN, BTN1_PIN, THUMB_WHEEL_CHANNEL
+.include "config.inc"                       ; LED_PIN, BTN1_PIN, THUMB_WHEEL_CHANNEL, SREG_GPIO
 
 ; gpio mode, write and read registers
 .equ    DDRB,               0x17
@@ -8,7 +8,7 @@
 
 ; pin change interrupt control
 .equ    GIMSK,              0x3b            ; GIMSK – General Interrupt Mask Register
-.equ    PC_INT_ENABLE,      (1<<5)          ; bit 5 is PCIE (bit 6 is INT0 enable)
+.equ    PC_INT_ENABLE,      5               ; bit 5 is PCIE (bit 6 is INT0 enable)
 
 .equ    PCMSK,              0x15            ; PCMSK – Pin Change Mask Register - bits 0 through 5 enable PCINT 0 through 5
 
@@ -47,16 +47,16 @@ init_onboard_led:
 
 
 ; intialize PC interrupt
-; - inputs are set to active high by enabling pull-up registers
+; - inputs are set to active low by enabling pull-up registers
 gpio_btn_init:
-    ldi r16, PC_INT_ENABLE
+    ldi r16, (1<<PC_INT_ENABLE)
     out GIMSK, r16
 
-    sbi PORTB, BTN1_PIN
+    sbi PORTB, BTN1_PIN                      ; pull high (active low)
     cbi DDRB, BTN1_PIN
 
     ldi r16, (1<<BTN1_PIN)
-    out PCMSK, r16
+    out PCMSK, r16                           ; enable button 1 pin change interrupt
     clr r9
     ret
 
@@ -68,12 +68,9 @@ gpio_btn_press_isr:
     push r16
 
     in r16, PINB
-    sbrc r16, BTN1_PIN                        ; active high. continue only on falling edge
-    rjmp _pc_int_done
-
+    sbrs r16, BTN1_PIN                        ; active low. act only if cleared
     inc r9
 
-_pc_int_done:
     pop r16
     reti
 

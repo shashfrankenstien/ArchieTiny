@@ -28,10 +28,27 @@
 .equ SET_COLOR_INV,          0xa7                    ; inverted = black fg, white bg
 
 .equ SET_COMM_SCAN_DIR_NORM, 0xc0                    ; normal = page numbers start on the end away from the i2c pinout
-.equ SET_COMM_SCAN_DIR_INV,  0xc8                    ; inverted =  page numbers start on the end closer to the i2c pinout
+.equ SET_COMM_SCAN_DIR_INV,  0xc8                    ; inverted = page numbers start on the end closer to the i2c pinout
 
 .equ SET_SEGMENT_REMAP_NORM, 0xa0                    ; column scanning direction left to right or right to left
 .equ SET_SEGMENT_REMAP_INV,  0xa1                    ; reverse of SET_SEGMENT_REMAP_NORM
+
+
+
+; SREG_OLED - oled status register (1)
+;   - register holds 8 oled status flags
+;   - currently only 1 bit is assigned - OLED_COLOR_INVERT
+;      -------------------------------------------------------------------------------
+;      |  N/A  |  N/A  |  N/A  |  N/A  |  N/A  |  N/A  |  N/A  |  OLED_COLOR_INVERT  |
+;      -------------------------------------------------------------------------------
+;
+; OLED_COLOR_INVERT (bit 0)
+;   - this flag is used to implement software color inverted mode
+;   - NOTE: this is different from SET_COLOR_INV, which is an oled device function to invert the entire screen
+;   - if OLED_COLOR_INVERT is set, anything written to the the oled will be inverted (1's complement with COM instruction)
+;       if OLED_COLOR_INVERT is cleared, it writes without 1's complement
+.equ    OLED_COLOR_INVERT,       0
+
 
 
 
@@ -39,6 +56,9 @@
 ; rotate oled 180 degrees by flipping both column and page scan directions
 oled_init:
     push r16
+
+    clr r16
+    sts SREG_OLED, r16                         ; clear oled status register
 
     rcall i2c_do_stop_condition                ; call stop condition just in case (mostly not required)
 
@@ -94,6 +114,26 @@ oled_io_close:
     rcall i2c_do_stop_condition
     ret
 
+; -------------------------------------------------
+
+
+; -------------- SREG_I2C wrappers ----------------
+oled_sreg_color_inv_start:
+    push r16
+    lds r16, SREG_OLED
+    sbr r16, (1 << OLED_COLOR_INVERT)        ; set to invert color
+    sts SREG_OLED, r16
+    pop r16
+    ret
+
+
+oled_sreg_color_inv_stop:
+    push r16
+    lds r16, SREG_OLED
+    cbr r16, (1 << OLED_COLOR_INVERT)        ; set to normal color
+    sts SREG_OLED, r16
+    pop r16
+    ret
 ; -------------------------------------------------
 
 
@@ -182,7 +222,11 @@ oled_fill_rect:                                ; fill rect on screen with value 
     in r21, SREG
 
     ; pre calc some stuff
-    mov r22, r16                               ; save away page fill byte till later because we need r16
+    mov r22, r16                               ; save away page fill byte till later because we need r16 for other stuff
+    lds r16, SREG_OLED
+    sbrc r16, OLED_COLOR_INVERT                ; check if needs to be inverted
+    com r22                                    ; invert!
+
     mov r23, r17                               ; save away original x1. this needs to be loaded back for each page
     inc r18                                    ; increment x2 so that we can break the loop once x1 overflows original x2
     inc r20                                    ; increment y2 so that we can break the loop once y1 overflows original y2
@@ -196,7 +240,7 @@ _next_page:                                    ; iterate pages y1 to y2
     rcall oled_io_open_write_data
 
 _next_column:
-    mov r16, r22                               ; load back fill byte that was originally saved away
+    mov r16, r22                               ; load back the fill byte that was originally saved away
     rcall i2c_send_byte                        ; i2c_send_byte modifies r16, so we need to reload r16 at every iteration
     inc r17
     cp r17, r18
@@ -230,10 +274,11 @@ _next_column:
 ; oled_io_put_char assumes that start condition has been signaled and cursor address is set before being called
 ; it also expects that the oled is in OLED_WRITE_DATA_LIST mode
 oled_io_put_char:
-    .irp param,17,18,30,31
+    .irp param,17,18,19,30,31
         push r\param
     .endr
     in r18, SREG
+    lds r19, SREG_OLED
 
     ldi r31, hi8(font_lut)          ; initialize Z-pointer to the start of the font lookup table
     ldi r30, lo8(font_lut)
@@ -249,12 +294,14 @@ oled_io_put_char:
 _next_font_byte:
     lpm r16, Z+                     ; load constant from flash
                                     ; memory pointed to by Z (r31:r30)
+    sbrc r19, OLED_COLOR_INVERT     ; check if needs to be inverted
+    com r16                         ; invert!
     rcall i2c_send_byte
     dec r17
     brne _next_font_byte
 
     out SREG, r18
-    .irp param,31,30,18,17
+    .irp param,31,30,19,18,17
         pop r\param
     .endr
     ret                             ; return value r16 will contain ACK from last byte transfered
