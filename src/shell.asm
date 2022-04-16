@@ -53,27 +53,38 @@ shell_splash_screen:
 
 
 
-; wait for r9 to change.
+; wait for GPIO_BTN_0_PRS to change.
 shell_console_task:
+    clr r23                                    ; use r23 as a sor of status register
+    clr r17                                    ; r17 will track the current column index incase we need to go back
+    ldi r18, ' '                               ; r18 will handle character scrubbing
     rjmp _shell_console_wait
 
-_shell_console_sei_wait:
+_shell_btn_clr_sleep_wait:
+    cli
+    lds r22, SREG_GPIO
+    cbr r22, (1<<GPIO_BTN_0_PRS) | (1<<GPIO_BTN_1_PRS) | (1<<GPIO_BTN_2_PRS)
+    sts SREG_GPIO, r22                          ; clear GPIO_BTN_0_PRS
     sei
+_shell_console_sleep_wait:
     sleep
 _shell_console_wait:
     cli
-    lds r16, SREG_GPIO
-    sbrs r16, GPIO_BTN_0_PRS
-    rjmp _shell_console_sei_wait
-
+    lds r22, SREG_GPIO
+    andi r22, 0b00000111                        ; check only last 3 bits (for any button press)
+    cpi r22, 0
     sei
+    breq _shell_console_sleep_wait
+
+    sbrc r23, 0
+    rjmp _shell_handle_btn_0
+
     ; shell entered
     rcall i2c_lock_acquire
 
     rcall oled_clr_screen
 
-    ldi r16, 0
-    ldi r17, 0
+    clr r16
     rcall oled_set_cursor                      ; set cursor to start writing data
 
     rcall oled_io_open_write_data
@@ -81,19 +92,70 @@ _shell_console_wait:
     rcall oled_io_put_char
 
     rcall oled_sreg_color_inv_start
-    ldi r16, ' '
+    mov r16, r18
     rcall oled_io_put_char
     rcall oled_sreg_color_inv_stop
 
     rcall oled_io_close
-
     rcall i2c_lock_release
 
-    cli
-    lds r16, SREG_GPIO
-    cbr r16, (1<<GPIO_BTN_0_PRS)
-    sts SREG_GPIO, r16                          ; clear GPIO_BTN_0_PRS
-    rjmp _shell_console_sei_wait
+    sbr r23, (1<<0)                             ; flag that shell has been entered. next btn press will go to _shell_check_btn_0
+
+    ldi r16, FONT_WIDTH
+    add r17, r16
+
+    rjmp _shell_btn_clr_sleep_wait
+
+_shell_handle_btn_0:
+    sbrs r22, GPIO_BTN_0_PRS
+    rjmp _shell_handle_btn_1
+
+    rcall i2c_lock_acquire
+    clr r16
+    rcall oled_set_cursor                      ; set cursor to start writing data
+
+    rcall oled_io_open_write_data
+    mov r16, r18
+    rcall oled_io_put_char
+    rcall oled_sreg_color_inv_start
+    mov r16, r18
+    rcall oled_io_put_char
+    rcall oled_sreg_color_inv_stop
+
+    rcall oled_io_close
+    rcall i2c_lock_release
+
+    ldi r16, FONT_WIDTH
+    add r17, r16
+    ; TODO: need to cap r17 at 127 and go to next row (page)
+
+_shell_handle_btn_1:
+    sbrs r22, GPIO_BTN_1_PRS
+    rjmp _shell_handle_btn_2
+
+    inc r18                                    ; scrub to next character
+    ; TODO: need to cap at 127 and start over at ' '
+
+    rcall i2c_lock_acquire
+    clr r16
+    rcall oled_set_cursor                      ; set cursor to start writing data
+
+    rcall oled_io_open_write_data
+    rcall oled_sreg_color_inv_start
+    mov r16, r18
+    rcall oled_io_put_char
+    rcall oled_sreg_color_inv_stop
+
+    rcall oled_io_close
+    rcall i2c_lock_release
+
+_shell_handle_btn_2:
+    sbrs r22, GPIO_BTN_2_PRS
+    rjmp _shell_handle_btn_done
+
+
+_shell_handle_btn_done:
+    rjmp _shell_btn_clr_sleep_wait
 
 
 
