@@ -18,7 +18,7 @@ shell_splash_screen:
     ; =========
     ldi r16, 0xaa
     ldi r17, 20                                ; x1
-    ldi r18, 108                               ; x2
+    ldi r18, 105                               ; x2
     ldi r19, 2                                 ; y1
     ldi r20, 4                                 ; y2
     rcall oled_fill_rect                       ; fill oled with data in r16
@@ -30,7 +30,7 @@ shell_splash_screen:
     rcall oled_set_cursor                      ; set cursor to start writing data
 
     rcall oled_sreg_color_inv_start
-    ldi r31, hi8(hello_world)          ; Initialize Z-pointer to the start of the hello_world label
+    ldi r31, hi8(hello_world)                  ; Initialize Z-pointer to the start of the hello_world label
     ldi r30, lo8(hello_world)
     ldi r16, hello_world_len
     rcall oled_put_str_flash
@@ -39,6 +39,10 @@ shell_splash_screen:
     ; =========
 
     rcall i2c_lock_release
+
+    clr r16
+    sts SREG_GPIO, r16                         ; clear gpio button status register
+
     .irp param,31,30,20,19,18,17,16
         pop r\param
     .endr
@@ -50,7 +54,7 @@ shell_splash_screen:
 
 
 ; wait for r9 to change.
-shell_console:
+shell_console_task:
     rjmp _shell_console_wait
 
 _shell_console_sei_wait:

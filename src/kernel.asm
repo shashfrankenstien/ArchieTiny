@@ -98,16 +98,16 @@ main:                               ; initialize
     rcall i2c_init                  ; initialize i2c bus
     rcall oled_init                 ; initialize i2c oled device (sh1107)
     rcall gpio_btn_init             ; intialize buttons as input pins and attach pc interrupts
-    rcall gpio_adc_init            ; intialize ADC to read thumb wheel potentiometer
+    rcall gpio_adc_init             ; intialize ADC to read thumb wheel potentiometer
     rcall taskmanager_init          ; initialize task manager table
 
     ; ui
     rcall shell_splash_screen
-    ldi r17, hi8(shell_console)         ; add blink task to task manager table
-    ldi r16, lo8(shell_console)
+    ldi r17, hi8(shell_console_task)         ; add task to task manager table
+    ldi r16, lo8(shell_console_task)
     rcall taskmanager_add
 
-    ldi r17, hi8(test3)         ; add blink task to task manager table
+    ldi r17, hi8(test3)             ; add task to task manager table
     ldi r16, lo8(test3)
     rcall taskmanager_add
 

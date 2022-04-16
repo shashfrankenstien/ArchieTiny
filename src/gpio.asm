@@ -76,9 +76,8 @@ gpio_btn_init:
     out GIMSK, r16
 
     sbi PORTB, GPIO_BTN_0                      ; pull high (active low)
-    cbi DDRB, GPIO_BTN_0
-
     sbi PORTB, GPIO_BTN_1                      ; pull high (active low)
+    cbi DDRB, GPIO_BTN_0
     cbi DDRB, GPIO_BTN_1
 
     ldi r16, (1<<GPIO_BTN_0) | (1<<GPIO_BTN_1)
