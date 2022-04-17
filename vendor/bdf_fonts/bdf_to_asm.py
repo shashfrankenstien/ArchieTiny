@@ -57,22 +57,23 @@ def _parse_bdf_props(data):
 
 def _transform_bdf_props(data, font_bbx):
     '''apply BBX to BYTES'''
-    print(font_bbx)
-    print(data)
+    # print(font_bbx)
+    # print(data)
     bbx = data['BBX']
 
-    if bbx['X-OFFSET'] > 0:
+    x_prefix_count = bbx['X-OFFSET'] - font_bbx['X-OFFSET']
+    if x_prefix_count > 0:
         data_bytes = []
         for b in data['BYTES']:
-            data_bytes.append(b>>bbx['X-OFFSET'])
+            data_bytes.append(b>>x_prefix_count)
         data['BYTES'] = data_bytes
 
     y_suffix_count = bbx['Y-OFFSET'] - font_bbx['Y-OFFSET']
     y_prefix_count =  font_bbx['HEIGHT'] - (bbx['HEIGHT'] + y_suffix_count)
     if y_prefix_count > 0:
         data['BYTES'] = ([0] * y_prefix_count) + data['BYTES'] + ([0] * y_suffix_count)
-    print(data)
-    print()
+    # print(data)
+    # print()
     return data
 
 
@@ -92,8 +93,12 @@ def parse_bdf(fpath):
                 missing_rows = 0
 
             if l.startswith("FAMILY_NAME"):
-                print(l.split(' ', maxsplit=1))
-                font_name = l.split(' ', maxsplit=1)[-1].strip().strip('"')
+                font_name = l.split(' ', maxsplit=1)[-1].strip().strip('"').lower()
+
+            elif l.startswith('ADD_STYLE_NAME'):
+                style = l.split(' ', maxsplit=1)[-1].strip().strip('"').lower()
+                if style:
+                    font_name += "-" + style
 
             elif l.startswith("FONTBOUNDINGBOX"):
                 font_bbx = _parse_bbx(l)
@@ -123,9 +128,6 @@ def parse_bdf(fpath):
 
 
 def _transpose_bits(byte_list, font_bbx):
-    # if len(byte_list) < 8:
-    #     byte_list = ([0] * (8-len(byte_list))) + byte_list
-
     uniform_fill = lambda b: f'{b:b}'.zfill(8)[:font_bbx['WIDTH']]
 
     byte_strs = [uniform_fill(b) for b in byte_list]
@@ -141,6 +143,11 @@ def _transpose_bits(byte_list, font_bbx):
 
 def to_asm(fpath, ascii_range=[0,256]):
     font = parse_bdf(fpath)
+    print(font.name, font.bbx)
+
+    build_dir = os.path.join(root, 'build')
+    if not os.path.isdir(build_dir):
+        os.makedirs(build_dir)
 
     out = [
         "; This file contains " + font.name + " font lookup table (font_lut)\n\n",
@@ -157,7 +164,7 @@ def to_asm(fpath, ascii_range=[0,256]):
         ch = [f"{c:#04x}" for c in _transpose_bits(ch, font.bbx)]
         out.append('\t.byte ' + ', '.join(ch) + f'\t\t; {str(i)} ({chr(i)})')
 
-    with open(os.path.join(root, font.name + ".asm"), 'w') as f:
+    with open(os.path.join(build_dir, font.name + ".asm"), 'w') as f:
         f.write('\n'.join(out) + "\n")
 
 
@@ -190,6 +197,10 @@ def generate_all_asm_fonts():
     bdf_filepath = os.path.join(root, "miniwi.bdf")
     to_asm(bdf_filepath, ascii_range=[32, 127])
 
+    bdf_filepath = os.path.join(root, "unscii-8-fantasy.bdf")
+    to_asm(bdf_filepath, ascii_range=[32, 127])
+
+
 # =-=--=-=-=-=-=-=--=-=-=-=-=---==-=--=-=-=-=-=-=--=-=-=-=-=---=
 
 
@@ -216,4 +227,8 @@ if __name__ == '__main__':
     #     print(f'{int(c, 16):b}'.zfill(8))
     # print(ch)
 
-    test("/home/shashankgopikrishna/projects/archie/ArchieTiny/vendor/bdf_fonts/bitocra7.bdf", "Hello World asjydh []")
+    # test("/home/shashankgopikrishna/projects/archie/ArchieTiny/vendor/bdf_fonts/creep.bdf", "Hello World asjydh []")
+    # test("/home/shashankgopikrishna/projects/archie/ArchieTiny/vendor/bdf_fonts/scientifica.bdf", "Hello World asjydh []")
+    # test("/home/shashankgopikrishna/projects/archie/ArchieTiny/vendor/bdf_fonts/unscii-8-alt.bdf", "Hello World asjydh []")
+    # test("/home/shashankgopikrishna/projects/archie/ArchieTiny/vendor/bdf_fonts/unscii-8-thin.bdf", "Hello World asjydh []")
+    # test("/home/shashankgopikrishna/projects/archie/ArchieTiny/vendor/bdf_fonts/unscii-8-fantasy.bdf", "Hello World asjydh []")
