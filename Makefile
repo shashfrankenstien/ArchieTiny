@@ -12,7 +12,7 @@ SRC=src/kernel.asm \
 	src/gpio.asm \
 	src/sh1106.asm \
 	src/shell.asm \
-	src/fonts/bitocra7.asm
+	src/fonts/spleen.asm
 
 all: $(BUILD_PREFIX).hex
 

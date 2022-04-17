@@ -1,8 +1,10 @@
 ; This file contains spleen font lookup table (font_lut)
 
 
-.equ	FONT_WIDTH,			5			; number of bytes per character
-.equ	FONT_OFFSET,		32			; subtract this number from ascii value
+.equ	FONT_WIDTH,   		5			; number of bytes per character
+.equ	FONT_OFFSET,  		32			; subtract this number from ascii value
+.equ	FONT_LUT_SIZE,		127			; max supported ascii value
+
 
 
 font_lut:
