@@ -16,9 +16,9 @@ shell_splash_screen:
     rcall i2c_lock_acquire
 
     ; =========
-    ldi r16, 0xaa
-    ldi r17, 20                                ; x1
-    ldi r18, 105                               ; x2
+    ldi r16, 0x99
+    ldi r17, ((127 - (FONT_WIDTH * hello_world_len) - 8) / 2)          ; x1 - position at the center with 8 pixels of padding on either side
+    ldi r18, 127 - ((127 - (FONT_WIDTH * hello_world_len) - 8) / 2)    ; x2
     ldi r19, 2                                 ; y1
     ldi r20, 4                                 ; y2
     rcall oled_fill_rect                       ; fill oled with data in r16
@@ -26,7 +26,7 @@ shell_splash_screen:
     ; =========
     ; Hello World! :D
     ldi r16, 3
-    ldi r17, 30
+    ldi r17, ((127 - (FONT_WIDTH * hello_world_len)) / 2)   ; center the hello world message
     rcall oled_set_cursor                      ; set cursor to start writing data
 
     rcall oled_sreg_color_inv_start
@@ -39,9 +39,6 @@ shell_splash_screen:
     ; =========
 
     rcall i2c_lock_release
-
-    clr r16
-    sts SREG_GPIO, r16                         ; clear gpio button status register
 
     .irp param,31,30,20,19,18,17,16
         pop r\param
@@ -58,6 +55,11 @@ shell_console_task:
     clr r23                                    ; use r23 as a sor of status register
     clr r17                                    ; r17 will track the current column index incase we need to go back
     ldi r18, ' '                               ; r18 will handle character scrubbing
+
+    ldi r20, 0x05                              ; power on debounce
+    rcall time_delay_ms_short                  ; short delay before resetting SREG_GPIO at start up (need to allow debouncing capacitors to charge)
+    clr r16
+    sts SREG_GPIO, r16                         ; clear gpio button status register
     rjmp _shell_console_wait
 
 _shell_btn_clr_sleep_wait:
@@ -81,7 +83,6 @@ _shell_console_wait:
 
     ; shell entered
     rcall i2c_lock_acquire
-
     rcall oled_clr_screen
 
     clr r16
@@ -89,6 +90,8 @@ _shell_console_wait:
 
     rcall oled_io_open_write_data
     ldi r16, '>'
+    rcall oled_io_put_char
+    ldi r16, ' '
     rcall oled_io_put_char
 
     rcall oled_sreg_color_inv_start
@@ -101,7 +104,7 @@ _shell_console_wait:
 
     sbr r23, (1<<0)                             ; flag that shell has been entered. next btn press will go to _shell_check_btn_0
 
-    ldi r16, FONT_WIDTH
+    ldi r16, FONT_WIDTH * 2
     add r17, r16
 
     rjmp _shell_btn_clr_sleep_wait
@@ -134,7 +137,11 @@ _shell_handle_btn_1:
     rjmp _shell_handle_btn_2
 
     inc r18                                    ; scrub to next character
-    ; TODO: need to cap at 127 and start over at ' '
+    cpi r18, ' ' + FONT_LUT_SIZE                     ; cap at FONT_LUT_SIZE and start over at ' '
+    brlo _shell_char_no_rollover
+    ldi r18, ' '
+
+_shell_char_no_rollover:
 
     rcall i2c_lock_acquire
     clr r16

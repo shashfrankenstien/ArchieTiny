@@ -52,6 +52,7 @@ _tick_done:
 
 
 
+; 'time_delay_ms' takes 3 bytes in r22:r21:r20 which stands for number of ms to sleep
 time_delay_ms:                              ; delay in ms, reads input from r22:r21:r20
     .irp param,16,17,18,19,20,21,22
         push r\param
@@ -96,8 +97,19 @@ stopper_count:
 
 
 
+; 'time_delay_ms_short' is a special case when we want to delay less than 256 ms
+; takes 1 byte in r20 which stands for number of ms to sleep
+time_delay_ms_short:                        ; delay in ms, reads input from r22:r21:r20
+    push r21
+    push r22
 
+    clr r21
+    clr r22
+    rcall time_delay_ms
 
+    pop r22
+    pop r21
+    ret
 
 
 ; the `time_delay_ms` routine has a max frequency of 1 kHz (1 ms precision)

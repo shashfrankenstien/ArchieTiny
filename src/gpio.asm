@@ -72,6 +72,7 @@ init_onboard_led:
 ; - inputs are set to active low by enabling pull-up registers
 gpio_btn_init:
     push r16
+    push r20
     ldi r16, (1<<PC_INT_ENABLE)
     out GIMSK, r16
 
@@ -84,8 +85,9 @@ gpio_btn_init:
     out PCMSK, r16                             ; enable button 1 pin change interrupt
 
     clr r16
-    sts SREG_GPIO, r16                          ; clear gpio status register
+    sts SREG_GPIO, r16                         ; clear gpio button status register
 
+    pop r20
     pop r16
     ret
 

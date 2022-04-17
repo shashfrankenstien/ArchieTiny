@@ -153,7 +153,7 @@ def to_asm(fpath, ascii_range=[0,256]):
         "; This file contains " + font.name + " font lookup table (font_lut)\n\n",
         f".equ\tFONT_WIDTH,   \t\t{font.bbx['WIDTH']}\t\t\t; number of bytes per character",
         f".equ\tFONT_OFFSET,  \t\t{ascii_range[0]}\t\t\t; subtract this number from ascii value",
-        f".equ\tFONT_LUT_SIZE,\t\t{ascii_range[1]}\t\t\t; max supported ascii value\n\n\n",
+        f".equ\tFONT_LUT_SIZE,\t\t{ascii_range[1]-ascii_range[0]}\t\t\t; max supported ascii value\n\n\n",
         f"font_lut:"
     ]
 

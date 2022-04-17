@@ -124,26 +124,24 @@ pool:
 
 test3:
     ldi r20, 0xf0                           ; set delay to 0.25 second (250 milliseconds)
-    clr r21
-    clr r22
+
 test3_loop:
 
     rcall i2c_lock_acquire
 
-    ldi r16, 7
-    ldi r17, 40
-    rcall oled_set_cursor                      ; set cursor to start writing data
-
-    rcall gpio_adc_read
-    rcall oled_put_binary_digits
-
     ldi r16, 6
-    ldi r17, 40
+    ldi r17, ((127 - (FONT_WIDTH * 8)) / 2)    ; center the message
     rcall oled_set_cursor                      ; set cursor to start writing data
     lds r16, SREG_GPIO
     rcall oled_put_binary_digits
 
+    ldi r16, 7
+    ldi r17, ((127 - (FONT_WIDTH * 8)) / 2)    ; center the message
+    rcall oled_set_cursor                      ; set cursor to start writing data
+    rcall gpio_adc_read
+    rcall oled_put_binary_digits
+
     rcall i2c_lock_release
 
-    rcall time_delay_ms
+    rcall time_delay_ms_short
     rjmp test3_loop
