@@ -1,5 +1,5 @@
 ; this module implements a command line shell using
-;   - gpio.asm to read button presses and scrubbing
+;   - gpio.asm to read button presses and stuff
 ;   - sh1106.asm (oled) to display the command line shell
 ;
 ; to avoid using a lot of memory, input is directly written to oled
@@ -50,42 +50,44 @@ shell_splash_screen:
 
 
 
-; wait for GPIO_BTN_0_PRS to change.
+; wait for any pin change interrupt to be triggered.
 shell_console_task:
-    clr r23                                    ; use r23 as a sor of status register
+    clr r23                                    ; use r23 as a sort of status register
     clr r17                                    ; r17 will track the current column index incase we need to go back
-    ldi r18, ' '                               ; r18 will handle character scrubbing
+    clr r18                                    ; r18 will track the current page index
+    ldi r19, ' '                               ; r19 will handle character scrubbing
 
-    ldi r20, 0x05                              ; power on debounce
-    rcall time_delay_ms_short                  ; short delay before resetting SREG_GPIO at start up (need to allow debouncing capacitors to charge)
-    clr r16
-    sts SREG_GPIO, r16                         ; clear gpio button status register
+    sbi PORTB, LED_PIN
+    ldi r20, 0x32                              ; power on debounce (0x32 = 50 ms)
+    rcall time_delay_ms_short                  ; short delay before resetting SREG_GPIO_PC at start up (need time for debouncing capacitors to charge)
+    clr r22
+    sts SREG_GPIO_PC, r22                      ; clear gpio button status register
+    cbi PORTB, LED_PIN
     rjmp _shell_console_wait
 
 _shell_btn_clr_sleep_wait:
     cli
-    lds r22, SREG_GPIO
+    lds r22, SREG_GPIO_PC
     cbr r22, (1<<GPIO_BTN_0_PRS) | (1<<GPIO_BTN_1_PRS) | (1<<GPIO_BTN_2_PRS)
-    sts SREG_GPIO, r22                          ; clear GPIO_BTN_0_PRS
+    sts SREG_GPIO_PC, r22                      ; clear GPIO_BTN_0_PRS
     sei
 _shell_console_sleep_wait:
     sleep
 _shell_console_wait:
     cli
-    lds r22, SREG_GPIO
-    andi r22, 0b00000111                        ; check only last 3 bits (for any button press)
+    lds r22, SREG_GPIO_PC
     cpi r22, 0
     sei
     breq _shell_console_sleep_wait
 
-    sbrc r23, 0
+    sbrc r23, 0                                 ; if bit 0 is cleared, start console
     rjmp _shell_handle_btn_0
 
-    ; shell entered
+    ; console entered
     rcall i2c_lock_acquire
     rcall oled_clr_screen
 
-    clr r16
+    clr r16                                    ; oled_set_cursor expects page index in r16. start shell at page 0
     rcall oled_set_cursor                      ; set cursor to start writing data
 
     rcall oled_io_open_write_data
@@ -95,7 +97,7 @@ _shell_console_wait:
     rcall oled_io_put_char
 
     rcall oled_sreg_color_inv_start
-    mov r16, r18
+    mov r16, r19
     rcall oled_io_put_char
     rcall oled_sreg_color_inv_stop
 
@@ -109,60 +111,71 @@ _shell_console_wait:
 
     rjmp _shell_btn_clr_sleep_wait
 
+
 _shell_handle_btn_0:
     sbrs r22, GPIO_BTN_0_PRS
     rjmp _shell_handle_btn_1
 
     rcall i2c_lock_acquire
-    clr r16
+    mov r16, r18                               ; copy over current page index into r16. current column index is already in r17
     rcall oled_set_cursor                      ; set cursor to start writing data
 
     rcall oled_io_open_write_data
-    mov r16, r18
+    mov r16, r19                               ; confirm current character
     rcall oled_io_put_char
+
+    ldi r16, FONT_WIDTH
+    add r17, r16                               ; increment column index
+    cpi r17, OLED_MAX_COL - FONT_WIDTH         ; cap column at OLED_MAX_COL-FONT_WIDTH (ignore last column) and roll to next line (page)
+    brlo _shell_no_next_page
+    rcall oled_io_close                        ; close data io so that we can change the cursor
+    clr r17                                    ; new column index is rolled over to 0
+    inc r18                                    ; go to next row (page)
+    mov r16, r18                               ; move new page index into r16
+    rcall oled_set_cursor                      ; set cursor to start writing data
+    rcall oled_io_open_write_data              ; re-open data io
+
+_shell_no_next_page:
     rcall oled_sreg_color_inv_start
-    mov r16, r18
+    mov r16, r19
     rcall oled_io_put_char
     rcall oled_sreg_color_inv_stop
 
     rcall oled_io_close
     rcall i2c_lock_release
 
-    ldi r16, FONT_WIDTH
-    add r17, r16
-    ; TODO: need to cap r17 at 127 and go to next row (page)
 
 _shell_handle_btn_1:
     sbrs r22, GPIO_BTN_1_PRS
     rjmp _shell_handle_btn_2
 
-    inc r18                                    ; scrub to next character
-    cpi r18, ' ' + FONT_LUT_SIZE                     ; cap at FONT_LUT_SIZE and start over at ' '
-    brlo _shell_char_no_rollover
-    ldi r18, ' '
-
-_shell_char_no_rollover:
+    inc r19                                    ; scrub to next character
+    cpi r19, ' ' + FONT_LUT_SIZE               ; cap at FONT_LUT_SIZE and start over at ' '
+    brlo _shell_no_char_rollover
+    ldi r19, ' '
+_shell_no_char_rollover:
 
     rcall i2c_lock_acquire
-    clr r16
+    mov r16, r18                               ; copy over current page index into r16. current column index is already in r17
     rcall oled_set_cursor                      ; set cursor to start writing data
 
     rcall oled_io_open_write_data
     rcall oled_sreg_color_inv_start
-    mov r16, r18
+    mov r16, r19
     rcall oled_io_put_char
     rcall oled_sreg_color_inv_stop
 
     rcall oled_io_close
     rcall i2c_lock_release
 
+
 _shell_handle_btn_2:
     sbrs r22, GPIO_BTN_2_PRS
     rjmp _shell_handle_btn_done
 
-
 _shell_handle_btn_done:
     rjmp _shell_btn_clr_sleep_wait
+
 
 
 

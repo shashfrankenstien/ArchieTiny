@@ -1,4 +1,4 @@
-.include "config.inc"                       ; LED_PIN, GPIO_BTN_0, THUMB_WHEEL_CHANNEL, SREG_GPIO
+.include "config.inc"                       ; LED_PIN, GPIO_BTN_0, ADC_CHANNEL_0, SREG_GPIO_PC
 
 ; gpio mode, write and read registers
 .equ    DDRB,               0x17
@@ -15,7 +15,7 @@
 ; --------------------------------------------------------------------------------
 ; ADC settings
 .equ    ADMUX,              0x07            ; ADMUX - ADC Multiplexer Selection Register
-.equ    ADC_MUX_SETTINGS,   0b00100000      ; Bits 7:6, 4 – REFS[2:0]: Voltage Reference Selection Bits (000 selects Vcc as reference)
+.equ    ADC_MUX_SETTINGS,   0b00100000      ; Bits 4,7:6 – REFS[2:0]: Voltage Reference Selection Bits (000 selects Vcc as reference)
                                             ; ADLAR: ADC left adjust result (bit 5) is set
                                             ;   this means 8 significant bits can be read from ADCH byte (reduces accuracy by 2 LSB)
                                             ; Bits 3:0 – MUX[3:0]: Analog Channel and Gain Selection Bits (0000 selects ADC0 channel)
@@ -37,7 +37,7 @@
 
 
 
-; SREG_GPIO - gpio status register
+; SREG_GPIO_PC - gpio status register (pin change interrupts)
 ;   - register holds 8 gpio status flags
 ;      -----------------------------------------------------------------------------------------------------------------------
 ;      |  N/A  |  N/A  | GPIO_BTN_2_HLD | GPIO_BTN_1_HLD | GPIO_BTN_0_HLD | GPIO_BTN_2_PRS | GPIO_BTN_1_PRS | GPIO_BTN_0_PRS |
@@ -64,7 +64,7 @@ init_onboard_led:
     clr r16
     out PORTB, r16
     out DDRB, r16
-    sbi DDRB, LED_PIN                ; setup output pin 1 (P1)
+    sbi DDRB, LED_PIN                          ; setup output pin 1 (P1)
     ret
 
 
@@ -85,7 +85,7 @@ gpio_btn_init:
     out PCMSK, r16                             ; enable button 1 pin change interrupt
 
     clr r16
-    sts SREG_GPIO, r16                         ; clear gpio button status register
+    sts SREG_GPIO_PC, r16                      ; clear gpio button status register
 
     pop r20
     pop r16
@@ -99,7 +99,7 @@ gpio_btn_press_isr:
     push r16
     push r17
 
-    lds r17, SREG_GPIO
+    lds r17, SREG_GPIO_PC
 
     in r16, PINB
     sbrs r16, GPIO_BTN_0                        ; active low. act only if cleared
@@ -112,7 +112,7 @@ gpio_btn_press_isr:
     sbrc r16, GPIO_BTN_1                        ; if button is set, clear HLD flag
     cbr r17, (1<<GPIO_BTN_1_HLD)
 
-    sts SREG_GPIO, r17
+    sts SREG_GPIO_PC, r17
 
     pop r17
     pop r16
@@ -122,9 +122,9 @@ gpio_btn_press_isr:
 ; --------------------------------------------------------------------------------
 ; ADC routines
 
-; intializes ADC (THUMB_WHEEL_CHANNEL)
+; intializes ADC (ADC_CHANNEL_0)
 gpio_adc_init:
-    ldi r16, ADC_MUX_SETTINGS | THUMB_WHEEL_CHANNEL      ; enable ADC channel
+    ldi r16, ADC_MUX_SETTINGS | ADC_CHANNEL_0      ; enable ADC channel
     out ADMUX, r16
 
     ldi r16, ADC_CTRL_A                       ; set clock prescaler
@@ -140,5 +140,6 @@ gpio_adc_init:
 
 ; read ADC high byte into r16 (ADLAR = 1; 8 bit precision)
 gpio_adc_read:
-    in r16, ADCH
+    in r16, ADCL
+    in r17, ADCH
     ret

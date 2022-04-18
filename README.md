@@ -90,7 +90,8 @@ Resource | Register config name | Module
 ---------|----------------------|-------------
 I2C      | SREG_I2C             | usi_i2c.asm
 Oled     | SREG_OLED            | sh1106.asm
-GPIO     | SREG_GPIO            | gpio.asm
+GPIO     | SREG_GPIO_PC         | gpio.asm
+GPIO     | SREG_GPIO_ADC (TODO) | gpio.asm
 
 
 ## Task Manager (tasks.asm)

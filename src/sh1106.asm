@@ -50,6 +50,10 @@
 .equ    OLED_COLOR_INVERT,       0
 
 
+; --------------------------------------------------
+.equ    OLED_MAX_COL,            127                ; max column index (128 x 64)
+.equ    OLED_MAX_PAGE,           7                  ; max page index (each page has 8 rows)
+; --------------------------------------------------
 
 
 ; initialize oled and set default settings
@@ -146,9 +150,9 @@ oled_clr_screen:
 
     clr r16                                    ; fill byte = 0x00 (all 0s)
     clr r17                                    ; x1 = 0
-    ldi r18, 127                               ; x2 = 127
+    ldi r18, OLED_MAX_COL                      ; x2 = OLED_MAX_COL
     clr r19                                    ; y2 = 0
-    ldi r20, 7                                 ; y2 = 7
+    ldi r20, OLED_MAX_PAGE                     ; y2 = OLED_MAX_PAGE
     rcall oled_fill_rect                       ; fill oled with data in r16
 
     .irp param,20,19,18,17,16
