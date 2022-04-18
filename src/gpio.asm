@@ -72,7 +72,6 @@ init_onboard_led:
 ; - inputs are set to active low by enabling pull-up registers
 gpio_btn_init:
     push r16
-    push r20
     ldi r16, (1<<PC_INT_ENABLE)
     out GIMSK, r16
 
@@ -87,7 +86,6 @@ gpio_btn_init:
     clr r16
     sts SREG_GPIO_PC, r16                      ; clear gpio button status register
 
-    pop r20
     pop r16
     ret
 
@@ -140,6 +138,5 @@ gpio_adc_init:
 
 ; read ADC high byte into r16 (ADLAR = 1; 8 bit precision)
 gpio_adc_read:
-    in r16, ADCL
-    in r17, ADCH
+    in r16, ADCH
     ret

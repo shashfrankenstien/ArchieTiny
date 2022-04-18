@@ -136,13 +136,9 @@ test3_loop:
     rcall oled_put_binary_digits
 
     ldi r16, 7
-    ldi r17, ((127 - (FONT_WIDTH * 16)) / 2)    ; center the message
+    ldi r17, ((127 - (FONT_WIDTH * 8)) / 2)    ; center the message
     rcall oled_set_cursor                      ; set cursor to start writing data
     rcall gpio_adc_read
-    mov r18, r16
-    mov r16, 17
-    rcall oled_put_binary_digits
-    mov r16, r18
     rcall oled_put_binary_digits
 
     rcall i2c_lock_release

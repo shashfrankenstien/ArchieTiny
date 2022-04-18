@@ -33,21 +33,29 @@
 .equ SET_SEGMENT_REMAP_NORM, 0xa0                    ; column scanning direction left to right or right to left
 .equ SET_SEGMENT_REMAP_INV,  0xa1                    ; reverse of SET_SEGMENT_REMAP_NORM
 
+.equ SET_DISPLY_LINE_OFFSET, 0xd3                    ; set display offset (double bytes command) - followed by a number betwee 0 - 63
+
+.equ SET_DISPLY_START_LINE,  0x40                    ; set display start line: (0x40 - 0x7f) - ORed with a number betwee 0 - 63
 
 
 ; SREG_OLED - oled status register (1)
 ;   - register holds 8 oled status flags
 ;   - currently only 1 bit is assigned - OLED_COLOR_INVERT
-;      -------------------------------------------------------------------------------
-;      |  N/A  |  N/A  |  N/A  |  N/A  |  N/A  |  N/A  |  N/A  |  OLED_COLOR_INVERT  |
-;      -------------------------------------------------------------------------------
+;      ----------------------------------------------------------------------------------------------
+;      |  N/A  |  N/A  |  N/A  |  N/A  |  OLED_COLOR_INVERT  |  SCRL_PG2  |  SCRL_PG1  |  SCRL_PG0  |
+;      ----------------------------------------------------------------------------------------------
 ;
-; OLED_COLOR_INVERT (bit 0)
+; SCRL_PG[2:0] - display scroll page (bits 2:0)
+;   - this is a 3 bit number indicating current page scroll position on the screen (0 - 7)
+;   - text scrolling is performed 8 rows (1 page) at a time
+;   - oled_set_cursor routine can use this to normalize column and row indexing to the user
+;
+; OLED_COLOR_INVERT (bit 3)
 ;   - this flag is used to implement software color inverted mode
 ;   - NOTE: this is different from SET_COLOR_INV, which is an oled device function to invert the entire screen
 ;   - if OLED_COLOR_INVERT is set, anything written to the the oled will be inverted (1's complement with COM instruction)
 ;       if OLED_COLOR_INVERT is cleared, it writes without 1's complement
-.equ    OLED_COLOR_INVERT,       0
+.equ    OLED_COLOR_INVERT,       3
 
 
 ; --------------------------------------------------
@@ -68,7 +76,7 @@ oled_init:
 
     rcall oled_io_open_write_cmds
 
-    ldi r16, SET_DISPLY_ON                     ; turn on the display
+    ldi r16, SET_DISPLY_OFF                    ; turn on the display
     rcall i2c_send_byte
     ldi r16, SET_DISP_FREQ_MODE                ; set the display refresh rate (double command)
     rcall i2c_send_byte
@@ -80,17 +88,27 @@ oled_init:
     ldi r16, SET_SEGMENT_REMAP_INV             ; reverse the column scan direction
     rcall i2c_send_byte
 
-    rcall oled_io_close
+    ldi r16, SET_DISPLY_LINE_OFFSET            ; set offset (different from scroll?)
+    rcall i2c_send_byte
+    ldi r16, 0
+    rcall i2c_send_byte
+    ldi r16, SET_DISPLY_START_LINE | 0         ; set scroll state to 0
+    rcall i2c_send_byte
 
+    ldi r16, SET_DISPLY_ON                     ; turn on the display
+    rcall i2c_send_byte
+
+    rcall oled_io_close
     rcall oled_clr_screen
 
     pop r16
     ret
 
 
-; ----------------- i2c wrappers ------------------
+; ----------------- i2c IO wrappers ---------------
 
 ; use this routine to start a command list write transaction
+; this routine modifies r16 so that it contains ACK in LSB
 oled_io_open_write_cmds:
     rcall i2c_do_start_condition
 
@@ -99,10 +117,11 @@ oled_io_open_write_cmds:
 
     ldi r16, OLED_WRITE_CMD_LIST               ; this control byte tells the display to expect a list of commands until stop condition
     rcall i2c_send_byte
-    ret
+    ret                                        ; return value r16 will contain ACK from last byte transfered
 
 
 ; use this routine to start a command list write transaction
+; this routine modifies r16 so that it contains ACK in LSB
 oled_io_open_write_data:
     rcall i2c_do_start_condition
 
@@ -111,17 +130,17 @@ oled_io_open_write_data:
 
     ldi r16, OLED_WRITE_DATA_LIST              ; this tells the device to expect a list of data bytes until stop condition
     rcall i2c_send_byte
-    ret
+    ret                                        ; return value r16 will contain ACK from last byte transfered
 
 
 oled_io_close:
     rcall i2c_do_stop_condition
     ret
 
-; -------------------------------------------------
 
 
 ; -------------- SREG_I2C wrappers ----------------
+
 oled_sreg_color_inv_start:
     push r16
     lds r16, SREG_OLED
@@ -141,6 +160,84 @@ oled_sreg_color_inv_stop:
 ; -------------------------------------------------
 
 
+
+; oled_set_cursor takes
+;   - r16 - page address
+;   - r17 - column address
+; performs set page and set column address operations
+oled_set_cursor:
+    .irp param,16,17,18,19
+        push r\param
+    .endr
+    mov r19, r16                               ; store page number for later
+
+    inc r17
+    inc r17                                    ; screen is somehow offset by 2 columns ?? :/
+
+    mov r18, r17
+    lsr r18
+    lsr r18
+    lsr r18
+    lsr r18                                    ; keep high bits of column address by shifting right 4 times
+    ori r18, SET_COLUMN_H                      ; set column start addr high bits
+
+    andi r17, 0x0f                             ; keep low bits of column address
+    ori r17, SET_COLUMN_L                      ; set column start addr low bits
+
+    rcall oled_io_open_write_cmds
+
+    mov r16, r19                               ; get required page number
+    ori r16, SET_PAGE_ADDRESS                  ; OR with SET_PAGE_ADDRESS cmd
+    rcall i2c_send_byte
+
+    ; set cursor to precomputed column low and high commands saved in r17 and r18
+    mov r16, r17
+    rcall i2c_send_byte
+    mov r16, r18
+    rcall i2c_send_byte
+
+    rcall oled_io_close
+
+    .irp param,19,18,17,16
+        pop r\param
+    .endr
+    ret
+
+
+
+; scrolls screen down by 8 rows since a text line is 8 rows high (1 page)
+oled_scroll_text_down:
+    push r16
+    push r17
+
+    lds r16, SREG_OLED                         ; load SREG_OLED and get current scroll position
+    inc r16
+    andi r16, 0b00000111                       ; keep only lower 3 bits in case of overflow (0 - 7)
+
+    lds r17, SREG_OLED                         ; load SREG_OLED to get current high bits
+    andi r17, 0b11111000                       ; keep higher 5 bits from current SREG_OLED
+    or r17, r16
+    sts SREG_OLED, r17                         ; update SREG_OLED with new scroll position
+
+    ldi r17, 8
+    rcall mul8                                 ; multiply r16 by 8 to get scroll position in rows (0 - 63). LSB of result is returned in r16
+    andi r16, 0b00111111                       ; keep only lower 6 bits in case of overflow (0 - 63)
+    mov r17, r16                               ; save new scroll position in r17
+
+    rcall oled_io_open_write_cmds
+    mov r16, r17                               ; reload r16 as oled_io_open_write_cmds modifies this register
+    ori r16, SET_DISPLY_START_LINE
+    rcall i2c_send_byte
+    rcall oled_io_close
+
+    pop r17
+    pop r16
+    ret
+
+
+
+
+; -------------------------------------------------
 
 ; write all zeros onto oled
 oled_clr_screen:
@@ -162,49 +259,35 @@ oled_clr_screen:
 
 
 
-; oled_set_cursor takes
+; 'oled_set_cursor_wipe_eol' takes
 ;   - r16 - page address
 ;   - r17 - column address
-; performs set page and set column address operations
-oled_set_cursor:
-    .irp param,16,17,18,19
-        push r\param
-    .endr
-    mov r19, r16
+; sets the cursor to the required location
+; writes 0s till end of line from current column (r17)
+; returns after resetting the cursor to the right location
+oled_set_cursor_wipe_eol:
+    push r16
+    push r17
 
+    rcall oled_set_cursor                      ; set cursor initially
+    rcall oled_io_open_write_data
+
+_next_wipe_column:
+    clr r16
+    rcall i2c_send_byte                        ; i2c_send_byte modifies r16, so we need to reload r16 at every iteration
     inc r17
-    inc r17                                    ; screen is somehow offset by 2 columns ?? :/
+    cpi r17, OLED_MAX_COL + 1
+    brne _next_wipe_column
 
-    mov r18, r17
-    lsr r18
-    lsr r18
-    lsr r18
-    lsr r18                                    ; keep high bits of column address by shifting right 4 times
-    ori r18, SET_COLUMN_H                      ; set column start addr high bits
+    rcall oled_io_close                        ; finished writing a page
 
-    andi r17, 0x0f                             ; keep low bits of column address
-    ori r17, SET_COLUMN_L                      ; set column start addr low bits
-
-    rcall oled_io_open_write_cmds
-
-    mov r16, r19                               ; get current page number (in range y1 to y2)
-    ori r16, SET_PAGE_ADDRESS                  ; OR with SET_PAGE_ADDRESS cmd
-    rcall i2c_send_byte
-
-    ; set cursor to precomputed column low and high commands saved in r17 and r18
-    mov r16, r17
-    rcall i2c_send_byte
-    mov r16, r18
-    rcall i2c_send_byte
-
-    rcall oled_io_close
-
-    .irp param,19,18,17,16
-        pop r\param
-    .endr
+    pop r17
+    pop r16
+    rcall oled_set_cursor                      ; finally set cursor to desired page (r16) and column (r17)
     ret
 
 
+; --------------------------------------------------
 
 ; oled_fill_rect takes 4 coordinates - x1, x2, y1, y2
 ; it will fill the rectangle between (x1,y1) (x1,y2) (x2,y1) (x2,y2)
@@ -375,6 +458,7 @@ _next_bin_char:
 
 
 
+; --------------------------------------------------
 
 ; test_oled_read:
 ;     push r16

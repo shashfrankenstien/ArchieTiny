@@ -52,17 +52,19 @@ shell_splash_screen:
 
 ; wait for any pin change interrupt to be triggered.
 shell_console_task:
-    clr r23                                    ; use r23 as a sort of status register
-    clr r17                                    ; r17 will track the current column index incase we need to go back
-    clr r18                                    ; r18 will track the current page index
-    ldi r19, ' '                               ; r19 will handle character scrubbing
-
     sbi PORTB, LED_PIN
-    ldi r20, 0x32                              ; power on debounce (0x32 = 50 ms)
+    ldi r20, 0x32                              ; power on debounce delay (0x32 = 50 ms)
     rcall time_delay_ms_short                  ; short delay before resetting SREG_GPIO_PC at start up (need time for debouncing capacitors to charge)
     clr r22
     sts SREG_GPIO_PC, r22                      ; clear gpio button status register
     cbi PORTB, LED_PIN
+
+    clr r23                                    ; use r23 as a sort of status register
+    clr r17                                    ; r17 will track the current column index incase we need to go back
+    clr r18                                    ; r18 will track the current page index
+    clr r19                                    ; r19 will track scroll position
+    ldi r20, ' '                               ; r20 will handle character scrubbing
+
     rjmp _shell_console_wait
 
 _shell_btn_clr_sleep_wait:
@@ -97,7 +99,7 @@ _shell_console_wait:
     rcall oled_io_put_char
 
     rcall oled_sreg_color_inv_start
-    mov r16, r19
+    mov r16, r20
     rcall oled_io_put_char
     rcall oled_sreg_color_inv_stop
 
@@ -121,23 +123,33 @@ _shell_handle_btn_0:
     rcall oled_set_cursor                      ; set cursor to start writing data
 
     rcall oled_io_open_write_data
-    mov r16, r19                               ; confirm current character
+    mov r16, r20                               ; confirm current character
     rcall oled_io_put_char
 
     ldi r16, FONT_WIDTH
     add r17, r16                               ; increment column index
-    cpi r17, OLED_MAX_COL - FONT_WIDTH         ; cap column at OLED_MAX_COL-FONT_WIDTH (ignore last column) and roll to next line (page)
+    cpi r17, OLED_MAX_COL - FONT_WIDTH         ; cap column at OLED_MAX_COL-FONT_WIDTH (ignore last column) and roll to next row (page)
     brlo _shell_no_next_page
+
     rcall oled_io_close                        ; close data io so that we can change the cursor
-    clr r17                                    ; new column index is rolled over to 0
     inc r18                                    ; go to next row (page)
+    sbrc r18, 3                                ; if r18 reached 8, reset it to 0 (00001000 <- test 3rd bit)
+    clr r18
+    inc r19                                    ; next check scroll position
+    sbrc r19, 3                                ; if r19 reached 8, scroll oled down (00001000 <- test 3rd bit)
+    rcall oled_scroll_text_down
+    sbrc r19, 3                                ; if r19 reached 8, decrement r19 because we gonna scroll again soon (00001000 <- test 3rd bit)
+    dec r19
+
+    clr r17                                    ; new column index is rolled over to 0
     mov r16, r18                               ; move new page index into r16
-    rcall oled_set_cursor                      ; set cursor to start writing data
+    rcall oled_set_cursor_wipe_eol             ; set cursor and wipe till end of line from current column (r17)
+
     rcall oled_io_open_write_data              ; re-open data io
 
 _shell_no_next_page:
     rcall oled_sreg_color_inv_start
-    mov r16, r19
+    mov r16, r20
     rcall oled_io_put_char
     rcall oled_sreg_color_inv_stop
 
@@ -149,10 +161,10 @@ _shell_handle_btn_1:
     sbrs r22, GPIO_BTN_1_PRS
     rjmp _shell_handle_btn_2
 
-    inc r19                                    ; scrub to next character
-    cpi r19, ' ' + FONT_LUT_SIZE               ; cap at FONT_LUT_SIZE and start over at ' '
+    inc r20                                    ; scrub to next character
+    cpi r20, ' ' + FONT_LUT_SIZE               ; cap at FONT_LUT_SIZE and start over at ' '
     brlo _shell_no_char_rollover
-    ldi r19, ' '
+    ldi r20, ' '
 _shell_no_char_rollover:
 
     rcall i2c_lock_acquire
@@ -161,7 +173,7 @@ _shell_no_char_rollover:
 
     rcall oled_io_open_write_data
     rcall oled_sreg_color_inv_start
-    mov r16, r19
+    mov r16, r20
     rcall oled_io_put_char
     rcall oled_sreg_color_inv_stop
 
