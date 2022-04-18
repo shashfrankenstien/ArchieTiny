@@ -141,12 +141,14 @@ Tasks Table is set up starting at RAM address TASK_TABLE_START (Should be greate
 
 ## OLED display (using I2C)
 - SH1106 Command Table is on page 30 of the datasheet
-- fonts - https://github.com/Tecate/bitmap-fonts
+- documentation and resources recommend sleeping for 100 ms before displaying anything on the screen
+- fonts - https://github.com/Tecate/bitmap-fonts - see vendor/bdf_fonts for more
     - bitocra7
-    - lemon
     - spleen
+    - unscii-fantasy
 - when including strings in program memory, we need to mind byte alignment.
     use `.balign 2` after each string definition
+- SREG_OLED is used to track color inversion (highlight) and page scroll position
 
 ## Button press event manager (TODO)
 

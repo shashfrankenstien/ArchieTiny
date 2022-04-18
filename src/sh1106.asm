@@ -235,7 +235,23 @@ oled_scroll_text_down:
     ret
 
 
+; oled_set_cursor takes
+;   - r16 - page address
+;   - r17 - column address
+; performs set page and set column address operations
+; takes into consideration current page scroll position SCRL_PG[2:0] in SREG_OLED
+oled_set_relative_cursor:
+    push r16
+    push r18
 
+    lds r18, SREG_OLED                         ; load SREG_OLED and get current scroll position
+    add r16, r18                               ; relative page scroll position = (cur + req) & 0b00000111
+    andi r16, 0b00000111
+    rcall oled_set_cursor
+
+    pop r18
+    pop r16
+    ret
 
 ; -------------------------------------------------
 

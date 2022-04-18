@@ -17,15 +17,15 @@ shell_splash_screen:
 
     ; =========
     ldi r16, 0x99
-    ldi r17, ((127 - (FONT_WIDTH * hello_world_len) - 8) / 2)          ; x1 - position at the center with 8 pixels of padding on either side
-    ldi r18, 127 - ((127 - (FONT_WIDTH * hello_world_len) - 8) / 2)    ; x2
-    ldi r19, 2                                 ; y1
-    ldi r20, 4                                 ; y2
+    ldi r17, ((127 - (FONT_WIDTH * hello_world_len) - 12) / 2)          ; x1 - position at the center with 12/2 pixels of padding on either side
+    ldi r18, 127 - ((127 - (FONT_WIDTH * hello_world_len) - 12) / 2)    ; x2
+    ldi r19, 3                                 ; y1
+    ldi r20, 5                                 ; y2
     rcall oled_fill_rect                       ; fill oled with data in r16
 
     ; =========
     ; Hello World! :D
-    ldi r16, 3
+    ldi r16, 4
     ldi r17, ((127 - (FONT_WIDTH * hello_world_len)) / 2)   ; center the hello world message
     rcall oled_set_cursor                      ; set cursor to start writing data
 
@@ -37,7 +37,6 @@ shell_splash_screen:
     rcall oled_sreg_color_inv_stop
 
     ; =========
-
     rcall i2c_lock_release
 
     .irp param,31,30,20,19,18,17,16
@@ -53,10 +52,12 @@ shell_splash_screen:
 ; wait for any pin change interrupt to be triggered.
 shell_console_task:
     sbi PORTB, LED_PIN
-    ldi r20, 0x32                              ; power on debounce delay (0x32 = 50 ms)
+    ldi r20, 0x64                              ; power on debounce delay (0x64 = 100 ms)
     rcall time_delay_ms_short                  ; short delay before resetting SREG_GPIO_PC at start up (need time for debouncing capacitors to charge)
     clr r22
     sts SREG_GPIO_PC, r22                      ; clear gpio button status register
+
+    rcall shell_splash_screen
     cbi PORTB, LED_PIN
 
     clr r23                                    ; use r23 as a sort of status register
@@ -145,7 +146,7 @@ _shell_handle_btn_0:
     mov r16, r18                               ; move new page index into r16
     rcall oled_set_cursor_wipe_eol             ; set cursor and wipe till end of line from current column (r17)
 
-    rcall oled_io_open_write_data              ; re-open data io
+    rcall oled_io_open_write_data              ; re-open data io once cursor is updated
 
 _shell_no_next_page:
     rcall oled_sreg_color_inv_start

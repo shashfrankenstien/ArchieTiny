@@ -102,7 +102,6 @@ main:                               ; initialize
     rcall taskmanager_init          ; initialize task manager table
 
     ; ui
-    rcall shell_splash_screen
     ldi r17, hi8(shell_console_task)         ; add task to task manager table
     ldi r16, lo8(shell_console_task)
     rcall taskmanager_add
@@ -123,25 +122,25 @@ pool:
 
 
 test3:
-    ldi r20, 0x64                              ; set delay
+    ldi r20, 0x64                                       ; set delay
 
 test3_loop:
+    rcall time_delay_ms_short
 
     rcall i2c_lock_acquire
 
-    ldi r16, 6
-    ldi r17, ((127 - (FONT_WIDTH * 8)) / 2)    ; center the message
-    rcall oled_set_cursor                      ; set cursor to start writing data
+    ldi r16, 0
+    ldi r17, 127 - (FONT_WIDTH * 8)                     ; right top position
+    rcall oled_set_relative_cursor                      ; set cursor to start writing data
     lds r16, SREG_GPIO_PC
     rcall oled_put_binary_digits
 
-    ldi r16, 7
-    ldi r17, ((127 - (FONT_WIDTH * 8)) / 2)    ; center the message
-    rcall oled_set_cursor                      ; set cursor to start writing data
+    ldi r16, 1
+    ldi r17, 127 - (FONT_WIDTH * 8)                     ; right top position
+    rcall oled_set_relative_cursor                      ; set cursor to start writing data
     rcall gpio_adc_read
     rcall oled_put_binary_digits
 
     rcall i2c_lock_release
 
-    rcall time_delay_ms_short
     rjmp test3_loop

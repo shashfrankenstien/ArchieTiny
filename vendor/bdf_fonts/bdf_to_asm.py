@@ -2,6 +2,7 @@ from collections import OrderedDict, namedtuple
 from pathlib import Path
 # import argparse
 import os
+import shutil
 root = os.path.dirname(__file__)
 
 
@@ -187,6 +188,9 @@ def test(bdf_filepath, test_string):
 
 # =-=--=-=-=-=-=-=--=-=-=-=-=---==-=--=-=-=-=-=-=--=-=-=-=-=---=
 def generate_all_asm_fonts():
+    build_dir = os.path.join(root, 'build')
+    if os.path.isdir(build_dir):
+        shutil.rmtree(build_dir)
 
     bdf_filepath = os.path.join(root, 'bitocra7.bdf')
     to_asm(bdf_filepath, ascii_range=[32, 127])
