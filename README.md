@@ -76,8 +76,8 @@ GND | GND | pin 4
 
 ## Time and Delays (time.asm)
 - Features
-    - 24 bit software time counter - this requires that `time_tick_isr` is attached to an interrupt that triggers every 1 millisecond
-    - also includes a sort of accurate clock cycle counter delay. (see `time_delay_clock_cycles` subroutine)
+    - 24 bit software time counter - this requires that `timer_tick_isr` is attached to an interrupt that triggers every 1 millisecond
+    - also includes a sort of accurate clock cycle counter delay. (see `timer_delay_clock_cycles` subroutine)
 - Ticks are stored in addressed by TIME_SOFT_COUNTER config variable
     - HIGH_BYTE:MIDDLE_BYTE:LOW_BYTE
     - TIME_SOFT_COUNTER+2:TIME_SOFT_COUNTER+1:TIME_SOFT_COUNTER
@@ -91,7 +91,6 @@ Resource | Register config name | Module
 I2C      | SREG_I2C             | usi_i2c.asm
 Oled     | SREG_OLED            | sh1106.asm
 GPIO     | SREG_GPIO_PC         | gpio.asm
-GPIO     | SREG_GPIO_ADC (TODO) | gpio.asm
 
 
 ## Task Manager (tasks.asm)
@@ -150,7 +149,53 @@ Tasks Table is set up starting at RAM address TASK_TABLE_START (Should be greate
     use `.balign 2` after each string definition
 - SREG_OLED is used to track color inversion (highlight) and page scroll position
 
-## Button press event manager (TODO)
+
+## Controls
+### Button press event manager (PCINT)
+- digital pin change interrupts (active low) - interrupt triggers for both falling and rising edges
+    - on falling edge (button press), both GPIO_BTN_x_PRS and GPIO_BTN_x_HLD bits are set in SREG_GPIO_PC
+    - Any program handling button press must clear GPIO_BTN_x_PRS bit after handing the press
+    - on rising edge interrupt (button release), GPIO_BTN_x_HLD bits are automatically cleared
+
+### Button press (voltage divided ADC)
+- ADC ISR writes 8-bit precision byte from ADC_VD_BTNS_CHAN to ADC_VD_BTNS_VAL register. We can use this byte to identify button press and release
+- Since this method can technically support quite a few buttons, we use 2 bytes to report on press and release state (this can thus support upto 8 buttons)
+- We need to check expected voltage levels in ascending order
+    - only 1 button can be pressed at a time.
+    - check lowest voltage threshold. If ADC reading is lower, set ADC_VD_BTN_x bit in r16 indicating press
+    - continue checking as long as no press is identified
+
+- Reading button presses (Software stabilization)
+    - ADC clock speed is clk / 128. for clk = 16 MHz, ADC clock speed will be 125 kHz
+    - ADC generally takes about 13 - 15 ADC clocks to perform a conversion.
+    - Let's approx to 14 which gives us a conversion frequency of ~9 kHz (i.e. once every ~110 micro seconds)
+    - We're using a 2200 pF capacitor against 60 k ohm internal pull-up (RESET pin) for smoothing. So, time to charge up to 63% is (60 * 10^3 * 2200 * 10^-12) = 132 micro seconds (TAO).
+        We might read a wrong value during this charge / discharge time. We can assume that the capacitor will be reasonably full at 3 * TAO
+    - Given the ADC conversion period (110 micro seconds), we should require that atleast 4 readings are within threshold to confirm a button press
+    - To be absolutely safe, we can take 3 readings waiting 1 ms between them (Almost 30 ISR readings over all) and report a press only if all 3 readings pass the threshold
+
+- ADC voltage divider value calculation (RESET pin)
+    - tested on RESET pin (internal pull up resistance (R1))
+    - because we're using the reset pin, input voltage cannot be below ~1.3 v (documentation says 0.9 v :/)
+
+    - equations (only care about 8 MSB precision)
+        - VOUT = lambda VIN, R1, R2: VIN * R2/(R1+R2)
+        - ADC_VAL = lambda VREF, VOUT: int((VOUT * 1024) / VREF) >> 2
+
+    - approx measured / fudged values that worked out in tests
+        - VREF = Vcc = 2.8 v
+        - VIN = Vpin = 2.6 v
+        - R2 = RESET pin pull-up = 50 kilo ohm aprox (??)
+
+ADC button    | Resistance (R2) | Voltage | ADC threshold (8 MSB precision)
+--------------|-----------------|---------|--------------
+ADC_VD_BTN_0  | 51 K            | 1.313 v | 0b01111000
+ADC_VD_BTN_1  | 100 K           | 1.733 v | 0b10011110
+ADC_VD_BTN_2  | 220 K           | 2.118 v | 0b11000001
+ADC_VD_BTN_3  | 300 K           | 2.229 v | 0b11001011
+ADC_VD_BTN_4  | 1 M             | 2.476 v | 0b11100010
+
+
 
 
 ## EEPROM FAT-8 File System (TODO)

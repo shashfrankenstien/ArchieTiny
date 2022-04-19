@@ -18,7 +18,7 @@
 
 .equ    I2C_DELAY_CC,         2         ; this delays 1.5 us at 16 MHz. This is used for half a period.
                                         ; So for the full period, it is 3 us (333.33 kHz)
-                                        ; * see 'time_delay_clock_cycles' in the 'time' module
+                                        ; * see 'timer_delay_clock_cycles' in the 'time' module
 
 
 ; SREG_I2C - i2c status register (1)
@@ -125,11 +125,11 @@ i2c_do_start_condition:
     ; Release SCL to ensure that (repeated) Start can be performed
     sbi PORTB, I2C_SCL_PIN              ; set SCL to high
     sbi DDRB, I2C_SDA_PIN               ; make sure SDA is set as output
-    rcall time_delay_clock_cycles
+    rcall timer_delay_clock_cycles
 
     ; Generate Start Condition
     cbi PORTB, I2C_SDA_PIN              ; Force SDA LOW.
-    rcall time_delay_clock_cycles
+    rcall timer_delay_clock_cycles
     sbi USICR, 0                        ; Pull SCL LOW.
 
     sbi PORTB, I2C_SDA_PIN              ; Release SDA.
@@ -146,7 +146,7 @@ i2c_do_stop_condition:
     push r20
 
     ldi r20, I2C_DELAY_CC               ; set delay
-    rcall time_delay_clock_cycles
+    rcall timer_delay_clock_cycles
 
     ldi r20, 0xff
     out USIDR, r20
@@ -166,9 +166,9 @@ _i2c_pulse_till_overflow:
     ldi r20, I2C_DELAY_CC            ; set delay
 
 _next_pulse:
-    rcall time_delay_clock_cycles
+    rcall timer_delay_clock_cycles
     sbi USICR, 0                    ; Generate positive SCL edge.
-    rcall time_delay_clock_cycles
+    rcall timer_delay_clock_cycles
     sbi USICR, 0                    ; Generate negative SCL edge.
 
     in r16, USISR

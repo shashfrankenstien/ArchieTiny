@@ -53,7 +53,7 @@ shell_splash_screen:
 shell_console_task:
     sbi PORTB, LED_PIN
     ldi r20, 0x64                              ; power on debounce delay (0x64 = 100 ms)
-    rcall time_delay_ms_short                  ; short delay before resetting SREG_GPIO_PC at start up (need time for debouncing capacitors to charge)
+    rcall timer_delay_ms_short                  ; short delay before resetting SREG_GPIO_PC at start up (need time for debouncing capacitors to charge)
     clr r22
     sts SREG_GPIO_PC, r22                      ; clear gpio button status register
 

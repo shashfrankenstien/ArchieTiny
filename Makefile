@@ -5,7 +5,7 @@ PORT ?= /dev/ttyACM0
 BUILD_PREFIX=build/kernel
 
 SRC=src/kernel.asm \
-	src/time.asm \
+	src/timer.asm \
 	src/tasks.asm \
 	src/math.asm \
 	src/usi_i2c.asm \

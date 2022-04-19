@@ -1,7 +1,56 @@
 .include "config.inc"                                   ; TIME_SOFT_COUNTER
 
+
+; timer / counter control - Timer0
+; .equ    GTCCR,            0x2c            ; GTCCR – General Timer/Counter Control Register
+.equ    TCCR0A,             0x2a            ; TCCR0A – Timer/Counter Control Register A
+.equ    TCCR0B,             0x33            ; TCCR0B – Timer/Counter Control Register B
+.equ    OCR0A,              0x29            ; OCR0A – Output Compare Register A
+.equ    OCR0B,              0x28            ; OCR0B – Output Compare Register B
+.equ    TCNT0,              0x32            ; TCNT0 – Timer/Counter Register
+.equ    TIMSK,              0x39            ; TIMSK – Timer/Counter Interrupt Mask Registe
+.equ    TIFR,               0x38            ; TIFR – Timer/Counter Interrupt Flag Register
+
+.equ    COUNTER_CTRL_A,     0b00000010      ; mode - 10 = Clear Timer on Compare Match (CTC) mode - resets counter when compare matches OCR0A
+.equ    COUNTER_CTRL_B,     0b00000011      ; clk setting (011 = 16 MHz / 64)
+
+.equ    OCIE0A,             4               ; OCIE0A (Output Compare Interrupt Enable - Timer 0 - A) is the 4th bit of TIMSK
+.equ    OCIE0B,             3               ; OCIE0B (Output Compare Interrupt Enable - Timer 0 - B) is the 3rd bit of TIMSK
+.equ    TIMER_INT_MASK,     (1<<OCIE0A) | (1<<OCIE0B)   ; Timer 0 compare match A & B interrupts enabled
+
+.equ    TIMER_COMPVAL_A,    250             ; using compare match A interrupt, timer counts from 0 to TIMER_COMPVAL_A, then resets to 0
+                                            ; TIMER_COMPVAL_A value 250 = 1 millisecond
+                                            ; this was arrived at using the below equation
+                                            ; TIMER_COMPVAL_A = 0.001 * f_cpu / prescale_div
+                                            ; if f_cpu = 16 MHz and selected prescale_div = 64, TIMER_COMPVAL_A = 250
+
+.equ    TIMER_COMPVAL_B,    150             ; compare match B interrupt is triggered when TCNT0 reaches this value
+                                            ; however, this interrupt will not reset the counter. It will always count up to TIMER_COMPVAL_A
+                                            ; hence, the compare match B interrupt has the same frequency as compare match A
+
+
+
+_timer0_init:
+    ldi r16, COUNTER_CTRL_A
+    out TCCR0A, r16                 ; mode select
+
+    ldi r16, COUNTER_CTRL_B
+    out TCCR0B, r16                 ; clk select
+
+    ldi r16, TIMER_COMPVAL_A
+    out OCR0A, r16                  ; load compare A register
+
+    ldi r16, TIMER_COMPVAL_B
+    out OCR0B, r16                  ; load compare B register
+
+    ldi r16, TIMER_INT_MASK
+    out TIMSK, r16                  ; enable interrupt
+    ret
+
+; -------------------------------------------------
+
 ; 24 bit software time counter
-; kinda accurate clock cycle counter delay. (see time_delay_clock_cycles)
+; kinda accurate clock cycle counter delay. (see timer_delay_clock_cycles)
 
 ; HIGH_BYTE:MIDDLE_BYTE:LOW_BYTE
 ; TIME_SOFT_COUNTER+2:TIME_SOFT_COUNTER+1:TIME_SOFT_COUNTER
@@ -11,16 +60,17 @@
 .equ    LOW_BYTE,          TIME_SOFT_COUNTER + 2
 
 
-time_init:
-    clr r1
-    sts LOW_BYTE, r1                         ; intialize counter registers to 0
-    sts MIDDLE_BYTE, r1
-    sts HIGH_BYTE, r1
+timer_init:
+    rcall _timer0_init
+    clr r16
+    sts LOW_BYTE, r16                         ; intialize counter registers to 0
+    sts MIDDLE_BYTE, r16
+    sts HIGH_BYTE, r16
     ret
 
 
 
-time_tick_isr:
+timer_tick_isr:
     push r16
     push r17
     in r17, SREG
@@ -52,8 +102,8 @@ _tick_done:
 
 
 
-; 'time_delay_ms' takes 3 bytes in r22:r21:r20 which stands for number of ms to sleep
-time_delay_ms:                              ; delay in ms, reads input from r22:r21:r20
+; 'timer_delay_ms' takes 3 bytes in r22:r21:r20 which stands for number of ms to sleep
+timer_delay_ms:                              ; delay in ms, reads input from r22:r21:r20
     .irp param,16,17,18,19,20,21,22
         push r\param
     .endr
@@ -97,22 +147,22 @@ stopper_count:
 
 
 
-; 'time_delay_ms_short' is a special case when we want to delay less than 256 ms
+; 'timer_delay_ms_short' is a special case when we want to delay less than 256 ms
 ; takes 1 byte in r20 which stands for number of ms to sleep
-time_delay_ms_short:                        ; delay in ms, reads input from r22:r21:r20
+timer_delay_ms_short:                        ; delay in ms, reads input from r22:r21:r20
     push r21
     push r22
 
     clr r21
     clr r22
-    rcall time_delay_ms
+    rcall timer_delay_ms
 
     pop r22
     pop r21
     ret
 
 
-; the `time_delay_ms` routine has a max frequency of 1 kHz (1 ms precision)
+; the `timer_delay_ms` routine has a max frequency of 1 kHz (1 ms precision)
 ; this, however, is too slow to use in some cases (ex: i2c)
 ; so we will define an accurate clock cycle delay routine
 ; note: this is not truely accurate due to interrupts
@@ -121,8 +171,8 @@ time_delay_ms_short:                        ; delay in ms, reads input from r22:
 ; setup and tear down happen once. these should be subtracted from the required delay
 ; instructions within the loop are doing the actual chunk of the work. this is the divisor
 ; so, the input in r20 should be (required delay - sum of setup and tear down instruction) / sum of loop instructions
-time_delay_clock_cycles:            ; create accurate delay
-                                    ; +3 cycles -> rcall into time_delay_clock_cycles
+timer_delay_clock_cycles:            ; create accurate delay
+                                    ; +3 cycles -> rcall into timer_delay_clock_cycles
     push r20                        ; +2 cycles -> push
     push r16                        ; +2 cycles -> push
     in r16, SREG                    ; +1 cycle -> in

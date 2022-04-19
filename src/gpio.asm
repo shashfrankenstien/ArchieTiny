@@ -1,4 +1,4 @@
-.include "config.inc"                       ; LED_PIN, GPIO_BTN_0, ADC_CHANNEL_0, SREG_GPIO_PC
+.include "config.inc"                       ; LED_PIN, GPIO_BTN_0, ADC_CHAN_0, SREG_GPIO_PC
 
 ; gpio mode, write and read registers
 .equ    DDRB,               0x17
@@ -21,7 +21,8 @@
                                             ; Bits 3:0 – MUX[3:0]: Analog Channel and Gain Selection Bits (0000 selects ADC0 channel)
 
 .equ    ADCSRA,             0x06            ; ADCSRA – ADC Control and Status Register A
-.equ    ADC_CTRL_A,         0b00100111      ; Bit 5 – ADATE: ADC Auto Trigger Enable
+.equ    ADC_CTRL_A,         0b00101111      ; Bit 5 – ADATE: ADC Auto Trigger Enable
+                                            ; Bit 3 – ADIE: ADC Interrupt Enable
                                             ; Bits 2:0 – ADPS[2:0]: ADC Prescaler Select Bits (111 divides sys clock by 128)
 ; control bits
 .equ    ADEN,               7               ; ADCSRA Bit 7 – ADEN: ADC Enable (use this to turn on and off ADC - turn off before sleep to save power)
@@ -56,7 +57,18 @@
 .equ    GPIO_BTN_0_HLD,     GPIO_BTN_0_PRS + 3
 .equ    GPIO_BTN_1_HLD,     GPIO_BTN_1_PRS + 3
 .equ    GPIO_BTN_2_HLD,     GPIO_BTN_2_PRS + 3
+
 ; --------------------------------------------------------------------------------
+
+; ADC_BTN_PRS (r16) - button status virtual(*) register (voltage divided ADC)
+; * virtual register is dynamically created in 'gpio_adc_btn_read' and returned in r16
+;   - r16 hold upto 8 flags indicating a press (ADC_BTN_PRS)
+;   - only 5 assigned for now
+;      ----------------------------------------------------------------------------------------------------
+;      |  N/A  |  N/A  |  N/A  | ADC_VD_BTN_4 | ADC_VD_BTN_3 | ADC_VD_BTN_2 | ADC_VD_BTN_1 | ADC_VD_BTN_0 |
+;      ----------------------------------------------------------------------------------------------------
+
+
 
 
 ; digital IO routines
@@ -91,7 +103,6 @@ gpio_btn_init:
 
 
 ; handle PC interrupt
-; - this isr has software check to only trigger on falling edge??
 ; - assumes that debouncing is handled by hardware (simple RC circuit. schmitt trigger may be overkill)
 gpio_btn_press_isr:
     push r16
@@ -120,9 +131,9 @@ gpio_btn_press_isr:
 ; --------------------------------------------------------------------------------
 ; ADC routines
 
-; intializes ADC (ADC_CHANNEL_0)
+; intializes ADC (ADC_CHAN_0)
 gpio_adc_init:
-    ldi r16, ADC_MUX_SETTINGS | ADC_CHANNEL_0      ; enable ADC channel
+    ldi r16, ADC_MUX_SETTINGS | ADC_CHAN_0    ; enable ADC channel
     out ADMUX, r16
 
     ldi r16, ADC_CTRL_A                       ; set clock prescaler
@@ -136,7 +147,61 @@ gpio_adc_init:
     ret
 
 
+; handle ADC conversion complete interrupt
+; - ADC can be stabilized with a small-ish capacitor
+; - [TODO]
+; - this ISR will read, use and increment ADMUX MUX[3:0]
+;       - this will enable it to read the next configured ADC during the following ADC interrupt
+;       - also, by reading ADMUX MUX[3:0], it can store the conversion in the correct ADC_CHAN_x_VAL register
+gpio_adc_conv_isr:
+    push r16
+    in r16, ADCH
+    sts ADC_CHAN_0_VAL, r16
+    pop r16
+    reti
+
+
 ; read ADC high byte into r16 (ADLAR = 1; 8 bit precision)
 gpio_adc_read:
-    in r16, ADCH
+    lds r16, ADC_CHAN_0_VAL
+    ret
+
+
+
+gpio_adc_btn_read:
+    push r18
+    clr r16
+    lds r18, ADC_VD_BTNS_VAL
+
+    cpi r18, ADC_VD_BTN_0_TRESH
+    brsh _check_adc_btn1
+    ldi r16, (1<<ADC_VD_BTN_0)
+    rjmp _check_adc_btn_done
+
+_check_adc_btn1:
+    cpi r18, ADC_VD_BTN_1_TRESH
+    brsh _check_adc_btn2
+    ldi r16, (1<<ADC_VD_BTN_1)
+    rjmp _check_adc_btn_done
+
+_check_adc_btn2:
+    cpi r18, ADC_VD_BTN_2_TRESH
+    brsh _check_adc_btn3
+    ldi r16, (1<<ADC_VD_BTN_2)
+    rjmp _check_adc_btn_done
+
+_check_adc_btn3:
+    cpi r18, ADC_VD_BTN_3_TRESH
+    brsh _check_adc_btn4
+    ldi r16, (1<<ADC_VD_BTN_3)
+    rjmp _check_adc_btn_done
+
+_check_adc_btn4:
+    cpi r18, ADC_VD_BTN_4_TRESH
+    brsh _check_adc_btn_done
+    ldi r16, (1<<ADC_VD_BTN_4)
+    rjmp _check_adc_btn_done
+
+_check_adc_btn_done:
+    pop r18
     ret
