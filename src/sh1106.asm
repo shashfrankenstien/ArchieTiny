@@ -235,6 +235,37 @@ oled_scroll_text_down:
     ret
 
 
+; scrolls screen up by 8 rows since a text line is 8 rows high (1 page)
+oled_scroll_text_up:
+    push r16
+    push r17
+
+    lds r16, SREG_OLED                         ; load SREG_OLED and get current scroll position
+    dec r16
+    andi r16, 0b00000111                       ; keep only lower 3 bits in case of overflow (0 - 7)
+
+    lds r17, SREG_OLED                         ; load SREG_OLED to get current high bits
+    andi r17, 0b11111000                       ; keep higher 5 bits from current SREG_OLED
+    or r17, r16
+    sts SREG_OLED, r17                         ; update SREG_OLED with new scroll position
+
+    ldi r17, 8
+    rcall mul8                                 ; multiply r16 by 8 to get scroll position in rows (0 - 63). LSB of result is returned in r16
+    andi r16, 0b00111111                       ; keep only lower 6 bits in case of overflow (0 - 63)
+    mov r17, r16                               ; save new scroll position in r17
+
+    rcall oled_io_open_write_cmds
+    mov r16, r17                               ; reload r16 as oled_io_open_write_cmds modifies this register
+    ori r16, SET_DISPLY_START_LINE
+    rcall i2c_send_byte
+    rcall oled_io_close
+
+    pop r17
+    pop r16
+    ret
+
+
+
 ; oled_set_cursor takes
 ;   - r16 - page address
 ;   - r17 - column address

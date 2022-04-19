@@ -88,7 +88,7 @@ test3_loop:
     ldi r16, 1
     ldi r17, 127 - (FONT_WIDTH * 8)                     ; right top position
     rcall oled_set_relative_cursor                      ; set cursor to start writing data
-    rcall gpio_adc_btn_read
+    lds r16, SREG_ADC_VD_HLD
     rcall oled_put_binary_digits
 
     rcall i2c_lock_release

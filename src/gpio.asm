@@ -60,16 +60,16 @@
 
 ; --------------------------------------------------------------------------------
 
-; ADC_BTN_PRS (r16) - button status virtual(*) register (voltage divided ADC)
-; * virtual register is dynamically created in 'gpio_adc_btn_read' and returned in r16
-;   - r16 hold upto 8 flags indicating a press (ADC_BTN_PRS)
+; SREG_ADC_VD_HLD - button status register (voltage divided ADC)
+; - register is dynamically updated from 'gpio_adc_btn_read' and also returned in r16
+;   - SREG_ADC_VD_HLD holds upto 8 flags indicating a button hold
 ;   - only 5 assigned for now
 ;      ----------------------------------------------------------------------------------------------------
 ;      |  N/A  |  N/A  |  N/A  | ADC_VD_BTN_4 | ADC_VD_BTN_3 | ADC_VD_BTN_2 | ADC_VD_BTN_1 | ADC_VD_BTN_0 |
 ;      ----------------------------------------------------------------------------------------------------
 
 
-
+; --------------------------------------------------------------------------------
 
 ; digital IO routines
 init_onboard_led:
@@ -144,6 +144,9 @@ gpio_adc_init:
 
     sbi ADCSRA, ADEN                          ; turn on ADC
     sbi ADCSRA, ADSC                          ; start ADC conversion
+
+    clr r16
+    sts SREG_ADC_VD_HLD, r16                  ; clear ADC button status register
     ret
 
 
@@ -161,47 +164,74 @@ gpio_adc_conv_isr:
     reti
 
 
-; read ADC high byte into r16 (ADLAR = 1; 8 bit precision)
-gpio_adc_read:
-    lds r16, ADC_CHAN_0_VAL
-    ret
 
-
-
+; [TODO] add comments
 gpio_adc_btn_read:
-    push r18
+    .irp param,17,18,20
+        push r\param
+    .endr
     clr r16
-    lds r18, ADC_VD_BTNS_VAL
+    ldi r18, ADC_BTN_NUM_RE_READS           ; total number of consecutinve readings required
+    ldi r20, ADC_BTN_RE_READ_INTERVAL       ; set sleep time of 1 ms
+    rjmp _adc_vd_handle_btn0
 
-    cpi r18, ADC_VD_BTN_0_TRESH
-    brsh _check_adc_btn1
+_adc_vd_handle_sleep:
+    rcall timer_delay_ms_short
+
+_adc_vd_handle_btn0:
+    lds r17, ADC_VD_BTNS_VAL                 ; read ADC high byte into r16 (ADLAR = 1; 8 bit precision)
+
+    cpi r17, ADC_VD_BTN_0_TRESH
+    brsh _adc_vd_handle_btn1
     ldi r16, (1<<ADC_VD_BTN_0)
-    rjmp _check_adc_btn_done
+    rjmp _adc_vd_handle_btn_done
 
-_check_adc_btn1:
-    cpi r18, ADC_VD_BTN_1_TRESH
-    brsh _check_adc_btn2
+_adc_vd_handle_btn1:
+    cpi r17, ADC_VD_BTN_1_TRESH
+    brsh _adc_vd_handle_btn2
     ldi r16, (1<<ADC_VD_BTN_1)
-    rjmp _check_adc_btn_done
+    rjmp _adc_vd_handle_btn_done
 
-_check_adc_btn2:
-    cpi r18, ADC_VD_BTN_2_TRESH
-    brsh _check_adc_btn3
+_adc_vd_handle_btn2:
+    cpi r17, ADC_VD_BTN_2_TRESH
+    brsh _adc_vd_handle_btn3
     ldi r16, (1<<ADC_VD_BTN_2)
-    rjmp _check_adc_btn_done
+    rjmp _adc_vd_handle_btn_done
 
-_check_adc_btn3:
-    cpi r18, ADC_VD_BTN_3_TRESH
-    brsh _check_adc_btn4
+_adc_vd_handle_btn3:
+    cpi r17, ADC_VD_BTN_3_TRESH
+    brsh _adc_vd_handle_btn4
     ldi r16, (1<<ADC_VD_BTN_3)
-    rjmp _check_adc_btn_done
+    rjmp _adc_vd_handle_btn_done
 
-_check_adc_btn4:
-    cpi r18, ADC_VD_BTN_4_TRESH
-    brsh _check_adc_btn_done
+_adc_vd_handle_btn4:
+    cpi r17, ADC_VD_BTN_4_TRESH
+    brsh _adc_vd_handle_btn_done
     ldi r16, (1<<ADC_VD_BTN_4)
-    rjmp _check_adc_btn_done
+    rjmp _adc_vd_handle_btn_done
 
-_check_adc_btn_done:
-    pop r18
+_adc_vd_handle_btn_done:
+    push r16
+    dec r18
+    brne _adc_vd_handle_sleep
+
+    pop r16
+    ldi r18, ADC_BTN_NUM_RE_READS - 1
+_adc_vd_handle_iter_compare:
+    pop r17
+    cpse r16, r17
+    clr r16
+    dec r18
+    brne _adc_vd_handle_iter_compare
+
+    lds r17, SREG_ADC_VD_HLD
+    sts SREG_ADC_VD_HLD, r16
+    cpse r16, r17                           ; compare previous and current reading. if equal, determine that the button is still pressed
+    rjmp _adc_vd_all_done
+    clr r16                                 ; if button is still pressed, return nothing
+
+_adc_vd_all_done:
+    .irp param,20,18,17
+        pop r\param
+    .endr
     ret

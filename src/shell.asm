@@ -60,30 +60,37 @@ shell_console_task:
     rcall shell_splash_screen
     cbi PORTB, LED_PIN
 
-    clr r23                                    ; use r23 as a sort of status register
     clr r17                                    ; r17 will track the current column index incase we need to go back
     clr r18                                    ; r18 will track the current page index
     clr r19                                    ; r19 will track scroll position
     ldi r20, ' '                               ; r20 will handle character scrubbing
+    clr r21                                    ; use r21 as a sort of status register
 
     rjmp _shell_console_wait
 
 _shell_btn_clr_sleep_wait:
-    cli
     lds r22, SREG_GPIO_PC
     cbr r22, (1<<GPIO_BTN_0_PRS) | (1<<GPIO_BTN_1_PRS) | (1<<GPIO_BTN_2_PRS)
     sts SREG_GPIO_PC, r22                      ; clear GPIO_BTN_0_PRS
-    sei
 _shell_console_sleep_wait:
     sleep
 _shell_console_wait:
-    cli
     lds r22, SREG_GPIO_PC
-    cpi r22, 0
-    sei
-    breq _shell_console_sleep_wait
+    clr r16
+    cpse r22, r16
+    rjmp _shell_any_btn_press
 
-    sbrc r23, 0                                 ; if bit 0 is cleared, start console
+    rcall gpio_adc_btn_read
+    mov r23, r16
+    clr r16
+    cpse r23, r16
+    rjmp _shell_any_btn_press
+
+    rjmp _shell_console_sleep_wait
+
+
+_shell_any_btn_press:
+    sbrc r21, 0                                 ; if bit 0 is cleared, start console
     rjmp _shell_handle_btn_0
 
     ; console entered
@@ -107,17 +114,124 @@ _shell_console_wait:
     rcall oled_io_close
     rcall i2c_lock_release
 
-    sbr r23, (1<<0)                             ; flag that shell has been entered. next btn press will go to _shell_check_btn_0
+    sbr r21, (1<<0)                             ; flag that shell has been entered. next btn press will go to _shell_check_btn_0
 
     ldi r16, FONT_WIDTH * 2
     add r17, r16
 
     rjmp _shell_btn_clr_sleep_wait
 
-
+; PC INT buttons
 _shell_handle_btn_0:
     sbrs r22, GPIO_BTN_0_PRS
     rjmp _shell_handle_btn_1
+
+_shell_handle_btn_1:
+    sbrs r22, GPIO_BTN_1_PRS
+    rjmp _shell_handle_btn_2
+
+_shell_handle_btn_2:
+    sbrs r22, GPIO_BTN_2_PRS
+    rjmp _shell_handle_adc_btn_0
+
+
+; ADC buttons
+_shell_handle_adc_btn_0:
+    sbrs r23, ADC_VD_BTN_0                     ; check if adc btn 0 is pressed
+    rjmp _shell_handle_adc_btn_1
+
+    inc r20                                    ; scrub to next character
+    cpi r20, ' ' + FONT_LUT_SIZE               ; cap at FONT_LUT_SIZE and start over at ' '
+    brlo _shell_no_char_rollover
+    ldi r20, ' '
+_shell_no_char_rollover:
+
+    rcall i2c_lock_acquire
+    mov r16, r18                               ; copy over current page index into r16. current column index is already in r17
+    rcall oled_set_cursor                      ; set cursor to start writing data
+
+    rcall oled_io_open_write_data
+    rcall oled_sreg_color_inv_start
+    mov r16, r20
+    rcall oled_io_put_char
+    rcall oled_sreg_color_inv_stop
+
+    rcall oled_io_close
+    rcall i2c_lock_release
+
+
+_shell_handle_adc_btn_1:
+    sbrs r23, ADC_VD_BTN_1                     ; check if adc btn 1 is pressed
+    rjmp _shell_handle_adc_btn_2
+
+    cpi r20, ' ' + 1                           ; lower cap at ' ' and start over at FONT_LUT_SIZE
+    brsh _shell_no_char_rollover_rev
+    ldi r20, ' ' + FONT_LUT_SIZE
+_shell_no_char_rollover_rev:
+    dec r20                                    ; scrub to next character
+
+    rcall i2c_lock_acquire
+    mov r16, r18                               ; copy over current page index into r16. current column index is already in r17
+    rcall oled_set_cursor                      ; set cursor to start writing data
+
+    rcall oled_io_open_write_data
+    rcall oled_sreg_color_inv_start
+    mov r16, r20
+    rcall oled_io_put_char
+    rcall oled_sreg_color_inv_stop
+
+    rcall oled_io_close
+    rcall i2c_lock_release
+
+
+_shell_handle_adc_btn_2:
+    sbrs r23, ADC_VD_BTN_2                     ; check if adc btn 2 is pressed
+    rjmp _shell_handle_adc_btn_4
+
+    rcall i2c_lock_acquire
+    mov r16, r18                               ; copy over current page index into r16. current column index is already in r17
+    rcall oled_set_cursor                      ; set cursor to start writing data
+
+    rcall oled_io_open_write_data
+    ldi r16, ' '                               ; remove current character
+    rcall oled_io_put_char
+
+    cpi r17, FONT_WIDTH
+    brsh _shell_no_prev_page                   ; lower cap column to 0 and roll to prev row (page)
+
+    rcall oled_io_close                        ; close data io so that we can change the cursor
+    tst r18
+    brne _shell_no_scroll_up
+    rcall oled_scroll_text_up
+    rjmp _shell_scroll_up_done
+
+_shell_no_scroll_up:
+    dec r19
+
+_shell_scroll_up_done:
+    dec r18
+    andi r18, 0b00000111                       ; restrict to range 0 - 7
+    ldi r17, OLED_MAX_COL                      ; new column index is rolled back to end of previous row
+
+_shell_no_prev_page:
+    ldi r16, FONT_WIDTH
+    sub r17, r16                               ; decrement column index
+    mov r16, r18                               ; move new page index into r16
+    rcall oled_set_cursor                      ; set cursor at current column (r17)
+
+    rcall oled_io_open_write_data              ; re-open data io once cursor is updated
+    rcall oled_sreg_color_inv_start
+    mov r16, r20
+    rcall oled_io_put_char
+    rcall oled_sreg_color_inv_stop
+
+    rcall oled_io_close
+    rcall i2c_lock_release
+
+
+_shell_handle_adc_btn_4:
+    sbrs r23, ADC_VD_BTN_4                     ; check if adc btn 4 is pressed
+    rjmp _shell_handle_btn_done
 
     rcall i2c_lock_acquire
     mov r16, r18                               ; copy over current page index into r16. current column index is already in r17
@@ -157,34 +271,6 @@ _shell_no_next_page:
     rcall oled_io_close
     rcall i2c_lock_release
 
-
-_shell_handle_btn_1:
-    sbrs r22, GPIO_BTN_1_PRS
-    rjmp _shell_handle_btn_2
-
-    inc r20                                    ; scrub to next character
-    cpi r20, ' ' + FONT_LUT_SIZE               ; cap at FONT_LUT_SIZE and start over at ' '
-    brlo _shell_no_char_rollover
-    ldi r20, ' '
-_shell_no_char_rollover:
-
-    rcall i2c_lock_acquire
-    mov r16, r18                               ; copy over current page index into r16. current column index is already in r17
-    rcall oled_set_cursor                      ; set cursor to start writing data
-
-    rcall oled_io_open_write_data
-    rcall oled_sreg_color_inv_start
-    mov r16, r20
-    rcall oled_io_put_char
-    rcall oled_sreg_color_inv_stop
-
-    rcall oled_io_close
-    rcall i2c_lock_release
-
-
-_shell_handle_btn_2:
-    sbrs r22, GPIO_BTN_2_PRS
-    rjmp _shell_handle_btn_done
 
 _shell_handle_btn_done:
     rjmp _shell_btn_clr_sleep_wait
