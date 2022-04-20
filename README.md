@@ -172,7 +172,7 @@ Tasks Table is set up starting at RAM address TASK_TABLE_START (Should be greate
     - We're using a 680 pF capacitor against 50 k ohm internal pull-up (RESET pin) for smoothing. So, time to charge up to 63% is (50 * 10^3 * 681 * 10^-12) = 34 micro seconds (TAO).
         We might read a wrong value during this charge / discharge time. We can assume that the capacitor will be reasonably full at 5 * TAO
     - Given the ADC conversion period (110 micro seconds), we should make sure multiple readings are within threshold to confirm a button press
-    - To be absolutely safe, we can take 3 readings waiting 10 ms between them (Almost 300 ISR readings over all) and report a press only if the 3 readings all pass the same threshold
+    - To be absolutely safe, we can take 10 readings waiting 4 ms between them (Almost 400 ISR readings over all) and report a press only if all the readings pass the same threshold
 
 - ADC voltage divider value calculation (RESET pin)
     - tested on RESET pin (internal pull up resistance (R1))
@@ -186,6 +186,8 @@ Tasks Table is set up starting at RAM address TASK_TABLE_START (Should be greate
         - VREF = Vcc = 2.8 v
         - VIN = Vpin = 2.7 v
         - R2 = RESET pin pull-up = 50 kilo ohm aprox (guess??)
+
+- The voltages are usually below these values. So they are good to use as threshold
 
 ADC button    | Resistance (R2) | Voltage | ADC threshold (8 MSB precision)
 --------------|-----------------|---------|--------------
