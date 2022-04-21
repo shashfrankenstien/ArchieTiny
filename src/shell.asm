@@ -80,7 +80,7 @@ _shell_console_wait:
     cpse r22, r16
     rjmp _shell_any_btn_press
 
-    rcall gpio_adc_btn_read
+    rcall gpio_adc_vd_btn_read
     mov r23, r16
     clr r16
     cpse r23, r16

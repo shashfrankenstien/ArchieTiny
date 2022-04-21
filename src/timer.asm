@@ -149,7 +149,7 @@ stopper_count:
 
 ; 'timer_delay_ms_short' is a special case when we want to delay less than 256 ms
 ; takes 1 byte in r20 which stands for number of ms to sleep
-timer_delay_ms_short:                        ; delay in ms, reads input from r22:r21:r20
+timer_delay_ms_short:                        ; delay in ms, reads input from r20
     push r21
     push r22
 

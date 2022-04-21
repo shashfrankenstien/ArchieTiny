@@ -40,7 +40,6 @@
 
 ; SREG_OLED - oled status register (1)
 ;   - register holds 8 oled status flags
-;   - currently only 1 bit is assigned - OLED_COLOR_INVERT
 ;      ----------------------------------------------------------------------------------------------
 ;      |  N/A  |  N/A  |  N/A  |  N/A  |  OLED_COLOR_INVERT  |  SCRL_PG2  |  SCRL_PG1  |  SCRL_PG0  |
 ;      ----------------------------------------------------------------------------------------------
@@ -53,7 +52,7 @@
 ; OLED_COLOR_INVERT (bit 3)
 ;   - this flag is used to implement software color inverted mode
 ;   - NOTE: this is different from SET_COLOR_INV, which is an oled device function to invert the entire screen
-;   - if OLED_COLOR_INVERT is set, anything written to the the oled will be inverted (1's complement with COM instruction)
+;   - if OLED_COLOR_INVERT is set, anything written through the oled routines will be inverted (1's complement using COM instruction)
 ;       if OLED_COLOR_INVERT is cleared, it writes without 1's complement
 .equ    OLED_COLOR_INVERT,       3
 
@@ -120,7 +119,7 @@ oled_io_open_write_cmds:
     ret                                        ; return value r16 will contain ACK from last byte transfered
 
 
-; use this routine to start a command list write transaction
+; use this routine to start a data list write transaction
 ; this routine modifies r16 so that it contains ACK in LSB
 oled_io_open_write_data:
     rcall i2c_do_start_condition
@@ -131,6 +130,16 @@ oled_io_open_write_data:
     ldi r16, OLED_WRITE_DATA_LIST              ; this tells the device to expect a list of data bytes until stop condition
     rcall i2c_send_byte
     ret                                        ; return value r16 will contain ACK from last byte transfered
+
+
+; use this routine to start a read transaction
+; this routine modifies r16 so that it contains ACK in LSB
+oled_io_open_read_data:
+    rcall i2c_do_start_condition
+
+    ldi r16, OLED_READ_ADDR                    ; i2c communication always starts with the address + read/write flag
+    rcall i2c_send_byte
+    ret
 
 
 oled_io_close:
@@ -500,23 +509,3 @@ _next_bin_char:
         pop r\param
     .endr
     ret                             ; return value r16 will contain ACK from last byte transfered
-
-
-
-
-
-; --------------------------------------------------
-
-; test_oled_read:
-;     push r16
-;     rcall i2c_do_start_condition
-
-;     ldi r16, OLED_READ_ADDR
-;     rcall i2c_send_byte
-
-;     rcall i2c_read_byte_ack
-;     rcall i2c_read_byte_nack
-
-;     rcall i2c_do_stop_condition
-;     pop r16
-;     ret

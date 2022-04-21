@@ -25,7 +25,7 @@ reti                                ; address 0x0006 - EE_RDY_ISR
 reti                                ; address 0x0007 - ANA_COMP_ISR
 rjmp gpio_adc_conv_isr              ; address 0x0008 - ADC_ISR
 reti                                ; address 0x0009 - TIM1_COMPB_ISR
-rjmp timer_tick_isr                  ; address 0x000A - TIM0_COMPA_ISR
+rjmp timer_tick_isr                 ; address 0x000A - TIM0_COMPA_ISR
 rjmp taskmanager_exec_next_isr      ; address 0x000B - TIM0_COMPB_ISR
 reti                                ; address 0x000C - WDT_ISR
 reti                                ; address 0x000D - USI_START_ISR
@@ -91,6 +91,21 @@ test3_loop:
     lds r16, SREG_ADC_VD_HLD
     rcall oled_put_binary_digits
 
-    rcall i2c_lock_release
 
+    ; rcall oled_io_open_read_data
+    ; rcall i2c_read_byte_ack
+    ; push r16
+    ; rcall i2c_read_byte_nack
+    ; push r16
+    ; rcall oled_io_close
+
+    ; ldi r16, 7
+    ; ldi r17, 0
+    ; rcall oled_set_relative_cursor                      ; set cursor to start writing data
+    ; pop r16                               ; load back the fill byte that was originally saved away
+    ; rcall oled_put_binary_digits
+    ; pop r16                               ; load back the fill byte that was originally saved away
+    ; rcall oled_put_binary_digits
+
+    rcall i2c_lock_release
     rjmp test3_loop

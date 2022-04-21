@@ -27,10 +27,11 @@
 ; control bits
 .equ    ADEN,               7               ; ADCSRA Bit 7 – ADEN: ADC Enable (use this to turn on and off ADC - turn off before sleep to save power)
 .equ    ADSC,               6               ; ADCSRA Bit 6 - ADC Start Conversion bit
+; .equ    ADIF,               4               ; ADCSRA Bit 4 – ADIF: ADC Interrupt Flag
 
 
 .equ    ADCSRB,             0x03            ; ADCSRB – ADC Control and Status Register B
-.equ    ADC_CTRL_B,         0b00000000      ; Bits 2:0 – ADTS[2:0]: ADC Auto Trigger Source (000 enable free-running mode)
+.equ    ADC_CTRL_B,         0b00000000      ; Bits 2:0 – ADTS[2:0]: ADC Auto Trigger Source (000 enable free-running mode if ADATE and ADIE are set)
 
 
 .equ    ADCH,               0x05            ; ADCH – The ADC Data Register high byte (read only this when ADLAR is set)
@@ -61,7 +62,7 @@
 ; --------------------------------------------------------------------------------
 
 ; SREG_ADC_VD_HLD - button status register (voltage divided ADC)
-; - register is dynamically updated from 'gpio_adc_btn_read' and also returned in r16
+; - register is dynamically updated from 'gpio_adc_vd_btn_read' and also returned in r16
 ;   - SREG_ADC_VD_HLD holds upto 8 flags indicating a button hold
 ;   - only 5 assigned for now
 ;      ----------------------------------------------------------------------------------------------------
@@ -104,9 +105,14 @@ gpio_btn_init:
 
 ; handle PC interrupt
 ; - assumes that debouncing is handled by hardware (simple RC circuit. schmitt trigger may be overkill)
+; - additionally, waits around 30 us for pin to stabilize
 gpio_btn_press_isr:
     push r16
     push r17
+    push r20
+
+    ldi r20, 100
+    rcall timer_delay_clock_cycles              ; wait a bit to allow pin to stabilize
 
     lds r17, SREG_GPIO_PC
 
@@ -123,6 +129,7 @@ gpio_btn_press_isr:
 
     sts SREG_GPIO_PC, r17
 
+    pop r20
     pop r17
     pop r16
     reti
@@ -133,7 +140,7 @@ gpio_btn_press_isr:
 
 ; intializes ADC (ADC_CHAN_0)
 gpio_adc_init:
-    ldi r16, ADC_MUX_SETTINGS | ADC_CHAN_0    ; enable ADC channel
+    ldi r16, ADC_MUX_SETTINGS | ADC_CHAN_0    ; select ADC channel
     out ADMUX, r16
 
     ldi r16, ADC_CTRL_A                       ; set clock prescaler
@@ -143,7 +150,7 @@ gpio_adc_init:
     out ADCSRB, r16
 
     sbi ADCSRA, ADEN                          ; turn on ADC
-    sbi ADCSRA, ADSC                          ; start ADC conversion
+    sbi ADCSRA, ADSC                          ; start free running ADC conversion
 
     clr r16
     sts SREG_ADC_VD_HLD, r16                  ; clear ADC button status register
@@ -166,20 +173,20 @@ gpio_adc_conv_isr:
 
 
 ; [TODO] add comments
-gpio_adc_btn_read:
+gpio_adc_vd_btn_read:
     .irp param,17,18,20
         push r\param
     .endr
     clr r16
     ldi r18, ADC_BTN_NUM_RE_READS           ; total number of consecutinve readings required
-    ldi r20, ADC_BTN_RE_READ_INTERVAL       ; set sleep time of 1 ms
+    ldi r20, ADC_BTN_RE_READ_INTERVAL       ; set sleep time
     rjmp _adc_vd_handle_btn0
 
-_adc_vd_handle_sleep:
+_adc_vd_handle_sleep_restart:
     rcall timer_delay_ms_short
 
 _adc_vd_handle_btn0:
-    lds r17, ADC_VD_BTNS_VAL                 ; read ADC high byte into r16 (ADLAR = 1; 8 bit precision)
+    lds r17, ADC_VD_BTNS_VAL                 ; read ADC high byte into r17 (ADLAR = 1; 8 bit precision)
 
     cpi r17, ADC_VD_BTN_0_TRESH
     brsh _adc_vd_handle_btn1
@@ -213,7 +220,7 @@ _adc_vd_handle_btn4:
 _adc_vd_handle_btn_done:
     push r16
     dec r18
-    brne _adc_vd_handle_sleep
+    brne _adc_vd_handle_sleep_restart
 
     pop r16
     ldi r18, ADC_BTN_NUM_RE_READS - 1

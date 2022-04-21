@@ -78,7 +78,7 @@ GND | GND | pin 4
 - Features
     - 24 bit software time counter - this requires that `timer_tick_isr` is attached to an interrupt that triggers every 1 millisecond
     - also includes a sort of accurate clock cycle counter delay. (see `timer_delay_clock_cycles` subroutine)
-- Ticks are stored in addressed by TIME_SOFT_COUNTER config variable
+- Ticks are stored in RAM addressed by TIME_SOFT_COUNTER config variable
     - HIGH_BYTE:MIDDLE_BYTE:LOW_BYTE
     - TIME_SOFT_COUNTER+2:TIME_SOFT_COUNTER+1:TIME_SOFT_COUNTER
 
@@ -172,7 +172,7 @@ Tasks Table is set up starting at RAM address TASK_TABLE_START (Should be greate
     - We're using a 680 pF capacitor against 50 k ohm internal pull-up (RESET pin) for smoothing. So, time to charge up to 63% is (50 * 10^3 * 681 * 10^-12) = 34 micro seconds (TAO).
         We might read a wrong value during this charge / discharge time. We can assume that the capacitor will be reasonably full at 5 * TAO
     - Given the ADC conversion period (110 micro seconds), we should make sure multiple readings are within threshold to confirm a button press
-    - To be absolutely safe, we can take 10 readings waiting 4 ms between them (Almost 400 ISR readings over all) and report a press only if all the readings pass the same threshold
+    - To be absolutely safe, we can take a bunch of readings waiting a few ms between them; report a press only if all the readings pass the same threshold
 
 - ADC voltage divider value calculation (RESET pin)
     - tested on RESET pin (internal pull up resistance (R1))
@@ -183,19 +183,19 @@ Tasks Table is set up starting at RAM address TASK_TABLE_START (Should be greate
         - ADC_VAL = lambda VREF, VOUT: int((VOUT * 1024) / VREF) >> 2
 
     - approx measured / fudged values that worked out in tests
-        - VREF = Vcc = 2.8 v
-        - VIN = Vpin = 2.7 v
+        - VREF = Vcc = 2.78 v
+        - VIN = Vpin = 2.42 v
         - R2 = RESET pin pull-up = 50 kilo ohm aprox (guess??)
 
-- The voltages are usually below these values. So they are good to use as threshold
+- The voltages are usually below these values. just to be sure, we set the threshold to be a few counts above these values
 
 ADC button    | Resistance (R2) | Voltage | ADC threshold (8 MSB precision)
 --------------|-----------------|---------|--------------
-ADC_VD_BTN_0  | 51 K            | 1.363 v | 0b01111100
-ADC_VD_BTN_1  | 68 K            | 1.556 v | 0b10001110
-ADC_VD_BTN_2  | 100 K           | 1.800 v | 0b10100100
-ADC_VD_BTN_3  | 300 K           | 2.314 v | 0b11010011
-ADC_VD_BTN_4  | 1 M             | 2.571 v | 0b11101011
+ADC_VD_BTN_0  | 51 K            | 1.222 v | 0b01110000
+ADC_VD_BTN_1  | 68 K            | 1.395 v | 0b10000000
+ADC_VD_BTN_2  | 100 K           | 1.613 v | 0b10010100
+ADC_VD_BTN_3  | 300 K           | 2.074 v | 0b10111111
+ADC_VD_BTN_4  | 1 M             | 2.305 v | 0b11010100
 
 
 
