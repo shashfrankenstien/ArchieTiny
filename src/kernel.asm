@@ -88,24 +88,35 @@ test3_loop:
     ldi r16, 1
     ldi r17, 127 - (FONT_WIDTH * 8)                     ; right top position
     rcall oled_set_relative_cursor                      ; set cursor to start writing data
-    lds r16, SREG_ADC_VD_HLD
+    ldi r16, 0x55
     rcall oled_put_binary_digits
 
+    ldi r16, 1
+    ldi r17, 127 - (FONT_WIDTH * 8)                     ; right top position
+    rcall oled_set_relative_cursor                      ; set cursor to start writing data
 
-    ; rcall oled_io_open_read_data
-    ; rcall i2c_read_byte_ack
-    ; push r16
-    ; rcall i2c_read_byte_nack
-    ; push r16
-    ; rcall oled_io_close
+    rcall oled_io_open_read_data
 
-    ; ldi r16, 7
-    ; ldi r17, 0
-    ; rcall oled_set_relative_cursor                      ; set cursor to start writing data
-    ; pop r16                               ; load back the fill byte that was originally saved away
-    ; rcall oled_put_binary_digits
-    ; pop r16                               ; load back the fill byte that was originally saved away
-    ; rcall oled_put_binary_digits
+    ldi r18, 9
+test3_read_loop:
+    rcall i2c_read_byte_ack
+    push r16
+    dec r18
+    brne test3_read_loop
+    rcall i2c_read_byte_nack
+    push r16
+    rcall oled_io_close
+
+    ldi r16, 7
+    ldi r17, 0
+    rcall oled_set_relative_cursor                      ; set cursor to start writing data
+
+    ldi r18, 10
+test3_write_loop:
+    pop r16                               ; load back the fill byte that was originally saved away
+    rcall oled_put_hex_digits
+    dec r18
+    brne test3_write_loop
 
     rcall i2c_lock_release
     rjmp test3_loop

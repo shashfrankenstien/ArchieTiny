@@ -1,9 +1,9 @@
 
 ; this program interfaces with SH1106 OLED display over i2c
 
-.equ OLED_ADDR,              0b00111100
-.equ OLED_WRITE_ADDR,        (OLED_ADDR << 1)
-.equ OLED_READ_ADDR,         (OLED_ADDR << 1) | 0x01
+.equ OLED_ADDR,              0b00111100              ; 0x3c
+.equ OLED_WRITE_ADDR,        (OLED_ADDR << 1)        ; 0x78
+.equ OLED_READ_ADDR,         (OLED_ADDR << 1) | 0x01 ; 0x79
 
 ; control byte                                       ; if bit 8 is set, we can send 1 data byte after this
 .equ OLED_WRITE_DATA,        0b11000000              ; if bit 7 is set, indicates that the next byte needs to be stored in memory
@@ -132,13 +132,23 @@ oled_io_open_write_data:
     ret                                        ; return value r16 will contain ACK from last byte transfered
 
 
-; use this routine to start a read transaction
+; use this routine to start a data read transaction
 ; this routine modifies r16 so that it contains ACK in LSB
 oled_io_open_read_data:
     rcall i2c_do_start_condition
 
-    ldi r16, OLED_READ_ADDR                    ; i2c communication always starts with the address + read/write flag
+    ldi r16, OLED_WRITE_ADDR                   ; oled retains the previous control byte indicating command or data
+    rcall i2c_send_byte                        ; if command (OLED_WRITE_CMD - ex: setting the cursor), then the data read back will be the oled status flag
+    ldi r16, OLED_WRITE_DATA                   ; so, first we need to write the command byte indicating we want to access data (OLED_WRITE_DATA)
     rcall i2c_send_byte
+
+    rcall i2c_do_stop_condition
+    rcall i2c_do_start_condition               ; then, we send a restart event after which we will be able to read display RAM data
+
+    ldi r16, OLED_READ_ADDR                    ; i2c communication to read
+    rcall i2c_send_byte
+
+    rcall i2c_read_byte_ack                    ; perform dummy read per sh1106 docs
     ret
 
 
@@ -220,10 +230,10 @@ oled_scroll_text_down:
     push r17
 
     lds r16, SREG_OLED                         ; load SREG_OLED and get current scroll position
+    mov r17, r16
     inc r16
     andi r16, 0b00000111                       ; keep only lower 3 bits in case of overflow (0 - 7)
 
-    lds r17, SREG_OLED                         ; load SREG_OLED to get current high bits
     andi r17, 0b11111000                       ; keep higher 5 bits from current SREG_OLED
     or r17, r16
     sts SREG_OLED, r17                         ; update SREG_OLED with new scroll position
@@ -250,10 +260,10 @@ oled_scroll_text_up:
     push r17
 
     lds r16, SREG_OLED                         ; load SREG_OLED and get current scroll position
+    mov r17, r16
     dec r16
     andi r16, 0b00000111                       ; keep only lower 3 bits in case of overflow (0 - 7)
 
-    lds r17, SREG_OLED                         ; load SREG_OLED to get current high bits
     andi r17, 0b11111000                       ; keep higher 5 bits from current SREG_OLED
     or r17, r16
     sts SREG_OLED, r17                         ; update SREG_OLED with new scroll position
@@ -275,11 +285,11 @@ oled_scroll_text_up:
 
 
 
-; oled_set_cursor takes
+; oled_set_relative_cursor takes
 ;   - r16 - page address
 ;   - r17 - column address
 ; performs set page and set column address operations
-; takes into consideration current page scroll position SCRL_PG[2:0] in SREG_OLED
+; not affected by current page scroll position SCRL_PG[2:0] in SREG_OLED
 oled_set_relative_cursor:
     push r16
     push r18
@@ -416,6 +426,7 @@ _next_column:
 ;
 ; oled_io_put_char assumes that start condition has been signaled and cursor address is set before being called
 ; it also expects that the oled is in OLED_WRITE_DATA_LIST mode
+; - these conditions can be met by just calling oled_io_open_write_data before, and oled_io_close after oled_io_put_char
 oled_io_put_char:
     .irp param,17,18,19,30,31
         push r\param
@@ -428,7 +439,7 @@ oled_io_put_char:
 
     subi r16, FONT_OFFSET           ; (r16 - FONT_OFFSET) * FONT_WIDTH
     ldi r17, FONT_WIDTH
-    rcall mul8                      ; output is stored in r1:r0 (character index)
+    rcall mul8                      ; output is stored in r17:r16 (character index)
 
     add r30, r16                    ; add the character index to Z pointer
     adc r31, r17                    ; add the character index to Z pointer
@@ -485,7 +496,6 @@ oled_put_binary_digits:
     .irp param,17,18,19,20
         push r\param
     .endr
-
     in r17, SREG
     mov r18, r16                               ; save r16 for later
 
@@ -501,6 +511,55 @@ _next_bin_char:
     rcall oled_io_put_char
     dec r19
     brne _next_bin_char
+
+    rcall oled_io_close
+
+    out SREG, r17
+    .irp param,20,19,18,17
+        pop r\param
+    .endr
+    ret                             ; return value r16 will contain ACK from last byte transfered
+
+
+
+
+oled_low_nibble_to_hex_char:
+    push r17
+    andi r16, 0b00001111                    ; only lower nibble
+    cpi r16, 10
+    brsh _hex_ge_10
+    ldi r17, '0'
+    rjmp _hex_write_low
+_hex_ge_10:
+    ldi r17, 'a'
+    subi r16, 10
+_hex_write_low:
+    add r16, r17
+    pop r17
+    ret
+
+
+; oled_put_hex_digits converts r16 to hex and writes to oled
+oled_put_hex_digits:
+    .irp param,17,18,19,20
+        push r\param
+    .endr
+    in r17, SREG
+    mov r18, r16                               ; save r16 for later
+
+    rcall oled_io_open_write_data               ; this tells the device to expect a list of data bytes until stop condition
+
+    mov r16, r18
+    lsr r16
+    lsr r16
+    lsr r16
+    lsr r16
+    rcall oled_low_nibble_to_hex_char
+    rcall oled_io_put_char
+
+    mov r16, r18
+    rcall oled_low_nibble_to_hex_char
+    rcall oled_io_put_char
 
     rcall oled_io_close
 

@@ -200,7 +200,7 @@ _shell_handle_adc_btn_2:
     brsh _shell_no_prev_page                   ; lower cap column to 0 and roll to prev row (page)
 
     rcall oled_io_close                        ; close data io so that we can change the cursor
-    tst r18
+    tst r19
     brne _shell_no_scroll_up
     rcall oled_scroll_text_up
     rjmp _shell_scroll_up_done

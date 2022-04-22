@@ -71,7 +71,7 @@
 
 .equ    ADC_VD_BTN_0_TRESH, 0b01110000 + 16               ; ADC threshold for button 0
 .equ    ADC_VD_BTN_1_TRESH, 0b10000000 + 16               ; ADC threshold for button 1
-.equ    ADC_VD_BTN_2_TRESH, 0b10010100 + 16               ; ADC threshold for button 2
+.equ    ADC_VD_BTN_2_TRESH, 0b10010100 + 16 + 4           ; ADC threshold for button 2 - slightly tuned up
 .equ    ADC_VD_BTN_3_TRESH, 0b10111111 + 16               ; ADC threshold for button 3
 .equ    ADC_VD_BTN_4_TRESH, 0b11010100 + 16               ; ADC threshold for button 4
 
