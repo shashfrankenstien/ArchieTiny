@@ -44,6 +44,7 @@
 
 .equ    TASK_SP_VECTOR,        TASKPTR + 1                          ; task stack pointers vector
 .equ    TASK_STACKS_TOP,       TASK_SP_VECTOR + (TASK_MAX_TASKS*2)  ; start of task stacks
+.equ    TASK_STACKS_BOTTOM,    TASK_STACKS_TOP + (TASK_STACK_SIZE * TASK_MAX_TASKS)   ; emd of task stacks
 
 ; Task stack (SRAM)
 ;

@@ -29,12 +29,12 @@ shell_splash_screen:
     ldi r17, ((127 - (FONT_WIDTH * hello_world_len)) / 2)   ; center the hello world message
     rcall oled_set_cursor                      ; set cursor to start writing data
 
-    rcall oled_sreg_color_inv_start
+    rcall oled_color_inv_start
     ldi r31, hi8(hello_world)                  ; Initialize Z-pointer to the start of the hello_world label
     ldi r30, lo8(hello_world)
     ldi r16, hello_world_len
     rcall oled_put_str_flash
-    rcall oled_sreg_color_inv_stop
+    rcall oled_color_inv_stop
 
     ; =========
     rcall i2c_lock_release
@@ -106,10 +106,10 @@ _shell_any_btn_press:
     ldi r16, ' '
     rcall oled_io_put_char
 
-    rcall oled_sreg_color_inv_start
+    rcall oled_color_inv_start
     mov r16, r20
     rcall oled_io_put_char
-    rcall oled_sreg_color_inv_stop
+    rcall oled_color_inv_stop
 
     rcall oled_io_close
     rcall i2c_lock_release
@@ -151,10 +151,10 @@ _shell_no_char_rollover:
     rcall oled_set_cursor                      ; set cursor to start writing data
 
     rcall oled_io_open_write_data
-    rcall oled_sreg_color_inv_start
+    rcall oled_color_inv_start
     mov r16, r20
     rcall oled_io_put_char
-    rcall oled_sreg_color_inv_stop
+    rcall oled_color_inv_stop
 
     rcall oled_io_close
     rcall i2c_lock_release
@@ -175,10 +175,10 @@ _shell_no_char_rollover_rev:
     rcall oled_set_cursor                      ; set cursor to start writing data
 
     rcall oled_io_open_write_data
-    rcall oled_sreg_color_inv_start
+    rcall oled_color_inv_start
     mov r16, r20
     rcall oled_io_put_char
-    rcall oled_sreg_color_inv_stop
+    rcall oled_color_inv_stop
 
     rcall oled_io_close
     rcall i2c_lock_release
@@ -220,10 +220,10 @@ _shell_no_prev_page:
     rcall oled_set_cursor                      ; set cursor at current column (r17)
 
     rcall oled_io_open_write_data              ; re-open data io once cursor is updated
-    rcall oled_sreg_color_inv_start
+    rcall oled_color_inv_start
     mov r16, r20
     rcall oled_io_put_char
-    rcall oled_sreg_color_inv_stop
+    rcall oled_color_inv_stop
 
     rcall oled_io_close
     rcall i2c_lock_release
@@ -263,10 +263,10 @@ _shell_handle_adc_btn_4:
     rcall oled_io_open_write_data              ; re-open data io once cursor is updated
 
 _shell_no_next_page:
-    rcall oled_sreg_color_inv_start
+    rcall oled_color_inv_start
     mov r16, r20
     rcall oled_io_put_char
-    rcall oled_sreg_color_inv_stop
+    rcall oled_color_inv_stop
 
     rcall oled_io_close
     rcall i2c_lock_release

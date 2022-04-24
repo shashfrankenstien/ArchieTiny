@@ -160,7 +160,7 @@ oled_io_close:
 
 ; -------------- SREG_I2C wrappers ----------------
 
-oled_sreg_color_inv_start:
+oled_color_inv_start:
     push r16
     lds r16, SREG_OLED
     sbr r16, (1 << OLED_COLOR_INVERT)        ; set to invert color
@@ -169,7 +169,7 @@ oled_sreg_color_inv_start:
     ret
 
 
-oled_sreg_color_inv_stop:
+oled_color_inv_stop:
     push r16
     lds r16, SREG_OLED
     cbr r16, (1 << OLED_COLOR_INVERT)        ; set to normal color

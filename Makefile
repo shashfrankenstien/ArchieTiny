@@ -5,12 +5,12 @@ PORT ?= /dev/ttyACM0
 BUILD_PREFIX=build/kernel
 
 SRC=src/kernel.asm \
-	src/timer.asm \
-	src/tasks.asm \
-	src/math.asm \
-	src/usi_i2c.asm \
-	src/gpio.asm \
-	src/sh1106.asm \
+	src/lib/timer.asm \
+	src/lib/tasks.asm \
+	src/lib/math.asm \
+	src/drivers/usi_i2c.asm \
+	src/drivers/gpio.asm \
+	src/drivers/sh1106.asm \
 	src/shell.asm \
 	src/fonts/spleen.asm
 
