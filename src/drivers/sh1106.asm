@@ -384,7 +384,7 @@ _next_wipe_column:
 ;
 ; so what we've got here is that
 ;   x1 and x2 indicate column addresses
-;   y1 and y2 indicate row addresses (this is page address resolution for now; further resolution gets complicated)
+;   y1 and y2 indicate row addresses between 0 and 7 (this is page address resolution for now; further resolution gets complicated)
 oled_fill_rect:                                ; fill rect on screen with value in r16
                                                ; r16 through r20 are inputs. calling routine should push and pop these
     .irp param,21,22,23

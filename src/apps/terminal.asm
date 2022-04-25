@@ -1,3 +1,4 @@
+.include "config.inc"                                   ; TERMINAL_PROMPT_CHAR
 
 
 terminal_app_open:
@@ -14,12 +15,13 @@ terminal_app_open:
     clr r17
     rcall textmode_set_cursor                      ; set cursor to start writing data
 
-    ldi r16, '>'
+_terminal_prompt:
+    ldi r16, TERMINAL_PROMPT_CHAR
     rcall textmode_put_char
     ldi r16, ' '
     rcall textmode_put_char
 
-
+    ldi r16, 'a'
 _terminal_char_wait:
     rcall text_kbd_start
     mov r19, r16
@@ -27,5 +29,7 @@ _terminal_char_wait:
     cpse r17, r18
     mov r16, r17
     rcall textmode_put_char
+    cpi r17, '\n'
+    breq _terminal_prompt
     mov r16, r19
     rjmp _terminal_char_wait

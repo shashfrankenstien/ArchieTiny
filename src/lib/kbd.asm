@@ -1,4 +1,3 @@
-; .include "config.inc"                                   ; TEXTMODE_CURSOR_PAGE and TEXTMODE_CURSOR_COL
 
 ; kbd is just a single character printed inverted colors
 ; one is able to scrub through all characters and either
@@ -7,6 +6,7 @@
 ;   - complete typing and return (button - )
 
 
+; accepts starting scrub character in r16
 text_kbd_start:
     .irp param,18,19,20,21,22
         push r\param
@@ -66,9 +66,9 @@ _text_kbd_handle_adc_btn_0:                    ; check if adc btn 0 is pressed; 
     rjmp _text_kbd_handle_adc_btn_1
 
     mov r16, r22                               ; copy over current page index into r16. current column index is already in r17
-    rcall textmode_set_cursor                      ; set cursor back to where it was before kbd was called
+    rcall textmode_set_cursor                  ; set cursor back to where it was before kbd was called
     ldi r16, ' '
-    rcall textmode_put_char                        ; clear the kbd inverted character
+    rcall textmode_put_char                    ; clear the kbd inverted character
 
     ldi r21, '\n'
     rjmp _text_kbd_done                        ; return '\n'

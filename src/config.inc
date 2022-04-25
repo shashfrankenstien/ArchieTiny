@@ -92,3 +92,7 @@
 .equ    ADC_BTN_NUM_RE_READS,      20
 .equ    ADC_BTN_RE_READ_INTERVAL,  3           ; milli seconds
 ; -------------------------------------------------
+
+
+
+.equ    TERMINAL_PROMPT_CHAR,      '>'
