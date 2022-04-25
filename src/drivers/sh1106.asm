@@ -223,6 +223,25 @@ oled_set_cursor:
     ret
 
 
+; oled_set_relative_cursor takes
+;   - r16 - page address
+;   - r17 - column address
+; performs set page and set column address operations
+; not affected by current page scroll position SCRL_PG[2:0] in SREG_OLED
+oled_set_relative_cursor:
+    push r16
+    push r18
+
+    lds r18, SREG_OLED                         ; load SREG_OLED and get current scroll position
+    add r16, r18                               ; relative page scroll position = (cur + req) & 0b00000111
+    andi r16, 0b00000111
+    rcall oled_set_cursor
+
+    pop r18
+    pop r16
+    ret
+
+
 
 ; scrolls screen down by 8 rows since a text line is 8 rows high (1 page)
 oled_scroll_text_down:
@@ -284,24 +303,23 @@ oled_scroll_text_up:
     ret
 
 
-
-; oled_set_relative_cursor takes
-;   - r16 - page address
-;   - r17 - column address
-; performs set page and set column address operations
-; not affected by current page scroll position SCRL_PG[2:0] in SREG_OLED
-oled_set_relative_cursor:
+; resets oled scroll position
+oled_scroll_text_reset:
     push r16
-    push r18
 
-    lds r18, SREG_OLED                         ; load SREG_OLED and get current scroll position
-    add r16, r18                               ; relative page scroll position = (cur + req) & 0b00000111
-    andi r16, 0b00000111
-    rcall oled_set_cursor
+    lds r16, SREG_OLED                         ; load SREG_OLED and get current scroll position
+    cbr r16, 0b00000111                        ; set scroll position to 0
+    sts SREG_OLED, r16                         ; update SREG_OLED
 
-    pop r18
+    rcall oled_io_open_write_cmds
+    ldi r16, SET_DISPLY_START_LINE | 0         ; set scroll position to 0
+    rcall i2c_send_byte
+    rcall oled_io_close
+
     pop r16
     ret
+
+
 
 ; -------------------------------------------------
 
@@ -325,17 +343,17 @@ oled_clr_screen:
 
 
 
-; 'oled_set_cursor_wipe_eol' takes
+; 'oled_set_relative_cursor_wipe_eol' takes
 ;   - r16 - page address
 ;   - r17 - column address
 ; sets the cursor to the required location
 ; writes 0s till end of line from current column (r17)
 ; returns after resetting the cursor to the right location
-oled_set_cursor_wipe_eol:
+oled_set_relative_cursor_wipe_eol:
     push r16
     push r17
 
-    rcall oled_set_cursor                      ; set cursor initially
+    rcall oled_set_relative_cursor             ; set cursor initially
     rcall oled_io_open_write_data
 
 _next_wipe_column:
@@ -349,7 +367,7 @@ _next_wipe_column:
 
     pop r17
     pop r16
-    rcall oled_set_cursor                      ; finally set cursor to desired page (r16) and column (r17)
+    rcall oled_set_relative_cursor             ; finally set cursor to desired page (r16) and column (r17)
     ret
 
 

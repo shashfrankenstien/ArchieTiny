@@ -52,8 +52,8 @@ main:                               ; initialize
     rcall taskmanager_init          ; initialize task manager table
 
     ; ui
-    ldi r17, hi8(shell_console_task)         ; add task to task manager table
-    ldi r16, lo8(shell_console_task)
+    ldi r17, hi8(shell_home_task)         ; add task to task manager table
+    ldi r16, lo8(shell_home_task)
     rcall taskmanager_add
 
     ldi r17, hi8(test3)             ; add task to task manager table
@@ -91,32 +91,32 @@ test3_loop:
     lds r16, SREG_ADC_VD_HLD
     rcall oled_put_binary_digits
 
-    ldi r16, 1
-    ldi r17, 127 - (FONT_WIDTH * 8)                     ; right top position
-    rcall oled_set_relative_cursor                      ; set cursor to start writing data
+;     ldi r16, 1
+;     ldi r17, 127 - (FONT_WIDTH * 8)                     ; right top position
+;     rcall oled_set_relative_cursor                      ; set cursor to start writing data
 
-    rcall oled_io_open_read_data
+;     rcall oled_io_open_read_data
 
-    ldi r18, 9
-test3_read_loop:
-    rcall i2c_read_byte_ack
-    push r16
-    dec r18
-    brne test3_read_loop
-    rcall i2c_read_byte_nack
-    push r16
-    rcall oled_io_close
+;     ldi r18, 9
+; test3_read_loop:
+;     rcall i2c_read_byte_ack
+;     push r16
+;     dec r18
+;     brne test3_read_loop
+;     rcall i2c_read_byte_nack
+;     push r16
+;     rcall oled_io_close
 
-    ldi r16, 7
-    ldi r17, 0
-    rcall oled_set_relative_cursor                      ; set cursor to start writing data
+;     ldi r16, 7
+;     ldi r17, 0
+;     rcall oled_set_relative_cursor                      ; set cursor to start writing data
 
-    ldi r18, 10
-test3_write_loop:
-    pop r16                               ; load back the fill byte that was originally saved away
-    rcall oled_put_hex_digits
-    dec r18
-    brne test3_write_loop
+;     ldi r18, 10
+; test3_write_loop:
+;     pop r16                               ; load back the fill byte that was originally saved away
+;     rcall oled_put_hex_digits
+;     dec r18
+;     brne test3_write_loop
 
     rcall i2c_lock_release
     rjmp test3_loop
