@@ -73,11 +73,11 @@
 .equ    ADC_VD_BTN_3,       3                            ; bit corresponding to button 3
 .equ    ADC_VD_BTN_4,       4                            ; bit corresponding to button 4
 
-.equ    ADC_VD_BTN_0_TRESH, 0b01110000 + 16               ; ADC threshold for button 0
-.equ    ADC_VD_BTN_1_TRESH, 0b10000000 + 16               ; ADC threshold for button 1
-.equ    ADC_VD_BTN_2_TRESH, 0b10010100 + 16 + 5           ; ADC threshold for button 2 - slightly tuned up
-.equ    ADC_VD_BTN_3_TRESH, 0b10111111 + 16               ; ADC threshold for button 3
-.equ    ADC_VD_BTN_4_TRESH, 0b11010100 + 16               ; ADC threshold for button 4
+.equ    ADC_VD_BTN_0_TRESH, 0b01110000 + 20               ; ADC threshold for button 0
+.equ    ADC_VD_BTN_1_TRESH, 0b10000000 + 20               ; ADC threshold for button 1
+.equ    ADC_VD_BTN_2_TRESH, 0b10010100 + 20 + 8           ; ADC threshold for button 2 - slightly tuned up
+.equ    ADC_VD_BTN_3_TRESH, 0b10111111 + 20               ; ADC threshold for button 3
+.equ    ADC_VD_BTN_4_TRESH, 0b11010100 + 20               ; ADC threshold for button 4
 
 ; -------------------------------------------------
 ; Reading button presses (Software stabilization)

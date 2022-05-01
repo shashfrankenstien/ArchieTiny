@@ -334,7 +334,7 @@ oled_clr_screen:
     ldi r18, OLED_MAX_COL                      ; x2 = OLED_MAX_COL
     clr r19                                    ; y2 = 0
     ldi r20, OLED_MAX_PAGE                     ; y2 = OLED_MAX_PAGE
-    rcall oled_fill_rect                       ; fill oled with data in r16
+    rcall oled_fill_rect_by_page                       ; fill oled with data in r16
 
     .irp param,20,19,18,17,16
         pop r\param
@@ -373,7 +373,42 @@ _next_wipe_column:
 
 ; --------------------------------------------------
 
-; oled_fill_rect takes 4 coordinates - x1, x2, y1, y2
+
+; oled_fill_page takes 3 coordinates - x1, x2, y
+; it will fill page y between x1 and x2 columns with the fill byte in r16
+; input registers -
+;   r16 - byte to fill
+;   r17 - x1
+;   r18 - x2
+;   r19 - y
+oled_fill_page:
+    .irp param,17,18,19,20
+        push r\param
+    .endr
+
+    inc r18                                    ; increment x2 so that we can break the loop once x1 overflows original x2
+    mov r20, r16                               ; save away page fill byte till later because we need r16 for other stuff
+    mov r16, r19
+    rcall oled_set_cursor                      ; set cursor to start writing data
+
+    rcall oled_io_open_write_data
+_next_column:                                  ; iterate columns x1 to x2
+    mov r16, r20                               ; load back the fill byte that was originally saved away
+    rcall i2c_send_byte                        ; i2c_send_byte modifies r16, so we need to reload r16 at every iteration
+    inc r17
+    cp r17, r18
+    brne _next_column
+
+    rcall oled_io_close                        ; finished writing a page
+
+    .irp param,20,19,18,17
+        pop r\param
+    .endr
+    ret                                        ; return value r16 will contain ACK from last byte transfered
+
+
+
+; oled_fill_rect_by_page takes 4 coordinates - x1, x2, y1, y2
 ; it will fill the rectangle between (x1,y1) (x1,y2) (x2,y1) (x2,y2)
 ; input registers -
 ;   r16 - byte to fill
@@ -382,14 +417,13 @@ _next_wipe_column:
 ;   r19 - y1
 ;   r20 - y2
 ;
-; so what we've got here is that
+; so
 ;   x1 and x2 indicate column addresses
-;   y1 and y2 indicate row addresses between 0 and 7 (this is page address resolution for now; further resolution gets complicated)
-oled_fill_rect:                                ; fill rect on screen with value in r16
+;   y1 and y2 indicate row addresses between 0 and 7 (this is page address resolution; for pixel resolution, see oled_fill_rect_by_pixel)
+oled_fill_rect_by_page:                                ; fill rect on screen with value in r16
                                                ; r16 through r20 are inputs. calling routine should push and pop these
-    .irp param,21,22,23
-        push r\param
-    .endr
+    push r21
+    push r22
     in r21, SREG
 
     ; pre calc some stuff
@@ -398,37 +432,136 @@ oled_fill_rect:                                ; fill rect on screen with value 
     sbrc r16, OLED_COLOR_INVERT                ; check if needs to be inverted
     com r22                                    ; invert!
 
-    mov r23, r17                               ; save away original x1. this needs to be loaded back for each page
-    inc r18                                    ; increment x2 so that we can break the loop once x1 overflows original x2
     inc r20                                    ; increment y2 so that we can break the loop once y1 overflows original y2
-
-_next_page:                                    ; iterate pages y1 to y2
-
-    mov r16, r19                               ; get current page number (in range y1 to y2)
-    mov r17, r23                               ; reload original x1
-    rcall oled_set_cursor                      ; set cursor to start writing data
-
-    rcall oled_io_open_write_data
-
-_next_column:
     mov r16, r22                               ; load back the fill byte that was originally saved away
-    rcall i2c_send_byte                        ; i2c_send_byte modifies r16, so we need to reload r16 at every iteration
-    inc r17
-    cp r17, r18
-    brne _next_column
-
-    rcall oled_io_close                        ; finished writing a page
-
+_next_page:                                    ; iterate pages y1 to y2
+    rcall oled_fill_page
     inc r19
     cp r19, r20
     brne _next_page
 
     out SREG, r21
-    .irp param,23,22,21
-        pop r\param
-    .endr                                      ; r16 through r20 are inputs. calling routine should push and pop these
+    pop r22
+    pop r21                                    ; r16 through r20 are inputs. calling routine should push and pop these
     ret                                        ; return value r16 will contain ACK from last byte transfered
 
+
+
+
+
+
+
+; oled_fill_rect_by_pixel takes 4 coordinates - x1, x2, y1, y2
+; it will fill the rectangle between (x1,y1) (x1,y2) (x2,y1) (x2,y2)
+; input registers -
+;   r16 - byte to fill
+;   r17 - x1
+;   r18 - x2
+;   r19 - y1
+;   r20 - y2
+;
+; so
+;   x1 and x2 indicate column addresses
+;   y1 and y2 indicate actual row addresses between 0 and 63 (pixel resolution)
+;
+; handling y axis - convert 0 - 63 into page addr (0 - 7) and bit addr (0 - 7)
+;   - this can be done by dividing the y value by 8. quotient will be page addr and remainder will be bit addr
+;
+; first, we will fill the pages associated with y1 and y2 with corresponding bit addr masked fill byte
+; then, we will check if there are pages between y1 and y2 that needs filling, and fill those with the raw fill byte
+oled_fill_rect_by_pixel:                               ; fill rect on screen with value in r16
+                                               ; r16 through r20 are inputs. calling routine should push and pop these
+    push r21
+    push r22
+    push r23
+    push r24
+    push r25
+    in r21, SREG
+
+    ; pre calc some stuff
+    mov r22, r16                               ; save away page fill byte till later because we need r16 for other stuff
+    lds r16, SREG_OLED
+    sbrc r16, OLED_COLOR_INVERT                ; check if needs to be inverted
+    com r22                                    ; invert!
+
+    mov r23, r17                               ; save away x1 as we need r17 for div8
+
+    ;  ------------------ deal with y1 -----------------------
+    mov r16, r19
+    ldi r17, 8
+    rcall div8
+    mov r19, r16                               ; move y1 page number into r19
+    mov r16, r22                               ; load back the fill byte that was originally saved away
+
+    tst r17
+    breq _rect_page_0_fill_mask_done
+
+    clc                                        ; clear carry flag
+    ldi r24, 0xff
+_rect_page_0_fill_mask:
+    rol r24                                    ; bring in carry to bit 0
+    and r16, r24                               ; knock off one LSB at a time using rol+and
+    dec r17
+    brne _rect_page_0_fill_mask
+
+_rect_page_0_fill_mask_done:
+    mov r17, r23                               ; load back x1
+    rcall oled_fill_page
+    mov r25, r19                               ; save away y1 page number for later
+
+    ;  ------------------ deal with y2 -----------------------
+    mov r16, r20
+    ldi r17, 8
+    rcall div8
+    mov r19, r16                               ; move y2 page number into r19
+
+    tst r17
+    breq _rect_page_n_done
+
+    ldi r16, 8
+    sub r16, r17
+    mov r17, r16
+
+    mov r16, r22                               ; load back the fill byte that was originally saved away
+    clc                                        ; clear carry flag
+    ldi r24, 0xff
+_rect_page_n_fill_mask:
+    ror r24                                    ; bring in carry to bit 7
+    and r16, r24                               ; knock off one MSB at a time using ror+and
+    dec r17
+    brne _rect_page_n_fill_mask
+
+    mov r17, r23                               ; load back x1
+    rcall oled_fill_page
+
+_rect_page_n_done:
+    mov r20, r19                               ; put y2 page number in r20
+    mov r19, r25                               ; put y1 page number in r19
+    ; ------------------------------------------------------------
+
+    sub r20, r19                               ; subtract y1 from y2. if result is same or higher than 2, we need to fill intermediate pages
+    cpi r20, 2
+    brlo _rect_done
+
+    dec r20                                    ; iterator for intermediate pages
+    inc r19                                    ; start from the second page since first one is already handled (y1)
+
+    mov r16, r22                               ; load back the fill byte that was originally saved away
+_rect_next_page2:                              ; iterate intermediate pages
+    rcall oled_fill_page
+    dec r20
+    brne _rect_next_page2
+
+_rect_done:
+    out SREG, r21
+    pop r25
+    pop r24
+    pop r23
+    pop r22
+    pop r21                                    ; r16 through r20 are inputs. calling routine should push and pop these
+    ret                                        ; return value r16 will contain ACK from last byte transfered
+
+; --------------------------------------------------
 
 
 

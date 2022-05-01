@@ -23,12 +23,12 @@ shell_splash_screen:
     rcall i2c_lock_acquire
 
     ; =========
-    ldi r16, 0x99
-    ldi r17, ((127 - (FONT_WIDTH * hello_world_len) - 12) / 2)          ; x1 - position at the center with 12/2 pixels of padding on either side
-    ldi r18, 127 - ((127 - (FONT_WIDTH * hello_world_len) - 12) / 2)    ; x2
-    ldi r19, 3                                 ; y1
-    ldi r20, 5                                 ; y2
-    rcall oled_fill_rect                       ; fill oled with data in r16
+    ldi r16, 0x66
+    ldi r17, ((127 - (FONT_WIDTH * hello_world_len) - 8) / 2)          ; x1 - position at the center with 8/2 pixels of padding on either side
+    ldi r18, 127 - ((127 - (FONT_WIDTH * hello_world_len) - 8) / 2)    ; x2
+    ldi r19, (3 * 8) + 5                                 ; y1
+    ldi r20, (5 * 8) + 3                                ; y2
+    rcall oled_fill_rect_by_pixel                       ; fill oled with data in r16
 
     ; =========
     ; Hello World! :D
@@ -36,12 +36,12 @@ shell_splash_screen:
     ldi r17, ((127 - (FONT_WIDTH * hello_world_len)) / 2)   ; center the hello world message
     rcall oled_set_cursor                      ; set cursor to start writing data
 
-    rcall oled_color_inv_start
+    ; rcall oled_color_inv_start
     ldi r31, hi8(hello_world)                  ; Initialize Z-pointer to the start of the hello_world label
     ldi r30, lo8(hello_world)
     ldi r16, hello_world_len
     rcall oled_put_str_flash
-    rcall oled_color_inv_stop
+    ; rcall oled_color_inv_stop
 
     ; =========
     rcall i2c_lock_release
