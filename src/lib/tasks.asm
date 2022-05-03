@@ -1,4 +1,4 @@
-.include "config.inc"                                   ; TASK_TABLE_START
+.include "config.inc"                                   ; TASK_RAM_START
 
 ; Task Manager (SRAM)
 ;         _________
@@ -17,7 +17,7 @@
 ;      | RUNNING | FULL | EMPTY | ERROR | COUNT3 | COUNT2 | COUNT1 | COUNT0 |
 ;      ----------------------------------------------------------------------
 
-.equ    TASKCTS,               TASK_TABLE_START            ; task counter and status register
+.equ    TASKCTS,               TASK_RAM_START              ; task counter and status register
 .equ    TASKPTR,               TASKCTS + 1                 ; current task pointer
 
 ; TASKCTS bits

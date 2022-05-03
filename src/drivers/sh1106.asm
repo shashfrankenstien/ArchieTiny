@@ -1,17 +1,19 @@
 
 ; this program interfaces with SH1106 OLED display over i2c
 
-.equ OLED_ADDR,              0b00111100              ; 0x3c
-.equ OLED_WRITE_ADDR,        (OLED_ADDR << 1)        ; 0x78
-.equ OLED_READ_ADDR,         (OLED_ADDR << 1) | 0x01 ; 0x79
+.equ OLED_ADDR,                 0b00111100              ; 0x3c
+.equ OLED_WRITE_ADDR,           (OLED_ADDR << 1)        ; 0x78
+.equ OLED_READ_ADDR,            (OLED_ADDR << 1) | 0x01 ; 0x79
 
-; control byte                                       ; if bit 8 is set, we can send 1 data byte after this
-.equ OLED_WRITE_DATA,        0b11000000              ; if bit 7 is set, indicates that the next byte needs to be stored in memory
-.equ OLED_WRITE_CMD,         0b10000000              ; if bit 7 is clear, the next byte will be a command
+; control byte                                          ; if bit 8 is set, we can send 1 data byte after this
+.equ OLED_WRITE_DATA,           0b11000000              ; if bit 7 is set, indicates that the next byte needs to be stored in memory
+.equ OLED_WRITE_CMD,            0b10000000              ; if bit 7 is clear, the next byte will be a command
 
-.equ OLED_WRITE_DATA_LIST,   0b01000000
-.equ OLED_WRITE_CMD_LIST,    0b00000000
+.equ OLED_WRITE_DATA_LIST,      0b01000000
+.equ OLED_WRITE_CMD_LIST,       0b00000000
 
+.equ OLED_READ_MOD_WRITE_START, 0xe0                    ; commands for read-modify-write operation
+.equ OLED_READ_MOD_WRITE_END,   0xee                    ; see page 28 of sh1106 data sheet
 
 ; commands
 .equ SET_DISPLY_OFF,         0xae                    ; 0b1010111x
@@ -153,6 +155,43 @@ oled_io_open_read_data:
 
 
 oled_io_close:
+    rcall i2c_do_stop_condition
+    ret
+
+
+
+; ----------------- read-modify-write wrappers ---------------
+
+oled_read_mod_write_start:
+    rcall i2c_do_start_condition
+
+    ldi r16, OLED_WRITE_ADDR                   ; i2c communication always starts with the address + read/write flag
+    rcall i2c_send_byte
+
+    ldi r16, OLED_WRITE_CMD
+    rcall i2c_send_byte
+
+    ldi r16, OLED_READ_MOD_WRITE_START
+    rcall i2c_send_byte
+
+    rcall i2c_do_stop_condition
+
+    ret
+
+
+
+oled_read_mod_write_end:
+    rcall i2c_do_start_condition
+
+    ldi r16, OLED_WRITE_ADDR                   ; i2c communication always starts with the address + read/write flag
+    rcall i2c_send_byte
+
+    ldi r16, OLED_WRITE_CMD
+    rcall i2c_send_byte
+
+    ldi r16, OLED_READ_MOD_WRITE_END
+    rcall i2c_send_byte
+
     rcall i2c_do_stop_condition
     ret
 

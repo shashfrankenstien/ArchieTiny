@@ -22,10 +22,10 @@
 .equ    TEXTMODE_CURSOR_COL,      TEXTMODE_CURSOR_PAGE + 1
 
 ; task manager table
-.equ    TASK_TABLE_START,         TEXTMODE_CURSOR_COL + 1     ; Task vector start address
+.equ    TASK_RAM_START,           TEXTMODE_CURSOR_COL + 1     ; Task vector start address
 .equ    TASK_STACK_SIZE,          100                         ; Each task in the task manager get TASK_STACK_SIZE bytes of RAM
                                                               ;   some of these bytes are required for the task manager and the rest are available for the task
-.equ    TASK_MAX_TASKS,           4
+.equ    TASK_MAX_TASKS,           3
 
 
 ; -------------------------------------------------

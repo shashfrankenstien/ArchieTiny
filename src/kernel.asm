@@ -118,5 +118,30 @@ test3_loop:
 ;     dec r18
 ;     brne test3_write_loop
 
+
+    ldi r16, 1
+    ldi r17, 127 - (FONT_WIDTH * 8)                     ; right top position
+    rcall oled_set_relative_cursor                      ; set cursor to start writing data
+
+    rcall oled_read_mod_write_start
+
+    ldi r17, 5 * 8
+_rmw_kernel_test:
+    rcall oled_io_open_read_data
+    rcall i2c_read_byte_nack
+    mov r18, r16
+    rcall oled_io_close
+
+    rcall oled_io_open_write_data
+    mov r16, r18
+    com r16
+    rcall i2c_send_byte
+    rcall oled_io_close
+    dec r17
+    brne _rmw_kernel_test
+
+    rcall oled_read_mod_write_end
+
+
     rcall i2c_lock_release
     rjmp test3_loop

@@ -94,7 +94,7 @@ GPIO     | SREG_GPIO_PC         | gpio.asm
 
 
 ## Task Manager (tasks.asm)
-Tasks Table is set up starting at RAM address TASK_TABLE_START (Should be greater than 0x60 = 32 general registers + 64 I/O registers).
+Tasks Table is set up starting at RAM address TASK_RAM_START (Should be greater than 0x60 = 32 general registers + 64 I/O registers).
 
 
 ### Task table
