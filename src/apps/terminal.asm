@@ -13,7 +13,7 @@ terminal_app_open:
 
     clr r16                                    ; textmode_set_cursor expects page index in r16 and column index in r17. start shell at 0,0
     clr r17
-    rcall textmode_set_cursor                      ; set cursor to start writing data
+    rcall textmode_set_cursor                  ; set cursor to start writing data
 
 _terminal_prompt:
     ldi r16, TERMINAL_PROMPT_CHAR

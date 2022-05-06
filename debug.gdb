@@ -114,7 +114,7 @@ i r r21
 end
 
 
-b oled_loop
+b shell_show_menu
 
 # b i2c_check_addr
 # b *i2c_check_addr+26

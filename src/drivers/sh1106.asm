@@ -66,7 +66,6 @@
 
 
 ; initialize oled and set default settings
-; rotate oled 180 degrees by flipping both column and page scan directions
 oled_init:
     push r16
 
@@ -84,10 +83,11 @@ oled_init:
     ldi r16, DEFAULT_DISP_FREQ
     rcall i2c_send_byte
 
-    ldi r16, SET_COMM_SCAN_DIR_INV             ; flip the screen
-    rcall i2c_send_byte
-    ldi r16, SET_SEGMENT_REMAP_INV             ; reverse the column scan direction
-    rcall i2c_send_byte
+    ; ; rotate oled 180 degrees by flipping both column and page scan directions
+    ; ldi r16, SET_COMM_SCAN_DIR_INV             ; flip the screen
+    ; rcall i2c_send_byte
+    ; ldi r16, SET_SEGMENT_REMAP_INV             ; reverse the column scan direction
+    ; rcall i2c_send_byte
 
     ldi r16, SET_DISPLY_LINE_OFFSET            ; set offset (different from scroll?)
     rcall i2c_send_byte
@@ -363,6 +363,7 @@ oled_scroll_text_reset:
 ; -------------------------------------------------
 
 ; write all zeros onto oled
+; also reset scroll position
 oled_clr_screen:
     .irp param,16,17,18,19,20
         push r\param
@@ -373,7 +374,9 @@ oled_clr_screen:
     ldi r18, OLED_MAX_COL                      ; x2 = OLED_MAX_COL
     clr r19                                    ; y2 = 0
     ldi r20, OLED_MAX_PAGE                     ; y2 = OLED_MAX_PAGE
-    rcall oled_fill_rect_by_page                       ; fill oled with data in r16
+    rcall oled_fill_rect_by_page               ; fill oled with data in r16
+
+    rcall oled_scroll_text_reset               ; reset scroll position
 
     .irp param,20,19,18,17,16
         pop r\param
@@ -413,14 +416,14 @@ _next_wipe_column:
 ; --------------------------------------------------
 
 
-; oled_fill_page takes 3 coordinates - x1, x2, y
+; oled_fill_page_row takes 3 coordinates - x1, x2, y
 ; it will fill page y between x1 and x2 columns with the fill byte in r16
 ; input registers -
 ;   r16 - byte to fill
 ;   r17 - x1
 ;   r18 - x2
-;   r19 - y
-oled_fill_page:
+;   r19 - y         ; row (page) address 0 to 7
+oled_fill_page_row:
     .irp param,17,18,19,20
         push r\param
     .endr
@@ -431,12 +434,12 @@ oled_fill_page:
     rcall oled_set_cursor                      ; set cursor to start writing data
 
     rcall oled_io_open_write_data
-_next_column:                                  ; iterate columns x1 to x2
+_fill_page_next_column:                                  ; iterate columns x1 to x2
     mov r16, r20                               ; load back the fill byte that was originally saved away
     rcall i2c_send_byte                        ; i2c_send_byte modifies r16, so we need to reload r16 at every iteration
     inc r17
     cp r17, r18
-    brne _next_column
+    brne _fill_page_next_column
 
     rcall oled_io_close                        ; finished writing a page
 
@@ -444,6 +447,47 @@ _next_column:                                  ; iterate columns x1 to x2
         pop r\param
     .endr
     ret                                        ; return value r16 will contain ACK from last byte transfered
+
+
+
+; oled_invert_inplace_page_row takes 3 coordinates - x1, x2, y
+; it will invert all bytes of page y between x1 and x2 columns
+; input registers -
+;   r17 - x1
+;   r18 - x2
+;   r19 - y         ; row (page) address 0 to 7
+oled_invert_inplace_page_row:
+    .irp param,16,17,18,19,20
+        push r\param
+    .endr
+
+    inc r18                                    ; increment x2 so that we can break the loop once x1 overflows original x2
+    mov r16, r19
+    rcall oled_set_cursor                      ; set cursor to start writing data
+
+    rcall oled_read_mod_write_start
+_invert_inplace_next_column:
+    rcall oled_io_open_read_data
+    rcall i2c_read_byte_nack
+    mov r20, r16
+    rcall oled_io_close
+
+    rcall oled_io_open_write_data
+    mov r16, r20
+    com r16
+    rcall i2c_send_byte
+    rcall oled_io_close
+    inc r17
+    cp r17, r18
+    brne _invert_inplace_next_column
+
+    rcall oled_read_mod_write_end
+
+    .irp param,20,19,18,17,16
+        pop r\param
+    .endr
+    ret
+
 
 
 
@@ -474,7 +518,7 @@ oled_fill_rect_by_page:                                ; fill rect on screen wit
     inc r20                                    ; increment y2 so that we can break the loop once y1 overflows original y2
     mov r16, r22                               ; load back the fill byte that was originally saved away
 _next_page:                                    ; iterate pages y1 to y2
-    rcall oled_fill_page
+    rcall oled_fill_page_row
     inc r19
     cp r19, r20
     brne _next_page
@@ -545,7 +589,7 @@ _rect_page_0_fill_mask:
 
 _rect_page_0_fill_mask_done:
     mov r17, r23                               ; load back x1
-    rcall oled_fill_page
+    rcall oled_fill_page_row
     mov r25, r19                               ; save away y1 page number for later
 
     ;  ------------------ deal with y2 -----------------------
@@ -571,7 +615,7 @@ _rect_page_n_fill_mask:
     brne _rect_page_n_fill_mask
 
     mov r17, r23                               ; load back x1
-    rcall oled_fill_page
+    rcall oled_fill_page_row
 
 _rect_page_n_done:
     mov r20, r19                               ; put y2 page number in r20
@@ -587,7 +631,7 @@ _rect_page_n_done:
 
     mov r16, r22                               ; load back the fill byte that was originally saved away
 _rect_next_page2:                              ; iterate intermediate pages
-    rcall oled_fill_page
+    rcall oled_fill_page_row
     dec r20
     brne _rect_next_page2
 
@@ -653,36 +697,37 @@ _next_font_byte:
 
 
 
-; oled_put_str_flash reads string from flash and writes to oled
+; oled_print_flash reads string from flash and writes to oled
 ; it expects
 ;   - Z pointer set at the start of the string
-;   - string length passed in r16
-oled_put_str_flash:
+;   - String HAS to be null-terminated. routine exits if \0 (null) is encountered
+oled_print_flash:
+    push r16
     push r17
-    push r18
     in r17, SREG
-    mov r18, r16                                ; initialize loop counter with string length
 
     rcall oled_io_open_write_data               ; this tells the device to expect a list of data bytes until stop condition
 
-_next_char:
+_print_flash_next_char:
     lpm r16, Z+                     ; load character from flash memory
                                     ; memory pointed to by Z (r31:r30)
+    cpi r16, 0
+    breq _print_flash_done
     rcall oled_io_put_char
-    dec r18
-    brne _next_char
+    rjmp _print_flash_next_char
 
+_print_flash_done:
     rcall oled_io_close
 
     out SREG, r17
-    pop r18
     pop r17
+    pop r16
     ret                             ; return value r16 will contain ACK from last byte transfered
 
 
 
-; oled_put_binary_digits converts r16 to is and 0s and writes to oled
-oled_put_binary_digits:
+; oled_print_binary_digits converts r16 to is and 0s and writes to oled
+oled_print_binary_digits:
     .irp param,17,18,19,20
         push r\param
     .endr
@@ -729,8 +774,8 @@ _hex_write_low:
     ret
 
 
-; oled_put_hex_digits converts r16 to hex and writes to oled
-oled_put_hex_digits:
+; oled_print_hex_digits converts r16 to hex and writes to oled
+oled_print_hex_digits:
     .irp param,17,18,19,20
         push r\param
     .endr

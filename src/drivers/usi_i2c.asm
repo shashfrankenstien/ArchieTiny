@@ -16,9 +16,9 @@
 
 
 
-.equ    I2C_DELAY_CC,         2         ; this delays 1.5 us at 16 MHz. This is used for half a period.
-                                        ; So for the full period, it is 3 us (333.33 kHz)
-                                        ; * see 'timer_delay_clock_cycles' in the 'time' module
+.equ    I2C_DELAY_CC,         1         ; this delays 1.25 us at 16 MHz. This is used for half a period.
+                                        ; So for the full period, it is 2.5 us (400 kHz)
+                                        ; * see 'timer_delay_clock_cycles' in the 'timer' module
 
 
 ; SREG_I2C - i2c status register (1)
@@ -167,7 +167,7 @@ _i2c_pulse_till_overflow:
 
 _next_pulse:
     rcall timer_delay_clock_cycles
-    sbi USICR, 0                    ; Generate positive SCL edge.
+    sbi USICR, 0                    ; Generate positive SCL edge.   ; [TODO] handle clock stretching
     rcall timer_delay_clock_cycles
     sbi USICR, 0                    ; Generate negative SCL edge.
 

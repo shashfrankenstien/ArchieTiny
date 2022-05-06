@@ -74,7 +74,7 @@ GND | GND | pin 4
 - Ugh, need to add `-nostartfiles` to avr-gcc so it doesn't include weird extra code that kills interrupts.
     - This also eliminates need to create and expose a global `main` routine
 
-## Time and Delays (time.asm)
+## Time and Delays (lib/timer.asm)
 - Features
     - 24 bit software time counter - this requires that `timer_tick_isr` is attached to an interrupt that triggers every 1 millisecond
     - also includes a sort of accurate clock cycle counter delay. (see `timer_delay_clock_cycles` subroutine)
@@ -93,7 +93,7 @@ Oled     | SREG_OLED            | sh1106.asm
 GPIO     | SREG_GPIO_PC         | gpio.asm
 
 
-## Task Manager (tasks.asm)
+## Task Manager (lib/tasks.asm)
 Tasks Table is set up starting at RAM address TASK_RAM_START (Should be greater than 0x60 = 32 general registers + 64 I/O registers).
 
 
@@ -233,3 +233,8 @@ r31     | “call-used” | Can freely use | Save and restore if using
 # Some PIC stuff
 
 - https://www.youtube.com/watch?v=DBftApUQ8QI
+
+
+# Did he beat me to it?
+
+- https://hackaday.com/2019/12/25/circuit-sculpture-teaches-binary-plays-pong/

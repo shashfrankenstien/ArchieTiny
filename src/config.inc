@@ -89,7 +89,7 @@
 ;     - Given the ADC conversion period (110 micro seconds), we should make sure multiple readings are within threshold to confirm a button press
 ;     - To be absolutely safe, we can take a bunch of readings waiting a few ms between them; report a press only if all the readings pass the same threshold
 
-.equ    ADC_BTN_NUM_RE_READS,      20
+.equ    ADC_BTN_NUM_RE_READS,      15
 .equ    ADC_BTN_RE_READ_INTERVAL,  3           ; milli seconds
 ; -------------------------------------------------
 
