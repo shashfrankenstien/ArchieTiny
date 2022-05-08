@@ -73,7 +73,7 @@ define xx
     i r SP
     x/32xb 0x800240
     print "head"
-    x/16xb 0x800060
+    x/32xb 0x800060
     print "data"
     x/110xb 0x80006D
 end
@@ -86,6 +86,16 @@ define xx2
     print "data"
     x/110xb 0x80006D + 110
 end
+
+
+define mm
+    i r SP
+    print "head"
+    x/32xb 0x800060
+    print "data"
+    x/64xb 0x80019e
+end
+
 
 
 define xsi
@@ -114,7 +124,7 @@ i r r21
 end
 
 
-b shell_show_menu
+b breakpoint
 
 # b i2c_check_addr
 # b *i2c_check_addr+26

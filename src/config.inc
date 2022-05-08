@@ -9,6 +9,7 @@
 ; time and delay manager
 .equ    TIME_SOFT_COUNTER,         SRAM_START                 ; address to 24 bit software counter
 
+; -------------------------------------------------
 ; resource status / utility registers
 .equ    SREG_I2C,                 TIME_SOFT_COUNTER + 3       ; set this to TIME_SOFT_COUNTER + 3 since the time counter is 24 bits (3 bytes)
 .equ    SREG_OLED,                SREG_I2C + 1
@@ -18,18 +19,70 @@
 .equ    ADC_CHAN_0_VAL,           SREG_ADC_VD_HLD + 1
 
 ; console utility
-.equ    TEXTMODE_CURSOR_PAGE,     ADC_CHAN_0_VAL + 1
-.equ    TEXTMODE_CURSOR_COL,      TEXTMODE_CURSOR_PAGE + 1
-
-; task manager table
-.equ    TASK_RAM_START,           TEXTMODE_CURSOR_COL + 1     ; Task vector start address
-.equ    TASK_STACK_SIZE,          100                         ; Each task in the task manager get TASK_STACK_SIZE bytes of RAM
-                                                              ;   some of these bytes are required for the task manager and the rest are available for the task
-.equ    TASK_MAX_TASKS,           3
+.equ    TEXTMODE_CURSOR_PAGE,     ADC_CHAN_0_VAL + 1          ; byte to track text-mode page address
+.equ    TEXTMODE_CURSOR_COL,      TEXTMODE_CURSOR_PAGE + 1    ; byte to track text-mode column address
 
 
 ; -------------------------------------------------
+; task manager table
+.equ    TASK_RAM_START,           TEXTMODE_CURSOR_COL + 1     ; Task vector start address
 
+.equ    TASK_STACK_SIZE,          100                         ; Each task in the task manager get TASK_STACK_SIZE bytes of RAM
+.equ    TASK_MAX_TASKS,           2                           ;   some of these bytes are required for the task manager and the rest are available for the task
+
+
+; task manager calculated constants. see tasks.asm for description
+.equ    TASKCTS,               TASK_RAM_START                 ; task counter and status register
+.equ    TASKPTR,               TASKCTS + 1                    ; current task index
+
+.equ    TASK_SP_VECTOR,        TASKPTR + 1                          ; task stack pointers vector (each pointer is 2 bytes)
+.equ    TASK_STACKS_TOP,       TASK_SP_VECTOR + (TASK_MAX_TASKS*2)  ; start of task stacks
+.equ    TASK_STACKS_BOTTOM,    TASK_STACKS_TOP + (TASK_STACK_SIZE * TASK_MAX_TASKS)   ; end of task stacks
+
+.equ    TASK_RAM_END,          TASK_STACKS_BOTTOM             ; alias
+
+
+; -------------------------------------------------
+; heap! - dynamic internal memory management (malloc) - see lib/mem.asm for more description
+
+.equ    FREE_RAM_START,        TASK_RAM_END
+.equ    FREE_RAM_END,          (RAMEND - 8)                   ; leave out 8 bytes at the end since that is our original stack
+
+
+.equ    MALLOC_FREE_RAM,       FREE_RAM_END - FREE_RAM_START
+.iflt 256 - MALLOC_FREE_RAM                                   ; if more than 256 bytes of memory is free, default to 256 so that we can use 8 bit pointer addressing
+    .equ    MALLOC_FREE_RAM,   256                            ; address overflow!
+.endif
+
+
+.equ    MALLOC_BLOCK_SIZE,     8
+.equ    MALLOC_MAX_BLOCKS,     (MALLOC_FREE_RAM / (MALLOC_BLOCK_SIZE + 1))  ; look for space for 1 additional byte for the malloc table
+.equ    MALLOC_TABLE_SIZE,     MALLOC_MAX_BLOCKS
+
+; error handling for 0 MALLOC_MAX_BLOCKS
+.ifle MALLOC_MAX_BLOCKS
+    .err                            ; no malloc-able blocks. check task manager memory allocation
+.endif
+
+; error handling for MALLOC_MAX_BLOCKS greater than 250 (never gonna happen on this device, but whatever)
+.iflt 250 - MALLOC_MAX_BLOCKS       ; test if 250 - MALLOC_MAX_BLOCKS is less than 0
+    .err                            ; address overflow!
+.endif
+
+.equ    MALLOCFREECTR,                   FREE_RAM_START       ; 1 byte
+
+.equ    MALLOC_RAM_START,                MALLOCFREECTR
+.equ    MALLOC_TABLE_START,              MALLOCFREECTR + 1
+.equ    MALLOC_TABLE_END,                MALLOC_TABLE_START + MALLOC_TABLE_SIZE
+.equ    MALLOC_RAM_END,                  MALLOC_TABLE_END + (MALLOC_BLOCK_SIZE * MALLOC_MAX_BLOCKS)
+
+
+; error handling for overflow
+.ifle ((RAMEND - 8) - MALLOC_RAM_END)
+    .err                            ; memory overflow!
+.endif
+
+; -------------------------------------------------
 ; gpio config
 .equ    LED_PIN,            1
 .equ    GPIO_BTN_0,         3
@@ -73,11 +126,11 @@
 .equ    ADC_VD_BTN_3,       3                            ; bit corresponding to button 3
 .equ    ADC_VD_BTN_4,       4                            ; bit corresponding to button 4
 
-.equ    ADC_VD_BTN_0_TRESH, 0b01110000 + 20               ; ADC threshold for button 0
-.equ    ADC_VD_BTN_1_TRESH, 0b10000000 + 20               ; ADC threshold for button 1
-.equ    ADC_VD_BTN_2_TRESH, 0b10010100 + 20 + 8           ; ADC threshold for button 2 - slightly tuned up
-.equ    ADC_VD_BTN_3_TRESH, 0b10111111 + 20               ; ADC threshold for button 3
-.equ    ADC_VD_BTN_4_TRESH, 0b11010100 + 20               ; ADC threshold for button 4
+.equ    ADC_VD_BTN_0_TRESH, 0b01110000 + 16               ; ADC threshold for button 0
+.equ    ADC_VD_BTN_1_TRESH, 0b10000000 + 16               ; ADC threshold for button 1
+.equ    ADC_VD_BTN_2_TRESH, 0b10010100 + 16 + 8           ; ADC threshold for button 2 - slightly tuned up
+.equ    ADC_VD_BTN_3_TRESH, 0b10111111 + 16               ; ADC threshold for button 3
+.equ    ADC_VD_BTN_4_TRESH, 0b11010100 + 16               ; ADC threshold for button 4
 
 ; -------------------------------------------------
 ; Reading button presses (Software stabilization)
@@ -89,7 +142,7 @@
 ;     - Given the ADC conversion period (110 micro seconds), we should make sure multiple readings are within threshold to confirm a button press
 ;     - To be absolutely safe, we can take a bunch of readings waiting a few ms between them; report a press only if all the readings pass the same threshold
 
-.equ    ADC_BTN_NUM_RE_READS,      15
+.equ    ADC_BTN_NUM_RE_READS,      18
 .equ    ADC_BTN_RE_READ_INTERVAL,  3           ; milli seconds
 ; -------------------------------------------------
 

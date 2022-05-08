@@ -8,6 +8,7 @@ SRC=src/kernel.asm \
 	src/lib/timer.asm \
 	src/lib/tasks.asm \
 	src/lib/math.asm \
+	src/lib/mem.asm \
 	src/drivers/usi_i2c.asm \
 	src/drivers/gpio.asm \
 	src/drivers/sh1106.asm \
@@ -16,6 +17,13 @@ SRC=src/kernel.asm \
 	src/apps/terminal.asm \
 	src/shell.asm \
 	src/fonts/spleen.asm
+
+
+# SRC=ignore/i2c_tester/main.asm \
+# 	ignore/i2c_tester/timer.asm \
+# 	ignore/i2c_tester/i2c_slow.asm \
+# 	ignore/i2c_tester/eeram.asm
+
 
 all: $(BUILD_PREFIX).hex
 

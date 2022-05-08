@@ -1,4 +1,5 @@
-.include "config.inc"                                   ; TASK_RAM_START
+.include "config.inc"                                   ; TASK_RAM_START, TASKCTS, TASKPTR, TASK_MAX_TASKS, TASK_STACK_SIZE
+                                                        ; TASK_SP_VECTOR, TASK_STACKS_TOP
 
 ; Task Manager (SRAM)
 ;         _________
@@ -16,9 +17,6 @@
 ;      ----------------------------------------------------------------------
 ;      | RUNNING | FULL | EMPTY | ERROR | COUNT3 | COUNT2 | COUNT1 | COUNT0 |
 ;      ----------------------------------------------------------------------
-
-.equ    TASKCTS,               TASK_RAM_START              ; task counter and status register
-.equ    TASKPTR,               TASKCTS + 1                 ; current task pointer
 
 ; TASKCTS bits
 .equ    RUNNING,                7
@@ -42,9 +40,6 @@
 ;        |_________|     stack pointer of task TASK_MAX_TASKS
 ;        |         | --> start of task stacks of TASK_STACK_SIZE bytes each
 
-.equ    TASK_SP_VECTOR,        TASKPTR + 1                          ; task stack pointers vector
-.equ    TASK_STACKS_TOP,       TASK_SP_VECTOR + (TASK_MAX_TASKS*2)  ; start of task stacks
-.equ    TASK_STACKS_BOTTOM,    TASK_STACKS_TOP + (TASK_STACK_SIZE * TASK_MAX_TASKS)   ; emd of task stacks
 
 ; Task stack (SRAM)
 ;
@@ -75,13 +70,26 @@
 
 taskmanager_init:
     push r16
+    push r17
+    push r26
+    push r27
+
     clr r16
     sts TASKCTS, r16                                    ; initialize task counter to 0
     sts TASKPTR, r16                                    ; initialize current task pointer to 0
-    .irp param,0,1,2,3,4,5,6                            ; initialize task stack addrs vector to 0s
-        sts TASK_SP_VECTOR + (\param * 2), r16
-        sts TASK_SP_VECTOR + 1 + (\param * 2), r16
-    .endr
+
+    ldi r26, lo8(TASK_SP_VECTOR)                        ; set XL to start of task stack pointers vector
+    ldi r27, hi8(TASK_SP_VECTOR)                        ; set XH to start of task stack pointers vector
+
+    ldi r17, TASK_MAX_TASKS * 2
+_taskmanager_init_wipe:
+    st X+, r16                                         ; initialize task stack addrs vector to 0s
+    dec r17
+    brne _taskmanager_init_wipe
+
+    pop r27
+    pop r26
+    pop r17
     pop r16
     ret
 
@@ -147,8 +155,7 @@ _slot_found:
     clr r23
     .rept 18 + 1 + 1
     st Y+, r23                              ; clear spaces for registers
-    .endr
-                                            ;   +18 bytes for these registers => len([0,1,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31])
+    .endr                                   ;   +18 bytes for these registers => len([0,1,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31])
                                             ;   +1 byte for SREG
                                             ;   +1 because the SP will be point to the next location
 
@@ -175,7 +182,7 @@ _slot_found:
 
     mov r17, r16                            ; copy current counter
     andi r16, 0x0f                          ; keep the low bits TASKCTS[3:0]
-    cpi r16, TASK_MAX_TASKS-1               ; check if counter has reached TASK_MAX_TASKS
+    cpi r16, TASK_MAX_TASKS                 ; check if counter has reached TASK_MAX_TASKS
     brne _slot_assigned                     ; if not reached yet, finish up and return
 
     sbr r17, (1<<FULL)                      ; if counter has reached TASK_MAX_TASKS, set the FULL flag in TASKCTS

@@ -44,12 +44,13 @@ main:                               ; initialize
     rcall init_onboard_led          ; set LED output pin
     sbi PORTB, LED_PIN
 
-    rcall timer_init                 ; set timer / counter options and intialize 24bit software counter
+    rcall timer_init                ; set timer / counter options and intialize 24bit software counter
     rcall i2c_init                  ; initialize i2c bus
     rcall oled_init                 ; initialize i2c oled device (sh1107)
     rcall gpio_btn_init             ; intialize buttons as input pins and attach pc interrupts
     rcall gpio_adc_init             ; intialize ADC to read thumb wheel potentiometer
     rcall taskmanager_init          ; initialize task manager table
+    rcall mem_init                  ; initialize dynamic memory management (malloc)
 
     ; ui
     ldi r17, hi8(shell_home_task)         ; add task to task manager table
@@ -81,19 +82,19 @@ test3_loop:
 
     ldi r16, 6
     ldi r17, OLED_MAX_COL - (FONT_WIDTH * 8)            ; right top position
-    rcall oled_set_relative_cursor                      ; set cursor to start writing data
+    rcall oled_set_cursor                      ; set cursor to start writing data
     lds r16, SREG_GPIO_PC
     rcall oled_print_binary_digits
 
     ldi r16, 7
     ldi r17, OLED_MAX_COL - (FONT_WIDTH * 8)            ; right top position
-    rcall oled_set_relative_cursor                      ; set cursor to start writing data
+    rcall oled_set_cursor                      ; set cursor to start writing data
     lds r16, SREG_ADC_VD_HLD
     rcall oled_print_binary_digits
 
 ;     ldi r16, 1
 ;     ldi r17, OLED_MAX_COL - (FONT_WIDTH * 8)            ; right top position
-;     rcall oled_set_relative_cursor                      ; set cursor to start writing data
+;     rcall oled_set_cursor                      ; set cursor to start writing data
 
 ;     rcall oled_io_open_read_data
 
@@ -109,7 +110,7 @@ test3_loop:
 
 ;     ldi r16, 7
 ;     ldi r17, 0
-;     rcall oled_set_relative_cursor                      ; set cursor to start writing data
+;     rcall oled_set_cursor                      ; set cursor to start writing data
 
 ;     ldi r18, 10
 ; test3_write_loop:

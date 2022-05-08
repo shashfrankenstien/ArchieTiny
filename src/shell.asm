@@ -59,54 +59,9 @@ _shell_splash_wait:                            ; wait for button press and exit
 
 
 
-; describes menu label list to display
-; passed to shell_show_menu routine
-shell_apps_menu:
-    .ascii "splash\0"                          ; index 0
-    .ascii "another splash\0"                  ; index 1
-    .ascii "terminal\0"                        ; index 2
-    .byte 0                                    ; end of list
-
-.balign 2
 
 
-
-; main gui entry point
-shell_home_task:
-    sbi PORTB, LED_PIN
-    ldi r20, 0x64                              ; power on debounce delay (0x64 = 100 ms)
-    rcall timer_delay_ms_short                 ; short delay before resetting SREG_GPIO_PC at start up (need time for debouncing capacitors to charge)
-    clr r22
-    sts SREG_GPIO_PC, r22                      ; clear gpio button status register
-    cbi PORTB, LED_PIN
-
-    rcall shell_splash_screen
-    sts SREG_GPIO_PC, r22                      ; clear gpio button status register again
-
-_shell_home_show_menu:
-    ldi r30, lo8(shell_apps_menu)
-    ldi r31, hi8(shell_apps_menu)
-    rcall shell_show_menu                      ; show apps menu
-                                               ; let user select from shell_apps_menu list. rcall appropriate routine using selected index
-    cpi r16, 0
-    brne .+2
-    rcall shell_splash_screen
-
-    cpi r16, 1
-    brne .+2
-    rcall shell_splash_screen
-
-    cpi r16, 2
-    brne .+2
-    rcall terminal_app_open
-
-    rjmp _shell_home_show_menu                 ; show menu after running selected app
-
-
-
-
-
-
+; reusable scrollable menu component
 ; takes address to the menu item names list in Z pointer
 ; returns the selected index out of the menu items in r16
 shell_show_menu:
@@ -183,3 +138,143 @@ _show_menu_nav_check_ok:
         pop r\param
     .endr
     ret
+
+
+
+
+; reusable confirm y/n popup component
+; takes address to the confirm message in Z pointer
+shell_confirm_window:
+    .irp param,16,17,18,19,20,21
+        push r\param
+    .endr
+
+    ldi r21, MALLOC_MAX_BLOCKS
+    ldi r21, 2
+
+    rcall i2c_lock_acquire
+
+    mov r16, r21
+    ldi r17, 10
+    rcall oled_set_cursor                      ; set cursor to start writing data
+
+    rcall oled_io_open_read_data
+
+    ldi r18, (FONT_WIDTH * 8) - 1
+    mov r16, r18
+    rcall mem_alloc
+    mov r19, r16
+    mov r20, r16
+
+_shell_confirm_read_loop:
+    rcall i2c_read_byte_ack
+    mov r17, r16
+    mov r16, r19
+    rcall mem_store
+    rcall mem_inc
+    mov r19, r16
+    dec r18
+    brne _shell_confirm_read_loop
+    rcall i2c_read_byte_nack
+    mov r17, r16
+    mov r16, r19
+    rcall mem_store
+    rcall oled_io_close
+    ; rcall i2c_lock_release
+
+    mov r16, r21
+    ldi r17, 10
+    rcall oled_set_cursor                      ; set cursor to start writing data
+
+    lds r16, SREG_GPIO_PC
+    rcall oled_print_binary_digits
+    rcall i2c_lock_release
+
+    rcall nav_kbd_start                         ; start the navigation keyboard
+
+
+    rcall i2c_lock_acquire
+
+    mov r16, r21
+    ldi r17, 10
+    rcall oled_set_cursor                      ; set cursor to start writing data
+
+    rcall oled_io_open_write_data
+
+    ldi r18, (FONT_WIDTH * 8)
+    mov r19, r20
+
+_shell_confirm_write_loop:
+    mov r16, r19
+    rcall mem_load
+    rcall mem_inc
+    mov r19, r16
+    mov r16, r17
+    rcall i2c_send_byte                        ; i2c_send_byte modifies r16, so we need to reload r16 at every iteration
+    dec r18
+    brne _shell_confirm_write_loop
+
+    rcall oled_io_close
+    rcall i2c_lock_release
+
+    mov r16, r20
+    rcall mem_free
+
+    rcall nav_kbd_start                         ; start the navigation keyboard
+
+    .irp param,21,20,19,18,17,16
+        pop r\param
+    .endr
+    ret
+
+
+
+
+; describes menu label list to display
+; passed to shell_show_menu routine
+shell_apps_menu:
+    .asciz "splash"                            ; index 0
+    .asciz "another splash"                    ; index 1
+    .asciz "terminal"                          ; index 2
+    .asciz "malloc test"                          ; index 3
+    .byte 0                                    ; end of list
+
+.balign 2
+
+
+
+; main gui entry point
+shell_home_task:
+    sbi PORTB, LED_PIN
+    ldi r20, 0x32                              ; power on debounce delay (0x32 = 50 ms)
+    rcall timer_delay_ms_short                 ; short delay before resetting SREG_GPIO_PC at start up (need time for debouncing capacitors to charge)
+    clr r22
+    sts SREG_GPIO_PC, r22                      ; clear gpio button status register
+    cbi PORTB, LED_PIN
+
+    rcall shell_splash_screen
+    sts SREG_GPIO_PC, r22                      ; clear gpio button status register again
+
+_shell_home_show_menu:
+    ldi r30, lo8(shell_apps_menu)
+    ldi r31, hi8(shell_apps_menu)
+    rcall shell_show_menu                      ; show apps menu
+                                               ; let user select from shell_apps_menu list. rcall appropriate routine using selected index
+    cpi r16, 0
+    brne .+2
+    rcall shell_splash_screen
+
+    cpi r16, 1
+    brne .+2
+    rcall shell_splash_screen
+
+    cpi r16, 2
+    brne .+2
+    rcall terminal_app_open
+
+    cpi r16, 3
+    brne .+2
+    rcall shell_confirm_window
+
+    rjmp _shell_home_show_menu                 ; show menu after running selected app
+

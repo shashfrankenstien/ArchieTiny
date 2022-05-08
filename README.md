@@ -96,12 +96,22 @@ GPIO     | SREG_GPIO_PC         | gpio.asm
 ## Task Manager (lib/tasks.asm)
 Tasks Table is set up starting at RAM address TASK_RAM_START (Should be greater than 0x60 = 32 general registers + 64 I/O registers).
 
-
 ### Task table
 - First byte will be the task counter (TASKCTS)
 - Second byte will be current task index (TASKPTR)
 - Next addresses will contain word size values of task stack pointers
-    - Note: Because of how the stack pointer works, task address should be divided by 2. cpu will then multiply it by 2 before executing
+
+```
+         _________
+        |_________| --> TASKCTS - task counter and status register (1)
+        |_________| --> TASKPTR - current task index / pointer (1)
+        |_________| --> task stack pointers vector (TASK_MAX_TASKS*2)
+        |         | --> task stack 1 (TASK_STACK_SIZE)
+        |_________|
+        |         | --> task stack 2 (TASK_STACK_SIZE)
+             .
+             .
+```
 
 ### Task workflow
 - init
@@ -111,6 +121,7 @@ Tasks Table is set up starting at RAM address TASK_RAM_START (Should be greater 
     - calculate stack pointer address and store in TASK_SP_VECTOR at TASKPTR index
     - jump to task's alotted stack
     - store return address, function pointer + manager pushed registers on the stack
+        - Note: Because of how the stack works, function pointer address should be divided by 2. cpu will then multiply it by 2 before executing
     - if TASK_SP_VECTOR is full, set FULL flag in TASKCTS
 - exec task
     - read TASKCTS counter, if eq 0 or 1, simply return because there is no task switching required
@@ -148,6 +159,13 @@ Tasks Table is set up starting at RAM address TASK_RAM_START (Should be greater 
 - when including strings in program memory, we need to mind byte alignment.
     use `.balign 2` after each string definition
 - SREG_OLED is used to track color inversion (highlight) and page scroll position
+
+## OLED text-mode (lib/textmode.asm)
+- this module wraps oled and provides helper routines to print continuous text
+- it handles control characters
+    - '\n' as newline
+    - '\b' as backspace
+- also manages page scrolling
 
 
 ## Controls
@@ -198,11 +216,56 @@ ADC_VD_BTN_3  | 300 K           | 2.074 v | 0b10111111
 ADC_VD_BTN_4  | 1 M             | 2.305 v | 0b11010100
 
 
+## Dynamic heap memory allocation (malloc)
+- MALLOCFREECTR (1 byte)
+    - this counter tracks the number of free blocks available
+    - intially, this is set to MALLOC_MAX_BLOCKS
+
+- malloc table (MALLOC_TABLE_SIZE bytes)
+
+    ```
+        |_________|
+        |_________| --> MALLOCFREECTR
+        |         | --> malloc table index 0 (MALLOC_TABLE_START)
+        |         |     .
+        |         |     .
+        |         |     .
+        |_________|     malloc table index MALLOC_MAX_BLOCKS (MALLOC_TABLE_END - 1)
+        |         | --> start of malloc blocks (MALLOC_TABLE_END)
+    ```
+
+    - bytes in the malloc table are indexed starting with 0 and counting up to MALLOC_MAX_BLOCKS
+    - each byte corresponds to a block of memory of the same index
+    - if the value of the byte is 0xff, the block at the corresponding index is free
+    - if the value of the byte is 0xfe, it means that one block of data is allocated at the index
+    - if the value of the byte is any other number, that number is the index of the next block of the allocated memory
+        - a chain of blocks terminate when the value is 0xfe
+    - during allocation of multiple blocks, the final block is allocated first, all the way up to the first block
+    - this is just because it works with simpler code. should make no other difference
+
+- mallock blocks (MALLOC_BLOCK_SIZE * MALLOC_MAX_BLOCKS bytes)
+    - free RAM is allocated in blocks of MALLOC_BLOCK_SIZE
+    - block chaining is handled by the malloc table
+
+    - min(MALLOC_FREE_RAM, 256) is divided into blocks of MALLOC_BLOCK_SIZE bytes
+        - capped at 256 so that we can use 8 bit pointers and 8 bit MALLOCFREECTR
+
+- MALLOC_MAX_BLOCKS can't be greater than 250 (never gonna happen on this device, but whatever)
+    - MALLOC_FREE_RAM is capped at 250 because the last few address values are used as control bytes in the malloc table (0xff, 0xfe, ..)
 
 
 ## EEPROM FAT-8 File System (TODO)
 - https://www.youtube.com/watch?v=HjVktRd35G8
 
+
+## The Shell!
+- shell_home_task is the entry point to user space. It is started through task manager
+    - starts with a splash screen
+    - on button press, shows main menu of applications
+- also defines reusable ui components
+    - splash screen
+    - confirm y/n popup
+    - scrollable menu
 
 -----
 
