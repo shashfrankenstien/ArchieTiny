@@ -71,11 +71,13 @@ shell_apps_menu:
     .asciz "another splash"                    ; index 1
     .asciz "terminal"                          ; index 2
     .asciz "malloc test"                       ; index 3
-    .asciz "malloc test1"                       ; index 3
-    .asciz "malloc test2"                       ; index 3
-    .asciz "malloc test3"                       ; index 3
-    .asciz "malloc test4"                       ; index 3
-    .asciz "malloc test5"                       ; index 3
+    .asciz "test1"                       ; index 3
+    .asciz "test2"                       ; index 3
+    .asciz "test3"                       ; index 3
+    .asciz "test4"                       ; index 3
+    .asciz "test5"                       ; index 3
+    .asciz "test6"                       ; index 3
+    .asciz "test7"                       ; index 3
     .byte 0                                    ; end of list
 
 .balign 2

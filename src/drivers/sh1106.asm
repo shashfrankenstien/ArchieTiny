@@ -233,14 +233,12 @@ oled_set_cursor:
     inc r17                                    ; screen is somehow offset by 2 columns ?? :/
 
     mov r18, r17
-    lsr r18
-    lsr r18
-    lsr r18
-    lsr r18                                    ; keep high bits of column address by shifting right 4 times
-    ori r18, SET_COLUMN_H                      ; set column start addr high bits
+    swap r18
+    andi r18, 0x0f                             ; keep high nibble of column address by swapping nibbles + andi 0x0f
+    ori r18, SET_COLUMN_H                      ; set column start addr high nibble
 
-    andi r17, 0x0f                             ; keep low bits of column address
-    ori r17, SET_COLUMN_L                      ; set column start addr low bits
+    andi r17, 0x0f                             ; keep low nibble of column address
+    ori r17, SET_COLUMN_L                      ; set column start addr low nibble
 
     rcall oled_io_open_write_cmds
 

@@ -207,7 +207,7 @@ _mem_free_done:
 
 ; increment pointer
 ; pointer is passed in r16
-mem_inc:
+mem_pointer_inc:
     .irp param,17,18,26,27
         push r\param
     .endr
@@ -217,36 +217,36 @@ mem_inc:
     rcall div8
 
     cpi r17, MALLOC_BLOCK_SIZE - 1
-    breq _mem_inc_roll_block
+    breq _mem_pointer_inc_roll_block
 
     inc r18
     mov r16, r18
-    rjmp _mem_inc_done
+    rjmp _mem_pointer_inc_done
 
-_mem_inc_roll_block:
-    ldi r26, lo8(MALLOC_TABLE_START)           ; load MALLOC_TABLE_START address into X register
+_mem_pointer_inc_roll_block:
+    ldi r26, lo8(MALLOC_TABLE_START)            ; load MALLOC_TABLE_START address into X register
     ldi r27, hi8(MALLOC_TABLE_START)
 
     add r26, r16
     adc r27, 0
 
-    ld r16, X
+    ld r16, X                                   ; read next block address which is stored in current block index in the malloc table
 
-    cpi r16, MEM_FREE_BLOCK_VAL
-    breq _mem_inc_failed
+    cpi r16, MEM_FREE_BLOCK_VAL                 ; if next block address is not valid, fail
+    breq _mem_pointer_inc_failed
 
-    cpi r16, MEM_END_BLOCK_VAL
-    breq _mem_inc_failed
+    cpi r16, MEM_END_BLOCK_VAL                  ; if next block address is not valid, fail
+    breq _mem_pointer_inc_failed
 
     ldi r17, MALLOC_BLOCK_SIZE
-    rcall mul8
-    rjmp _mem_inc_done
+    rcall mul8                                  ; normalize next block index and return
+    rjmp _mem_pointer_inc_done
 
-_mem_inc_failed:
-    ldi r16, 0xff
-    rjmp _mem_inc_done
+_mem_pointer_inc_failed:
+    ldi r16, 0xff                               ; indicate failure by returning 0xff
+    rjmp _mem_pointer_inc_done
 
-_mem_inc_done:
+_mem_pointer_inc_done:
     .irp param,27,26,18,17
         pop r\param
     .endr
