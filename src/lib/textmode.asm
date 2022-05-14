@@ -49,13 +49,13 @@ _textmode_new_line:
 
     inc r19                                    ; increment TEXTMODE_CURSOR_PAGE and check for overflow
     sbrc r19, 3                                ; if r19 reached 8, scroll oled down (00001000 <- test 3rd bit)
-    rcall oled_scroll_text_down
+    rcall oled_scroll_page_down
     sbrc r19, 3                                ; if r19 reached 8, decrement r19 to 7 because we gonna scroll again soon
     dec r19
 
     mov r17, r20                               ; new column index is rolled over to 0
     mov r16, r19                               ; move new page index into r16
-    rcall oled_set_relative_cursor_wipe_eol    ; set cursor and wipe till end of line from current column (r17)
+    rcall oled_set_relative_cursor             ; set cursor to last line
     rjmp _textmode_new_line_done
 
 _textmode_no_new_line:
@@ -82,7 +82,7 @@ _textmode_backspace:
 
     tst r19
     brne _textmode_no_scroll_up
-    rcall oled_scroll_text_up
+    rcall oled_scroll_page_up
     rjmp _textmode_scroll_up_done
 
 _textmode_no_scroll_up:

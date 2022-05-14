@@ -14,6 +14,7 @@ SRC=src/kernel.asm \
 	src/drivers/sh1106.asm \
 	src/lib/textmode.asm \
 	src/lib/kbd.asm \
+	src/lib/ui.asm \
 	src/apps/terminal.asm \
 	src/shell.asm \
 	src/fonts/spleen.asm

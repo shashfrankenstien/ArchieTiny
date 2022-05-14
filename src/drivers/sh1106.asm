@@ -282,11 +282,18 @@ oled_set_relative_cursor:
 
 
 
-; scrolls screen down by 8 rows since a text line is 8 rows high (1 page)
-oled_scroll_text_down:
+; scrolls screen down by 8 rows since a page is 8 rows high (1 page)
+; this method wipes the top row first before scrolling, leaving a new blank line at the bottom
+oled_scroll_page_down:
     push r16
     push r17
 
+    ; wipe top row
+    clr r16
+    clr r17
+    rcall oled_wipe_eol
+
+    ; perform scroll
     lds r16, SREG_OLED                         ; load SREG_OLED and get current scroll position
     mov r17, r16
     inc r16
@@ -312,11 +319,19 @@ oled_scroll_text_down:
     ret
 
 
-; scrolls screen up by 8 rows since a text line is 8 rows high (1 page)
-oled_scroll_text_up:
+
+; scrolls screen up by 8 rows since a page is 8 rows high (1 page)
+; this method wipes the bottom row first before scrolling, leaving a new blank line at the top
+oled_scroll_page_up:
     push r16
     push r17
 
+    ; wipe bottom row
+    ldi r16, OLED_MAX_PAGE
+    clr r17
+    rcall oled_wipe_eol
+
+    ; perform scroll
     lds r16, SREG_OLED                         ; load SREG_OLED and get current scroll position
     mov r17, r16
     dec r16
@@ -343,7 +358,7 @@ oled_scroll_text_up:
 
 
 ; resets oled scroll position
-oled_scroll_text_reset:
+oled_scroll_page_reset:
     push r16
 
     lds r16, SREG_OLED                         ; load SREG_OLED and get current scroll position
@@ -376,7 +391,7 @@ oled_clr_screen:
     ldi r20, OLED_MAX_PAGE                     ; y2 = OLED_MAX_PAGE
     rcall oled_fill_rect_by_page               ; fill oled with data in r16
 
-    rcall oled_scroll_text_reset               ; reset scroll position
+    rcall oled_scroll_page_reset               ; reset scroll position
 
     .irp param,20,19,18,17,16
         pop r\param
@@ -385,13 +400,13 @@ oled_clr_screen:
 
 
 
-; 'oled_set_relative_cursor_wipe_eol' takes
+; 'oled_wipe_eol' takes
 ;   - r16 - page address
 ;   - r17 - column address
 ; sets the cursor to the required location
 ; writes 0s till end of line from current column (r17)
 ; returns after resetting the cursor to the right location
-oled_set_relative_cursor_wipe_eol:
+oled_wipe_eol:
     push r16
     push r17
 
@@ -450,20 +465,20 @@ _fill_page_next_column:                                  ; iterate columns x1 to
 
 
 
-; oled_invert_inplace_page_row takes 3 coordinates - x1, x2, y
+; oled_invert_inplace_relative_page_row takes 3 coordinates - x1, x2, y
 ; it will invert all bytes of page y between x1 and x2 columns
 ; input registers -
 ;   r17 - x1
 ;   r18 - x2
 ;   r19 - y         ; row (page) address 0 to 7
-oled_invert_inplace_page_row:
+oled_invert_inplace_relative_page_row:
     .irp param,16,17,18,19,20
         push r\param
     .endr
 
     inc r18                                    ; increment x2 so that we can break the loop once x1 overflows original x2
     mov r16, r19
-    rcall oled_set_cursor                      ; set cursor to start writing data
+    rcall oled_set_relative_cursor             ; set cursor to start writing data
 
     rcall oled_read_mod_write_start
 _invert_inplace_next_column:

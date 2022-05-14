@@ -61,182 +61,21 @@ _shell_splash_wait:                            ; wait for button press and exit
 
 
 
-; reusable scrollable menu component
-; takes address to the menu item names list in Z pointer
-; returns the selected index out of the menu items in r16
-shell_show_menu:
-    .irp param,17,18,19,20,21
-        push r\param
-    .endr
-
-    clr r20                                     ; r20 keeps count of total number of items in the menu
-    clr r17                                     ; r17 is the start column address. this can be offset?
-    ldi r18, OLED_MAX_COL                       ; r18 is the end column address for highlighting. this can be offset too!
-    clr r19                                     ; r19 at this point indicates that the nav cursor is on the first item by default
-    clr r20                                     ; r20 contains previous nav cursor.
-                                                ;       if this is different from r19, highlight operation is performed
-
-    rcall i2c_lock_acquire
-    rcall oled_clr_screen
-
-_show_menu_next:
-    mov r16, r20                                ; move page (row) address from r20 into t16. r17 already points to start column
-    rcall oled_set_relative_cursor              ; set cursor to start writing data
-
-    rcall oled_print_flash                      ; print one entry from the list (until \0 is encountered)
-    inc r20
-
-    lpm r16, Z                                  ; peek next byte to check if we reached the end of list
-    tst r16
-    brne _show_menu_next
-
-    rcall oled_invert_inplace_page_row          ; highlight (invert) the first item by default. this can be better handled by changing r19
-    rcall i2c_lock_release
-
-_show_menu_navigate:
-    cp r19, r21                                 ; check if prev selection is same as current. if it is same, skip highlight operation
-    breq _show_menu_nav_check
-
-    rcall i2c_lock_acquire
-    mov r16, r19                                ; save new item number
-    mov r19, r21
-    rcall oled_invert_inplace_page_row          ; uninvert prev item
-    mov r19, r16                                ; restore new item number
-    mov r21, r16                                ; update prev item number tracker
-    rcall oled_invert_inplace_page_row          ; invert!
-    rcall i2c_lock_release
-
-_show_menu_nav_check:
-    rcall nav_kbd_start                         ; start the navigation keyboard
-                                                ;   for now, we only care about UP, DOWN and OK presses
-    cpi r16, NAV_UP
-    brne _show_menu_nav_check_down              ; if nav is not UP, continue to check DOWN
-
-    cpi r19, 0                                  ; move selection up. if top is reached, roll over to the bottom
-    brne .+2
-    mov r19, r20
-    dec r19
-    rjmp _show_menu_navigate
-
-_show_menu_nav_check_down:
-    cpi r16, NAV_DOWN
-    brne _show_menu_nav_check_ok                ; if nav is not DOWN, continue to check OK
-
-    inc r19                                     ; move selection down. if bottom is reached, roll over to the top
-    cpse r19, r20
-    rjmp _show_menu_navigate
-    clr r19
-    rjmp _show_menu_navigate
-
-_show_menu_nav_check_ok:
-    cpi r16, NAV_OK
-    brne _show_menu_navigate                    ; if nav is not OK, go back and start over
-
-    mov r16, r19                                ; if OK is pressed, return current selected item index to calling routine
-
-    .irp param,21,20,19,18,17
-        pop r\param
-    .endr
-    ret
-
-
-
-
-; reusable confirm y/n popup component
-; takes address to the confirm message in Z pointer
-shell_confirm_window:
-    .irp param,16,17,18,19,20,21
-        push r\param
-    .endr
-
-    ldi r21, MALLOC_MAX_BLOCKS
-    ldi r21, 2
-
-    rcall i2c_lock_acquire
-
-    mov r16, r21
-    ldi r17, 10
-    rcall oled_set_cursor                      ; set cursor to start writing data
-
-    rcall oled_io_open_read_data
-
-    ldi r18, (FONT_WIDTH * 8) - 1
-    mov r16, r18
-    rcall mem_alloc
-    mov r19, r16
-    mov r20, r16
-
-_shell_confirm_read_loop:
-    rcall i2c_read_byte_ack
-    mov r17, r16
-    mov r16, r19
-    rcall mem_store
-    rcall mem_inc
-    mov r19, r16
-    dec r18
-    brne _shell_confirm_read_loop
-    rcall i2c_read_byte_nack
-    mov r17, r16
-    mov r16, r19
-    rcall mem_store
-    rcall oled_io_close
-    ; rcall i2c_lock_release
-
-    mov r16, r21
-    ldi r17, 10
-    rcall oled_set_cursor                      ; set cursor to start writing data
-
-    lds r16, SREG_GPIO_PC
-    rcall oled_print_binary_digits
-    rcall i2c_lock_release
-
-    rcall nav_kbd_start                         ; start the navigation keyboard
-
-
-    rcall i2c_lock_acquire
-
-    mov r16, r21
-    ldi r17, 10
-    rcall oled_set_cursor                      ; set cursor to start writing data
-
-    rcall oled_io_open_write_data
-
-    ldi r18, (FONT_WIDTH * 8)
-    mov r19, r20
-
-_shell_confirm_write_loop:
-    mov r16, r19
-    rcall mem_load
-    rcall mem_inc
-    mov r19, r16
-    mov r16, r17
-    rcall i2c_send_byte                        ; i2c_send_byte modifies r16, so we need to reload r16 at every iteration
-    dec r18
-    brne _shell_confirm_write_loop
-
-    rcall oled_io_close
-    rcall i2c_lock_release
-
-    mov r16, r20
-    rcall mem_free
-
-    rcall nav_kbd_start                         ; start the navigation keyboard
-
-    .irp param,21,20,19,18,17,16
-        pop r\param
-    .endr
-    ret
-
 
 
 
 ; describes menu label list to display
-; passed to shell_show_menu routine
+; passed to ui_menu_show routine
 shell_apps_menu:
     .asciz "splash"                            ; index 0
     .asciz "another splash"                    ; index 1
     .asciz "terminal"                          ; index 2
-    .asciz "malloc test"                          ; index 3
+    .asciz "malloc test"                       ; index 3
+    .asciz "malloc test1"                       ; index 3
+    .asciz "malloc test2"                       ; index 3
+    .asciz "malloc test3"                       ; index 3
+    .asciz "malloc test4"                       ; index 3
+    .asciz "malloc test5"                       ; index 3
     .byte 0                                    ; end of list
 
 .balign 2
@@ -258,7 +97,7 @@ shell_home_task:
 _shell_home_show_menu:
     ldi r30, lo8(shell_apps_menu)
     ldi r31, hi8(shell_apps_menu)
-    rcall shell_show_menu                      ; show apps menu
+    rcall ui_menu_show                         ; show apps menu
                                                ; let user select from shell_apps_menu list. rcall appropriate routine using selected index
     cpi r16, 0
     brne .+2
@@ -274,7 +113,7 @@ _shell_home_show_menu:
 
     cpi r16, 3
     brne .+2
-    rcall shell_confirm_window
+    rcall ui_confirm_window
 
     rjmp _shell_home_show_menu                 ; show menu after running selected app
 
