@@ -2,27 +2,59 @@
 ;   - menu
 ;   - confirm window
 
+; ------------------------------------------------------------------------------------------------
+
+.equ    UI_MENU_HOR_PADDING,        15          ; menu padding in pixels
+.equ    UI_MENU_BORDER_OFFSET,      2
 
 ; reusable scrollable menu component
 ; takes address to the menu item names list in Z pointer
 ; returns the selected index out of the menu items in r16
+; workflow:
+;   - setup variable registers and clear screen
+;   - use _ui_menu_util_print_item_from_Z to print one item from the menu. This leaves Z pointer in the beginning of the next item
+;   - repeat until
+;       - next item starts with 0 (set bit 0 in the flags variable register to indicate end of menu was reached)
+;       - screen is full (OLED_MAX_PAGE number of items have been printed on screen)
+;
+;   - use scrolling if more than OLED_MAX_PAGE items exist in the menu (described separately below)
+;
+;   - use bit 1 of the flags register to indicate if the nav cursor has been highlighted
+;
+;   - enable controls - UP, DOWN, OK using nav_kbd_start
+;       - move the nav cursor and handle scrolling as required using UP and DOWN actions
+;       - on OK action, return the item number selected by the nav cursor in r16
+;
+; scrolling:
+;   - scrolling assumes that the Z pointer is pointing to the item just below the screen (required by scroll down action)
+;
+;   - scroll down action:
+;       - to print the next menu item, jump all the way back to _ui_menu_next and print next item with _ui_menu_util_print_item_from_Z
+;       - each scroll down action will only result in one additional item being printed
+;
+;   - scroll up action:
+;       - to ensure scroll down is not disrupted, while scrolling up, we also move the current Z pointer using _ui_menu_util_Z_previous_item
+;       - we then save this Z pointer - (Z1)
+;       - once we scroll up, to find the item that needs to be printed,
+;           we need to search starting from the first item of the menu and reading as many '\0' as the current item selected by the nav cursor
+;           this is done using _ui_menu_util_Z_next_nth_item helper routine where n is the current nav cursor
 ui_menu_show:
-    .irp param,17,18,19,20,21,22,23,24,25,26
+    .irp param,17,18,19,20,21,22,23,24,25
         push r\param
     .endr
 
-    mov r25, r30                                ; save input Z pointer value in r26:r25 (first menu item)
-    mov r26, r31
+    ldi r17, UI_MENU_HOR_PADDING                ; r17 is the start column address. this can be offset?
+    ldi r18, OLED_MAX_COL - UI_MENU_HOR_PADDING ; r18 is the end column address for highlighting. this can be offset too!
+    clr r19                                     ; r19 indicates the page (row) number the nav cursor is on (0 by default)
 
-    clr r20                                     ; r20 keeps count of total number of items in the menu
-    clr r17                                     ; r17 is the start column address. this can be offset?
-    ldi r18, OLED_MAX_COL                       ; r18 is the end column address for highlighting. this can be offset too!
-    clr r19                                     ; r19 indicates the page (row) number the nav cursor is on (first item by default)
+    clr r20                                     ; flags register - end of menu reached flag, row highlighted flag
     clr r21                                     ; r21 contains the current item number that the nav cursor is on
     clr r22                                     ; r22 contains previous nav cursor item number.
                                                 ;       if this is different from r21, highlight operation is performed
     clr r23                                     ; scroll position tracker
-    clr r24                                     ; flags register - end of menu reached flag, row highlighted flag
+
+    mov r24, r30                                ; save input Z pointer value in r25:r24 (first menu item)
+    mov r25, r31
 
     rcall i2c_lock_acquire
     rcall oled_clr_screen
@@ -30,45 +62,36 @@ ui_menu_show:
 
 _ui_menu_next:
     mov r16, r19                                ; move page (row) address from r19 into t16. r17 already points to start column
-    rcall i2c_lock_acquire
-    rcall oled_set_relative_cursor              ; set cursor to start writing data
-
-    rcall oled_print_flash                      ; print one entry from the list pointed by Z pointer (until \0 is encountered)
-    rcall i2c_lock_release
-    inc r20
+    rcall _ui_menu_util_print_item_from_Z
 
     lpm r16, Z                                  ; peek next byte to check if we reached the end of list
     tst r16
     breq _ui_menu_last_item_shown
 
-    cpi r19, OLED_MAX_PAGE
+    cpi r19, OLED_MAX_PAGE                      ; check if we reached the end of the screen
     breq _ui_menu_navigate
 
     inc r19
     rjmp _ui_menu_next
 
-; ------
+; ------ this section is only used when scrolling up
 _ui_menu_scroll_prev:
-    dec r20
-    cbr r24, (1<<0)                             ; remove end of menu flag since while scrolling up, we're most likely not showing end of menu anymore
+    cbr r20, (1<<0)                             ; remove end of menu flag since while scrolling up, we're most likely not showing end of menu anymore
     rcall _ui_menu_util_Z_previous_item         ; move current Z pointer back to previous item (this is the bottom of the display)
 
     ; start at the beginning of the menu and print r21 indexed item on the top row
     push r30
     push r31
 
-    mov r30, r25                                ; reload original Z pointer (first menu item)
-    mov r31, r26
+    mov r30, r24                                ; reload original Z pointer (first menu item)
+    mov r31, r25
 
     mov r16, r21
-    rcall _ui_menu_util_Z_next_nth_item
+    rcall _ui_menu_util_Z_next_nth_item         ; move Z pointer to the new cursor index (r21)
 
     mov r16, r21
-    sub r16, r23
-    rcall i2c_lock_acquire
-    rcall oled_set_relative_cursor              ; set cursor to start writing data
-    rcall oled_print_flash                      ; print one entry from the list pointed by Z pointer (until \0 is encountered)
-    rcall i2c_lock_release
+    sub r16, r23                                ; calculate cursor page to print the item. column is already in r17
+    rcall _ui_menu_util_print_item_from_Z
 
     pop r31
     pop r30
@@ -76,10 +99,10 @@ _ui_menu_scroll_prev:
 ; ------
 
 _ui_menu_last_item_shown:
-    sbr r24, (1<<0)                             ; flag that end of menu reached
+    sbr r20, (1<<0)                             ; flag that end of menu reached
 
 _ui_menu_navigate:
-    sbrs r24, 1                                 ; check if any row is highlighted
+    sbrs r20, 1                                 ; check if any row is highlighted
     rjmp _ui_menu_navigate_highlight            ; if nothing is highlighted, jump to highlight operation
 
     cp r21, r22                                 ; check if prev selection is same as current. if it is same, skip highlight operation
@@ -97,7 +120,7 @@ _ui_menu_navigate_highlight:
     rcall i2c_lock_acquire
     rcall oled_invert_inplace_relative_page_row ; invert using r19!
     rcall i2c_lock_release
-    sbr r24, (1<<1)                             ; flag that a row is currently highlighted
+    sbr r20, (1<<1)                             ; flag that a row is currently highlighted
 
 _ui_menu_nav_check:
     rcall nav_kbd_start                         ; start the navigation keyboard
@@ -107,7 +130,6 @@ _ui_menu_nav_check:
 
     mov r16, r21
     sub r16, r23
-
     tst r16                                     ; if top not reached, move selection up and jump back to _ui_menu_navigate
     brne _ui_menu_nav_move_up
 
@@ -116,15 +138,15 @@ _ui_menu_nav_check:
     breq _ui_menu_navigate                      ; if scroll up not required, we've reached the top of the menu
 
     ; scroll up
-    dec r21
-    dec r23
+    dec r21                                     ; move current selection up
+    dec r23                                     ; indicate that scroll up is performed
     rcall i2c_lock_acquire
     rcall oled_scroll_page_up
     rcall i2c_lock_release
     rjmp _ui_menu_scroll_prev
 
 _ui_menu_nav_move_up:
-    dec r21                                     ; move selection up
+    dec r21                                     ; move current selection up
     rjmp _ui_menu_navigate
 
 
@@ -133,20 +155,23 @@ _ui_menu_nav_check_down:
     brne _ui_menu_nav_check_ok                  ; if nav is not DOWN, continue to check OK
 
     inc r21                                     ; move selection down
-    cpse r21, r20
-    rjmp _ui_menu_navigate
+    mov r16, r21
+    sub r16, r23
 
-    sbrc r24, 0                                 ; if bottom is reached, set selection back (essentially do nothing)
+    cpi r16, OLED_MAX_PAGE + 1                  ; check if scroll down is required
+    brne _ui_menu_navigate                      ; scroll not required
+
+    sbrc r20, 0                                 ; if bottom of menu is reached, set selection back (essentially do nothing)
     dec r21
-    sbrc r24, 0
+    sbrc r20, 0
     rjmp _ui_menu_navigate
 
     ; scroll
-    inc r23
+    inc r23                                     ; scroll down to next item
     rcall i2c_lock_acquire
     rcall oled_scroll_page_down
     rcall i2c_lock_release
-    rjmp _ui_menu_next
+    rjmp _ui_menu_next                          ; jump all the way back to print the next item
 
 
 _ui_menu_nav_check_ok:
@@ -155,9 +180,58 @@ _ui_menu_nav_check_ok:
 
     mov r16, r21                                ; if OK is pressed, return current selected item index to calling routine
 
-    .irp param,26,25,24,23,22,21,20,19,18,17
+    .irp param,25,24,23,22,21,20,19,18,17
         pop r\param
     .endr
+    ret
+
+; ------------------------------------------------------------------------------------------------
+
+; print one entry from the list pointed by Z pointer (until \0 is encountered)
+; also add any fancy borders and stuff as required
+_ui_menu_util_print_item_from_Z:
+    push r16
+    push r17
+    push r18
+    push r19
+
+    mov r19, r16
+    subi r17, UI_MENU_BORDER_OFFSET             ; move r17 back for border offset
+
+    rcall i2c_lock_acquire
+    rcall oled_set_relative_cursor              ; set cursor to start writing data
+
+    ; left border
+    rcall oled_io_open_write_data
+    ldi r16, 0xff                               ; vertical line
+    rcall i2c_send_byte
+    clr r16
+    rcall i2c_send_byte
+    clr r16
+    rcall i2c_send_byte
+    rcall oled_io_close
+
+    rcall oled_print_flash                      ; print one entry from the list pointed by Z pointer (until \0 is encountered)
+
+    mov r16, r19
+    mov r17, r18
+    rcall oled_set_relative_cursor              ; set cursor to start writing data
+    ; right border
+    rcall oled_io_open_write_data
+    clr r16
+    rcall i2c_send_byte
+    clr r16
+    rcall i2c_send_byte
+    ldi r16, 0xff                               ; vertical line
+    rcall i2c_send_byte
+    rcall oled_io_close
+
+    rcall i2c_lock_release
+
+    pop r19
+    pop r18
+    pop r17
+    pop r16
     ret
 
 
@@ -214,7 +288,7 @@ _ui_menu_util_Z_next_nth_done:
 
 
 
-
+; ------------------------------------------------------------------------------------------------
 
 
 
@@ -232,7 +306,7 @@ ui_confirm_window:
 
     mov r16, r21
     ldi r17, 10
-    rcall oled_set_cursor                      ; set cursor to start writing data
+    rcall oled_set_cursor
 
     rcall oled_io_open_read_data
 
