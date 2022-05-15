@@ -7,11 +7,12 @@
 
 ; navigation kbd
 
-.equ    NAV_UP,         0
-.equ    NAV_DOWN,       1
-.equ    NAV_LEFT,       2
-.equ    NAV_RIGHT,      3
-.equ    NAV_OK,         4           ; center click
+.equ    NAV_UP,         0x00
+.equ    NAV_DOWN,       0x01
+.equ    NAV_LEFT,       0x02
+.equ    NAV_RIGHT,      0x03
+.equ    NAV_OK,         0xff
+.equ    NAV_OPTIONS,    0xfe
 
 
 
@@ -60,13 +61,15 @@ _text_kbd_handle_pc_btn_0:
     sbrs r18, GPIO_BTN_0_PRS
     rjmp _text_kbd_handle_pc_btn_1
 
-    rjmp _text_kbd_sleep_start
+    ldi r21, NAV_OK
+    rjmp _text_kbd_done                        ; return that OK button was pressed
 
 _text_kbd_handle_pc_btn_1:
     sbrs r18, GPIO_BTN_1_PRS
     rjmp _text_kbd_handle_pc_btn_2
 
-    rjmp _text_kbd_sleep_start
+    ldi r21, NAV_OPTIONS
+    rjmp _text_kbd_done                        ; return that options button was pressed
 
 _text_kbd_handle_pc_btn_2:
     sbrs r18, GPIO_BTN_2_PRS
@@ -134,7 +137,7 @@ _text_kbd_handle_adc_btn_4:                    ; check if adc btn 4 is pressed; 
 
 _text_kbd_scrub_overwrite_inplace:
     mov r16, r22                               ; copy over current page index into r16. current column index is already in r17
-    rcall textmode_set_cursor                      ; set cursor to start writing data
+    rcall textmode_set_cursor                  ; set cursor to start writing data
 
     mov r16, r20
     rcall textmode_put_char_inv

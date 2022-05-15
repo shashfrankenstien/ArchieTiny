@@ -301,11 +301,15 @@ _ui_menu_nav_check_ok:
 .equ    UI_CONFIRM_WINDOW_CHAR_WIDTH,   8                                                       ; 8 text characters
 .equ    UI_CONFIRM_WINDOW_WIDTH,        (FONT_WIDTH * UI_CONFIRM_WINDOW_CHAR_WIDTH)             ; 8 text characters
 .equ    UI_CONFIRM_WINDOW_HEIGHT,       2                                                       ; 2 rows (pages)
+
+.equ    UI_CONFIRM_YN_CHAR_WIDTH,       6                                                       ; cant be changed. this is hard coded to => " Y  N "
+.equ    UI_CONFIRM_YN_PADDING,          ((UI_CONFIRM_WINDOW_CHAR_WIDTH - UI_CONFIRM_YN_CHAR_WIDTH) / 2) * FONT_WIDTH   ; Y/N blocks are totally 6 characters wide
+
 .equ    UI_CONFIRM_START_COL,           (MAX_FONT_PIXELS_PER_ROW - UI_CONFIRM_WINDOW_WIDTH) / 2
 .equ    UI_CONFIRM_START_PAGE,          3
 
 
-
+; display confirm popup formatted as required
 _ui_confirm_util_display_popup:
     ldi r16, UI_CONFIRM_START_PAGE
     ldi r17, UI_CONFIRM_START_COL
@@ -340,7 +344,7 @@ _ui_confirm_util_blanks0:
     rcall oled_io_close
 
     ; ---------------
-    ldi r16, UI_CONFIRM_START_PAGE + 1
+    ldi r16, UI_CONFIRM_START_PAGE + 1                                              ; next row
     ldi r17, UI_CONFIRM_START_COL
     rcall oled_set_relative_cursor
 
@@ -348,7 +352,7 @@ _ui_confirm_util_blanks0:
     ldi r16, 0xff
     rcall i2c_send_byte
 
-    ldi r17, FONT_WIDTH - 1
+    ldi r17, UI_CONFIRM_YN_PADDING - 1                                              ; -1 for border character
 _ui_confirm_util_blanks1:
     clr r16
     rcall i2c_send_byte
@@ -362,7 +366,7 @@ _ui_confirm_util_blanks1:
     ldi r16, ' '
     rcall oled_io_put_char
 
-    rcall oled_color_inv_start
+    rcall oled_color_inv_start                                                      ; show as selected by default
     ldi r16, ' '
     rcall oled_io_put_char
     ldi r16, 'N'
@@ -371,7 +375,7 @@ _ui_confirm_util_blanks1:
     rcall oled_io_put_char
     rcall oled_color_inv_stop
 
-    ldi r17, FONT_WIDTH - 1
+    ldi r17, UI_CONFIRM_YN_PADDING - 1                                              ; -1 for border character
 _ui_confirm_util_blanks2:
     clr r16
     rcall i2c_send_byte
@@ -395,12 +399,51 @@ _ui_confirm_util_blanks2:
 
 
 
+; calls nav_kbd_start adn waits till OK is pressed. any other presses will trigger Y/N toggle
+; starts with default at 'N'
+_ui_confirm_util_toggle_yn:
+    .irp param,17,18,19,20
+        push r\param
+    .endr
+    clr r20
+
+_ui_confirm_util_toggle_yn_kbd:
+    rcall nav_kbd_start                         ; start the navigation keyboard (blocking)
+
+    cpi r16, NAV_OK
+    breq _ui_confirm_util_toggle_yn_done
+
+    rcall i2c_lock_acquire
+
+    ldi r17, UI_CONFIRM_START_COL + UI_CONFIRM_YN_PADDING
+    ldi r18, UI_CONFIRM_START_COL + UI_CONFIRM_YN_PADDING + (UI_CONFIRM_YN_CHAR_WIDTH * FONT_WIDTH) - 1   ; -1 because ugh.
+    ldi r19, UI_CONFIRM_START_PAGE + 1
+    rcall oled_invert_inplace_relative_page_row
+
+    ldi r17, UI_CONFIRM_START_COL
+    ldi r18, UI_CONFIRM_START_COL + UI_CONFIRM_WINDOW_WIDTH
+    ldi r16, ((UI_CONFIRM_START_PAGE + UI_CONFIRM_WINDOW_HEIGHT) * 8) - 1
+    rcall oled_draw_h_line_overlay
+
+    rcall i2c_lock_release
+
+    com r20
+
+    rjmp _ui_confirm_util_toggle_yn_kbd
+
+_ui_confirm_util_toggle_yn_done:
+    mov r16, r20
+    .irp param,20,19,18,17
+        pop r\param
+    .endr
+    ret
+
 
 ; reusable confirm y/n popup component
 ; takes address to the confirm message in Z pointer
 ; should be limited to UI_CONFIRM_WINDOW_CHAR_WIDTH characters
 ui_confirm_popup_show:
-    .irp param,16,17,18,19,20,21
+    .irp param,17,18,19,20,21,22
         push r\param
     .endr
 
@@ -448,10 +491,10 @@ _ui_confirm_read_loop:
     ; -----------------
     rcall _ui_confirm_util_display_popup
     ; -----------------
-
     rcall i2c_lock_release
 
-    rcall nav_kbd_start                         ; start the navigation keyboard (blocking)
+    rcall _ui_confirm_util_toggle_yn            ; start the navigation keyboard (blocking)
+    mov r22, r16
 
     mov r19, r20                                ; restore memory pointer
     ldi r21, UI_CONFIRM_WINDOW_HEIGHT           ; write UI_CONFIRM_WINDOW_HEIGHT rows worth of data
@@ -489,9 +532,9 @@ _ui_confirm_write_loop:
     mov r16, r20                                ; restore memory pointer
     rcall mem_free
 
-    rcall nav_kbd_start                         ; start the navigation keyboard
+    mov r16, r22                                ; return Y/N in r16
 
-    .irp param,21,20,19,18,17,16
+    .irp param,22,21,20,19,18,17
         pop r\param
     .endr
     ret

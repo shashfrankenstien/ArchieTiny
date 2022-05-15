@@ -1,6 +1,15 @@
 .include "config.inc"                                   ; TERMINAL_PROMPT_CHAR
 
 
+
+terminal_exit_confirm_msg:
+    .asciz " Exit?"
+
+.balign 2
+
+
+
+
 terminal_app_open:
     .irp param,16,17,18,19
         push r\param
@@ -25,6 +34,13 @@ _terminal_prompt:
 _terminal_char_wait:
     rcall text_kbd_start
     mov r19, r16
+
+    cpi r17, NAV_OK
+    breq _terminal_char_wait
+
+    cpi r17, NAV_OPTIONS
+    breq _terminal_confirm_exit
+
     clr r18
     cpse r17, r18
     mov r16, r17
@@ -33,3 +49,16 @@ _terminal_char_wait:
     breq _terminal_prompt
     mov r16, r19
     rjmp _terminal_char_wait
+
+_terminal_confirm_exit:
+    ldi r30, lo8(terminal_exit_confirm_msg)
+    ldi r31, hi8(terminal_exit_confirm_msg)
+    rcall ui_confirm_popup_show
+
+    tst r16
+    breq _terminal_char_wait
+
+    .irp param,19,18,17,16
+        pop r\param
+    .endr
+    ret
