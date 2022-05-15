@@ -465,7 +465,7 @@ _fill_page_next_column:                                  ; iterate columns x1 to
 
 ; oled_invert_inplace_relative_page_row takes 3 coordinates - x1, x2, y
 ; it will invert all bytes of page y between x1 and x2 columns
-; input registers -
+; input registers follow oled_fill_page_row convention -
 ;   r17 - x1
 ;   r18 - x2
 ;   r19 - y         ; row (page) address 0 to 7
@@ -657,6 +657,83 @@ _rect_done:
     pop r21                                    ; r16 through r20 are inputs. calling routine should push and pop these
     ret                                        ; return value r16 will contain ACK from last byte transfered
 
+
+
+
+; oled_draw_h_line_overlay takes 2 coordinates - x1, x2 and y
+; it will draw a vertical line between x1 and x2 on row y
+; input registers follow oled_fill_rect_by_pixel convention -
+;   r16 - y
+;   r17 - x1
+;   r18 - x2
+oled_draw_h_line_overlay:                      ; draw a horizontal line on screen without distorting existing pixels (*much)
+    .irp param,16,17,18,19,20,21
+        push r\param
+    .endr
+
+    mov r19, r16
+    mov r20, r17
+
+    ldi r17, 8
+    rcall div8
+    mov r21, r17
+    mov r17, r20
+
+    sec                                        ; set carry flag
+    clr r20
+    inc r21                                    ; increment r21 so that we can break once it reaches 0
+_draw_h_line_bit_mask:
+    rol r20                                    ; rotate in carry bit
+    dec r21
+    brne _draw_h_line_bit_mask
+
+    rcall oled_set_relative_cursor
+    rcall oled_read_mod_write_start
+_draw_h_line_next_column:
+    rcall oled_io_open_read_data
+    rcall i2c_read_byte_nack
+    mov r21, r16
+    rcall oled_io_close
+
+    or r21, r20
+
+    rcall oled_io_open_write_data
+    mov r16, r21
+    rcall i2c_send_byte
+    rcall oled_io_close
+    inc r17
+    cp r17, r18
+    brne _draw_h_line_next_column
+
+    rcall oled_read_mod_write_end
+
+    .irp param,21,20,19,18,17,16
+        pop r\param
+    .endr
+    ret
+
+
+; ; oled_draw_line_overlay takes 4 coordinates - x1, x2, y1, y2
+; ; it will fill the rectangle between (x1,y1) (x1,y2) (x2,y1) (x2,y2)
+; ; input registers follow oled_fill_rect_by_pixel convention -
+; ;   r17 - x1
+; ;   r18 - x2
+; ;   r19 - y1
+; ;   r20 - y2
+; ;
+; oled_draw_line_overlay:               ; draw a line on screen without distorting existing pixels (*much)
+
+;     mov r21, r20
+;     sub r21, r19                              ; r21 = y2 - y1
+
+;     mov r22, r18
+;     sub r22, r17                              ; r22 = x2 - x1
+
+;     mov r16, r21
+;     mov r21, r17
+;     mov r17, r22
+;     rcall div8                                ; r16 (quotient), r17 (remainder) => (y2 - y1) / (x2 - x1). aka 'm' or slope
+
 ; --------------------------------------------------
 
 
@@ -715,11 +792,12 @@ _next_font_byte:
 ;   - Z pointer set at the start of the string
 ;   - String HAS to be null-terminated. routine exits if \0 (null) is encountered
 oled_print_flash:
-    push r16
     push r17
-    in r17, SREG
+    push r18
+    in r18, SREG
 
-    rcall oled_io_open_write_data               ; this tells the device to expect a list of data bytes until stop condition
+    clr r17
+    rcall oled_io_open_write_data   ; this tells the device to expect a list of data bytes until stop condition
 
 _print_flash_next_char:
     lpm r16, Z+                     ; load character from flash memory
@@ -727,15 +805,17 @@ _print_flash_next_char:
     cpi r16, 0
     breq _print_flash_done
     rcall oled_io_put_char
+    inc r17
     rjmp _print_flash_next_char
 
 _print_flash_done:
     rcall oled_io_close
 
-    out SREG, r17
+    mov r16, r17                    ; return value r16 will contain number of characters written
+    out SREG, r18
+    pop r18
     pop r17
-    pop r16
-    ret                             ; return value r16 will contain ACK from last byte transfered
+    ret
 
 
 

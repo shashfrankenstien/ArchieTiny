@@ -66,7 +66,7 @@ _shell_splash_wait:                            ; wait for button press and exit
 
 ; describes menu label list to display
 ; passed to ui_menu_show routine
-shell_apps_menu:
+shell_menu_apps_list:
     .asciz "splash"                            ; index 0
     .asciz "another splash"                    ; index 1
     .asciz "terminal"                          ; index 2
@@ -79,6 +79,11 @@ shell_apps_menu:
     .asciz "test6"                       ; index 3
     .asciz "test7"                       ; index 3
     .byte 0                                    ; end of list
+
+
+shell_menu_confirm_test:
+    .asciz "test!!"
+
 
 .balign 2
 
@@ -97,10 +102,10 @@ shell_home_task:
     sts SREG_GPIO_PC, r22                      ; clear gpio button status register again
 
 _shell_home_show_menu:
-    ldi r30, lo8(shell_apps_menu)
-    ldi r31, hi8(shell_apps_menu)
+    ldi r30, lo8(shell_menu_apps_list)
+    ldi r31, hi8(shell_menu_apps_list)
     rcall ui_menu_show                         ; show apps menu
-                                               ; let user select from shell_apps_menu list. rcall appropriate routine using selected index
+                                               ; let user select from shell_menu_apps_list list. rcall appropriate routine using selected index
     cpi r16, 0
     brne .+2
     rcall shell_splash_screen
@@ -114,8 +119,10 @@ _shell_home_show_menu:
     rcall terminal_app_open
 
     cpi r16, 3
-    brne .+2
-    rcall ui_confirm_window
+    brne _shell_home_show_menu
+    ldi r30, lo8(shell_menu_confirm_test)
+    ldi r31, hi8(shell_menu_confirm_test)
+    rcall ui_confirm_popup_show
 
     rjmp _shell_home_show_menu                 ; show menu after running selected app
 

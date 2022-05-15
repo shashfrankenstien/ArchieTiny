@@ -7,6 +7,115 @@
 .equ    UI_MENU_HOR_PADDING,        15          ; menu padding in pixels
 .equ    UI_MENU_BORDER_OFFSET,      2
 
+
+
+; ------------------------------------------------------------------------------------------------
+; utilities
+
+; print one entry from the list pointed by Z pointer (until \0 is encountered)
+; also add any fancy borders and stuff as required
+_ui_menu_util_print_item_from_Z:
+    push r16
+    push r17
+    push r18
+    push r19
+
+    mov r19, r16
+    subi r17, UI_MENU_BORDER_OFFSET             ; move r17 back for border offset
+
+    rcall i2c_lock_acquire
+    rcall oled_set_relative_cursor              ; set cursor to start writing data
+
+    ; left border
+    rcall oled_io_open_write_data
+    ldi r16, 0xff                               ; vertical line
+    rcall i2c_send_byte
+    clr r16
+    rcall i2c_send_byte
+    clr r16
+    rcall i2c_send_byte
+    rcall oled_io_close
+
+    rcall oled_print_flash                      ; print one entry from the list pointed by Z pointer (until \0 is encountered)
+
+    mov r16, r19
+    mov r17, r18
+    rcall oled_set_relative_cursor              ; set cursor to start writing data
+    ; right border
+    rcall oled_io_open_write_data
+    clr r16
+    rcall i2c_send_byte
+    clr r16
+    rcall i2c_send_byte
+    ldi r16, 0xff                               ; vertical line
+    rcall i2c_send_byte
+    rcall oled_io_close
+
+    rcall i2c_lock_release
+
+    pop r19
+    pop r18
+    pop r17
+    pop r16
+    ret
+
+
+; helper routine to move Z pointer up by 1 menu item
+; NOTE: this will fail if called when Z is on the first menu item. will return Z unchanged
+_ui_menu_util_Z_previous_item:
+    push r16
+    push r17
+
+    ldi r17, 1
+
+    sub r30, r17
+    sbc r31, 0
+
+    lpm r16, Z
+    tst r16
+    brne _ui_menu_util_Z_prev_done
+
+_ui_menu_util_Z_prev_continue:
+    sub r30, r17
+    sbc r31, 0
+
+    lpm r16, Z
+    tst r16
+    brne _ui_menu_util_Z_prev_continue
+
+_ui_menu_util_Z_prev_done:
+    adiw r30, 1
+    pop r17
+    pop r16
+    ret
+
+
+
+
+; helper routine to move Z pointer down by n (r16) menu items
+; keeps incrementing Z until n '\0' characters were encountered
+_ui_menu_util_Z_next_nth_item:
+    tst r16                                         ; if n (r16) is 0, no adjustment to Z required
+    breq _ui_menu_util_Z_next_nth_done
+
+    push r17
+_ui_menu_util_Z_next_nth_continue:
+    lpm r17, Z+
+    tst r17
+    brne _ui_menu_util_Z_next_nth_continue
+
+    dec r16
+    brne _ui_menu_util_Z_next_nth_continue
+
+    pop r17
+_ui_menu_util_Z_next_nth_done:
+    ret
+
+
+
+
+; ------------------------------------------------------------------------------------------------
+
 ; reusable scrollable menu component
 ; takes address to the menu item names list in Z pointer
 ; returns the selected index out of the menu items in r16
@@ -17,7 +126,7 @@
 ;       - next item starts with 0 (set bit 0 in the flags variable register to indicate end of menu was reached)
 ;       - screen is full (OLED_MAX_PAGE number of items have been printed on screen)
 ;
-;   - use scrolling if more than OLED_MAX_PAGE items exist in the menu (described separately below)
+;   - use scrolling if more than OLED_MAX_PAGE items exist in the menu (described separately below) - max menu length is 256??
 ;
 ;   - use bit 1 of the flags register to indicate if the nav cursor has been highlighted
 ;
@@ -185,189 +294,199 @@ _ui_menu_nav_check_ok:
     .endr
     ret
 
-; ------------------------------------------------------------------------------------------------
-
-; print one entry from the list pointed by Z pointer (until \0 is encountered)
-; also add any fancy borders and stuff as required
-_ui_menu_util_print_item_from_Z:
-    push r16
-    push r17
-    push r18
-    push r19
-
-    mov r19, r16
-    subi r17, UI_MENU_BORDER_OFFSET             ; move r17 back for border offset
-
-    rcall i2c_lock_acquire
-    rcall oled_set_relative_cursor              ; set cursor to start writing data
-
-    ; left border
-    rcall oled_io_open_write_data
-    ldi r16, 0xff                               ; vertical line
-    rcall i2c_send_byte
-    clr r16
-    rcall i2c_send_byte
-    clr r16
-    rcall i2c_send_byte
-    rcall oled_io_close
-
-    rcall oled_print_flash                      ; print one entry from the list pointed by Z pointer (until \0 is encountered)
-
-    mov r16, r19
-    mov r17, r18
-    rcall oled_set_relative_cursor              ; set cursor to start writing data
-    ; right border
-    rcall oled_io_open_write_data
-    clr r16
-    rcall i2c_send_byte
-    clr r16
-    rcall i2c_send_byte
-    ldi r16, 0xff                               ; vertical line
-    rcall i2c_send_byte
-    rcall oled_io_close
-
-    rcall i2c_lock_release
-
-    pop r19
-    pop r18
-    pop r17
-    pop r16
-    ret
-
-
-; helper routine to move Z pointer up by 1 menu item
-; NOTE: this will fail if called when Z is on the first menu item. will return Z unchanged
-_ui_menu_util_Z_previous_item:
-    push r16
-    push r17
-
-    ldi r17, 1
-
-    sub r30, r17
-    sbc r31, 0
-
-    lpm r16, Z
-    tst r16
-    brne _ui_menu_util_Z_prev_done
-
-_ui_menu_util_Z_prev_continue:
-    sub r30, r17
-    sbc r31, 0
-
-    lpm r16, Z
-    tst r16
-    brne _ui_menu_util_Z_prev_continue
-
-_ui_menu_util_Z_prev_done:
-    adiw r30, 1
-    pop r17
-    pop r16
-    ret
-
-
-; helper routine to move Z pointer down by n (r16) menu items
-; keeps incrementing Z until n '\0' characters were encountered
-_ui_menu_util_Z_next_nth_item:
-    tst r16                                         ; if n (r16) is 0, no adjustment to Z required
-    breq _ui_menu_util_Z_next_nth_done
-
-    push r17
-_ui_menu_util_Z_next_nth_continue:
-    lpm r17, Z+
-    tst r17
-    brne _ui_menu_util_Z_next_nth_continue
-
-    dec r16
-    brne _ui_menu_util_Z_next_nth_continue
-
-    pop r17
-_ui_menu_util_Z_next_nth_done:
-    ret
-
-
-
 
 
 ; ------------------------------------------------------------------------------------------------
+
+.equ    UI_CONFIRM_WINDOW_CHAR_WIDTH,   8                                                       ; 8 text characters
+.equ    UI_CONFIRM_WINDOW_WIDTH,        (FONT_WIDTH * UI_CONFIRM_WINDOW_CHAR_WIDTH)             ; 8 text characters
+.equ    UI_CONFIRM_WINDOW_HEIGHT,       2                                                       ; 2 rows (pages)
+.equ    UI_CONFIRM_START_COL,           (MAX_FONT_PIXELS_PER_ROW - UI_CONFIRM_WINDOW_WIDTH) / 2
+.equ    UI_CONFIRM_START_PAGE,          3
+
+
+
+_ui_confirm_util_display_popup:
+    ldi r16, UI_CONFIRM_START_PAGE
+    ldi r17, UI_CONFIRM_START_COL
+    rcall oled_set_relative_cursor
+
+    rcall oled_io_open_write_data
+    ldi r16, 0xff
+    rcall i2c_send_byte
+    rcall oled_io_close
+
+    rcall oled_print_flash
+    ldi r17, FONT_WIDTH
+    rcall mul8
+    mov r17, r16
+
+    rcall oled_io_open_write_data
+_ui_confirm_util_blanks0:
+    clr r16
+    rcall i2c_send_byte
+    inc r17
+    cpi r17, UI_CONFIRM_WINDOW_WIDTH - 2
+    brlo _ui_confirm_util_blanks0
+    rcall oled_io_close
+
+    ldi r16, UI_CONFIRM_START_PAGE
+    ldi r17, UI_CONFIRM_START_COL + UI_CONFIRM_WINDOW_WIDTH - 1
+    rcall oled_set_relative_cursor
+
+    rcall oled_io_open_write_data
+    ldi r16, 0xff
+    rcall i2c_send_byte
+    rcall oled_io_close
+
+    ; ---------------
+    ldi r16, UI_CONFIRM_START_PAGE + 1
+    ldi r17, UI_CONFIRM_START_COL
+    rcall oled_set_relative_cursor
+
+    rcall oled_io_open_write_data
+    ldi r16, 0xff
+    rcall i2c_send_byte
+
+    ldi r17, FONT_WIDTH - 1
+_ui_confirm_util_blanks1:
+    clr r16
+    rcall i2c_send_byte
+    dec r17
+    brne _ui_confirm_util_blanks1
+
+    ldi r16, ' '
+    rcall oled_io_put_char
+    ldi r16, 'Y'
+    rcall oled_io_put_char
+    ldi r16, ' '
+    rcall oled_io_put_char
+
+    rcall oled_color_inv_start
+    ldi r16, ' '
+    rcall oled_io_put_char
+    ldi r16, 'N'
+    rcall oled_io_put_char
+    ldi r16, ' '
+    rcall oled_io_put_char
+    rcall oled_color_inv_stop
+
+    ldi r17, FONT_WIDTH - 1
+_ui_confirm_util_blanks2:
+    clr r16
+    rcall i2c_send_byte
+    dec r17
+    brne _ui_confirm_util_blanks2
+
+    ldi r16, 0xff
+    rcall i2c_send_byte
+
+    rcall oled_io_close
+
+    ; ---------------
+    ldi r18, UI_CONFIRM_START_COL + UI_CONFIRM_WINDOW_WIDTH
+    ldi r17, UI_CONFIRM_START_COL
+    ldi r16, (UI_CONFIRM_START_PAGE * 8)
+    rcall oled_draw_h_line_overlay
+
+    ldi r16, ((UI_CONFIRM_START_PAGE + UI_CONFIRM_WINDOW_HEIGHT) * 8) - 1
+    rcall oled_draw_h_line_overlay
+    ret
+
 
 
 
 ; reusable confirm y/n popup component
 ; takes address to the confirm message in Z pointer
-ui_confirm_window:
+; should be limited to UI_CONFIRM_WINDOW_CHAR_WIDTH characters
+ui_confirm_popup_show:
     .irp param,16,17,18,19,20,21
         push r\param
     .endr
 
-    ldi r21, MALLOC_MAX_BLOCKS
-    ldi r21, 2
+    ldi r16, UI_CONFIRM_WINDOW_WIDTH * UI_CONFIRM_WINDOW_HEIGHT
+    rcall mem_alloc
+    mov r19, r16                                ; save memory pointer
+    mov r20, r16                                ; save writing pointer for later
+
+    ldi r21, UI_CONFIRM_WINDOW_HEIGHT           ; read UI_CONFIRM_WINDOW_HEIGHT rows worth of data
+
+    ldi r16, UI_CONFIRM_START_PAGE
+    ldi r17, UI_CONFIRM_START_COL
 
     rcall i2c_lock_acquire
-
-    mov r16, r21
-    ldi r17, 10
-    rcall oled_set_cursor
+_ui_confirm_read_next_row:
+    push r16
+    push r17
+    rcall oled_set_relative_cursor              ; set cursor to start reading screen data to save in ram
 
     rcall oled_io_open_read_data
-
-    ldi r18, (FONT_WIDTH * 8) - 1
-    mov r16, r18
-    rcall mem_alloc
-    mov r19, r16
-    mov r20, r16
-
+    ldi r18, UI_CONFIRM_WINDOW_WIDTH - 1        ; loop only n-1 times since last read needs to end with i2c_read_byte_nack
 _ui_confirm_read_loop:
-    rcall i2c_read_byte_ack
+    rcall i2c_read_byte_ack                     ; read 1 byte
+    mov r17, r16
+    mov r16, r19
+    rcall mem_store                             ; store the 1 byte (r17) in memory
+    rcall mem_pointer_inc
+    mov r19, r16
+    dec r18
+    brne _ui_confirm_read_loop
+    rcall i2c_read_byte_nack                    ; read last byte from screen and store in memory
     mov r17, r16
     mov r16, r19
     rcall mem_store
     rcall mem_pointer_inc
     mov r19, r16
-    dec r18
-    brne _ui_confirm_read_loop
-    rcall i2c_read_byte_nack
-    mov r17, r16
-    mov r16, r19
-    rcall mem_store
     rcall oled_io_close
-    ; rcall i2c_lock_release
 
-    mov r16, r21
-    ldi r17, 10
-    rcall oled_set_cursor                      ; set cursor to start writing data
+    pop r17
+    pop r16
+    inc r16
+    dec r21
+    brne _ui_confirm_read_next_row
 
-    lds r16, SREG_GPIO_PC
-    rcall oled_print_binary_digits
+    ; -----------------
+    rcall _ui_confirm_util_display_popup
+    ; -----------------
+
     rcall i2c_lock_release
 
-    rcall nav_kbd_start                        ; start the navigation keyboard
+    rcall nav_kbd_start                         ; start the navigation keyboard (blocking)
 
+    mov r19, r20                                ; restore memory pointer
+    ldi r21, UI_CONFIRM_WINDOW_HEIGHT           ; write UI_CONFIRM_WINDOW_HEIGHT rows worth of data
+
+    ldi r16, UI_CONFIRM_START_PAGE
+    ldi r17, UI_CONFIRM_START_COL
 
     rcall i2c_lock_acquire
-
-    mov r16, r21
-    ldi r17, 10
-    rcall oled_set_cursor                      ; set cursor to start writing data
+_ui_confirm_write_next_row:
+    push r16
+    push r17
+    rcall oled_set_relative_cursor              ; set cursor to start writing back data from ram to screen
 
     rcall oled_io_open_write_data
-
-    ldi r18, (FONT_WIDTH * 8)
-    mov r19, r20
-
+    ldi r18, UI_CONFIRM_WINDOW_WIDTH
 _ui_confirm_write_loop:
     mov r16, r19
     rcall mem_load
     rcall mem_pointer_inc
     mov r19, r16
     mov r16, r17
-    rcall i2c_send_byte                        ; i2c_send_byte modifies r16, so we need to reload r16 at every iteration
+    rcall i2c_send_byte
     dec r18
     brne _ui_confirm_write_loop
-
     rcall oled_io_close
+
+    pop r17
+    pop r16
+    inc r16
+    dec r21
+    brne _ui_confirm_write_next_row
+
     rcall i2c_lock_release
 
-    mov r16, r20
+    mov r16, r20                                ; restore memory pointer
     rcall mem_free
 
     rcall nav_kbd_start                         ; start the navigation keyboard
