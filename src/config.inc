@@ -28,7 +28,7 @@
 .equ    TASK_RAM_START,           TEXTMODE_CURSOR_COL + 1     ; Task vector start address
 
 .equ    TASK_STACK_SIZE,          100                         ; Each task in the task manager get TASK_STACK_SIZE bytes of RAM
-.equ    TASK_MAX_TASKS,           3                           ;   some of these bytes are required for the task manager and the rest are available for the task
+.equ    TASK_MAX_TASKS,           2                           ;   some of these bytes are required for the task manager and the rest are available for the task
 
 
 ; task manager calculated constants. see tasks.asm for description
@@ -40,6 +40,8 @@
 .equ    TASK_STACKS_BOTTOM,    TASK_STACKS_TOP + (TASK_STACK_SIZE * TASK_MAX_TASKS)   ; end of task stacks
 
 .equ    TASK_RAM_END,          TASK_STACKS_BOTTOM             ; alias
+
+
 
 
 ; -------------------------------------------------
@@ -64,7 +66,7 @@
     .err                            ; no malloc-able blocks. check task manager memory allocation
 .endif
 
-; error handling for MALLOC_MAX_BLOCKS greater than 250 (never gonna happen on this device, but whatever)
+; error handling for MALLOC_MAX_BLOCKS greater than 250 (never gonna happen since MALLOC_FREE_RAM is restricted to 256, but whatever)
 .iflt 250 - MALLOC_MAX_BLOCKS       ; test if 250 - MALLOC_MAX_BLOCKS is less than 0
     .err                            ; address overflow!
 .endif
@@ -83,6 +85,11 @@
 .endif
 
 ; -------------------------------------------------
+
+
+
+
+
 ; gpio config
 .equ    LED_PIN,            1
 .equ    GPIO_BTN_0,         3

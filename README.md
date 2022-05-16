@@ -254,18 +254,25 @@ ADC_VD_BTN_4  | 1 M             | 2.305 v | 0b11010100
     - MALLOC_FREE_RAM is capped at 250 because the last few address values are used as control bytes in the malloc table (0xff, 0xfe, ..)
 
 
-## EEPROM FAT-8 File System (TODO)
-- https://www.youtube.com/watch?v=HjVktRd35G8
-
 
 ## The Shell!
 - shell_home_task is the entry point to user space. It is started through task manager
     - starts with a splash screen
     - on button press, shows main menu of applications
-- also defines reusable ui components
-    - splash screen
+- reusable ui components (lib/ui.asm)
+    - splash screen (shell.asm)
     - confirm y/n popup
     - scrollable menu
+
+
+## EEPROM FAT-8 File System (TODO)
+- https://www.youtube.com/watch?v=HjVktRd35G8
+
+## EEPROM settings (file?) (TODO)
+
+## Text Editor! (TODO)
+
+## Game (pong?) (TODO)
 
 -----
 

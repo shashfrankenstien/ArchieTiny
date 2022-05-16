@@ -1,9 +1,17 @@
 .include "config.inc"                                   ; TERMINAL_PROMPT_CHAR
 
+; this module implements a command line terminal using
+;   - gpio.asm to read button presses and stuff
+;   - sh1106.asm (oled) to display the command line terminal
+;
+; input is directly written to oled for now
+; once we see a new line character 10 (\n),
+;   - we can read back the full line from the oled or ram
+;   - parsing can be done as a stream until we hit character 10 (\n)
 
 
 terminal_exit_confirm_msg:
-    .asciz " Exit?"
+    .asciz "  Exit?"
 
 .balign 2
 

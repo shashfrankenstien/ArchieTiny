@@ -150,6 +150,7 @@ mem_free:
     .irp param,17,18,19,20,26,27
         push r\param
     .endr
+    clr r18                                    ; acts as 0 for adc command
     lds r20, MALLOCFREECTR
 
     ldi r17, MALLOC_BLOCK_SIZE
@@ -163,7 +164,7 @@ _mem_free_till_end:
     ldi r27, hi8(MALLOC_TABLE_START)
 
     add r26, r16
-    adc r27, 0
+    adc r27, r18
 
     ld r16, X
     st X, r19
@@ -227,8 +228,9 @@ _mem_pointer_inc_roll_block:
     ldi r26, lo8(MALLOC_TABLE_START)            ; load MALLOC_TABLE_START address into X register
     ldi r27, hi8(MALLOC_TABLE_START)
 
+    clr r18                                    ; acts as 0 for adc command
     add r26, r16
-    adc r27, 0
+    adc r27, r18
 
     ld r16, X                                   ; read next block address which is stored in current block index in the malloc table
 
@@ -255,35 +257,41 @@ _mem_pointer_inc_done:
 
 ; store a byte r17 at pointer r16
 mem_store:
+    push r18
     push r26
     push r27
 
     ldi r26, lo8(MALLOC_TABLE_END)           ; load MALLOC_TABLE_END address into X register
     ldi r27, hi8(MALLOC_TABLE_END)           ; this is the start of malloc blocks
 
+    clr r18                                    ; acts as 0 for adc command
     add r26, r16
-    adc r27, 0
+    adc r27, r18
 
     st X, r17
 
     pop r27
     pop r26
+    pop r18
     ret
 
 
 ; load a byte into r17 from pointer r16
 mem_load:
+    push r18
     push r26
     push r27
 
     ldi r26, lo8(MALLOC_TABLE_END)           ; load MALLOC_TABLE_END address into X register
     ldi r27, hi8(MALLOC_TABLE_END)           ; this is the start of malloc blocks
 
+    clr r18                                    ; acts as 0 for adc command
     add r26, r16
-    adc r27, 0
+    adc r27, r18
 
     ld r17, X
 
     pop r27
     pop r26
+    pop r18
     ret

@@ -1,11 +1,4 @@
-; this module implements a command line shell using
-;   - gpio.asm to read button presses and stuff
-;   - sh1106.asm (oled) to display the command line shell
-;
-; to avoid using a lot of memory, input is directly written to oled
-; then, when we see a new line character 10 (\n),
-;   - we can read back the full line from the oled
-;   - parsing this line can be done as a stream until we hit character 10 (\n)
+; this module implements the main user interface shell
 
 
 hello_world:

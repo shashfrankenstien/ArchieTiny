@@ -237,10 +237,10 @@ taskmanager_exec_next_isr:
 
 _no_action_required:
     out SREG, r5
-    .irp param,17,16                ; unwind and prepare to save data to stack
+    .irp param,17,16                ; unwind
         pop r\param
     .endr
-    rjmp _tasks_done                ; return if TASKCTS[3:0] = 0
+    rjmp _tasks_done                ; return
 
 _tasks_available:
     sbrc r16, RUNNING               ; if RUNNING bit of r16 is clear, then the task manager is not yet running
