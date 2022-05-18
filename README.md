@@ -121,7 +121,7 @@ Tasks Table is set up starting at RAM address TASK_RAM_START (Should be greater 
     - calculate stack pointer address and store in TASK_SP_VECTOR at TASKPTR index
     - jump to task's alotted stack
     - store return address, function pointer + manager pushed registers on the stack
-        - Note: Because of how the stack works, function pointer address should be divided by 2. cpu will then multiply it by 2 before executing
+        - Note: Because of how the stack works, function pointer address should be divided by 2. cpu will then multiply it by 2 before executing (or we can use pm() apparently)
     - if TASK_SP_VECTOR is full, set FULL flag in TASKCTS
 - exec task
     - read TASKCTS counter, if eq 0 or 1, simply return because there is no task switching required
@@ -271,6 +271,8 @@ ADC_VD_BTN_4  | 1 M             | 2.305 v | 0b11010100
 ## EEPROM settings (file?) (TODO)
 
 ## Text Editor! (TODO)
+
+## Simple Calculator (TODO)
 
 ## Game (pong?) (TODO)
 

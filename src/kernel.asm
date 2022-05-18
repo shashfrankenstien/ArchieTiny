@@ -121,3 +121,24 @@ test3_loop:
 
     rcall i2c_lock_release
     rjmp test3_loop
+
+
+
+; test_display:
+;     push r16
+;     push r17
+;     push r18
+
+;     mov r22, r16
+
+;     rcall i2c_lock_acquire
+;     ldi r16, 6
+;     ldi r17, 0            ; right top position
+;     rcall oled_set_cursor                      ; set cursor to start writing data
+;     mov r16, r22
+;     rcall oled_print_hex_digits
+;     rcall i2c_lock_release
+;     pop r18
+;     pop r17
+;     pop r16
+;     ret

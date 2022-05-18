@@ -63,8 +63,8 @@ shell_menu_apps_list:
     .asciz "splash"                            ; index 0
     .asciz "another splash"                    ; index 1
     .asciz "terminal"                          ; index 2
-    .asciz "malloc test"                       ; index 3
-    .asciz "test1"                       ; index 3
+    .asciz "malloc 1"                       ; index 3
+    .asciz "malloc 2"                       ; index 3
     .asciz "test2"                       ; index 3
     .asciz "test3"                       ; index 3
     .asciz "test4"                       ; index 3
@@ -99,23 +99,34 @@ _shell_home_show_menu:
     ldi r31, hi8(shell_menu_apps_list)
     rcall ui_menu_show                         ; show apps menu
                                                ; let user select from shell_menu_apps_list list. rcall appropriate routine using selected index
+_shell_home_menu_0:
     cpi r16, 0
-    brne .+2
+    brne _shell_home_menu_1
     rcall shell_splash_screen
 
+_shell_home_menu_1:
     cpi r16, 1
-    brne .+2
+    brne _shell_home_menu_2
     rcall shell_splash_screen
 
+_shell_home_menu_2:
     cpi r16, 2
-    brne .+2
+    brne _shell_home_menu_3
     rcall terminal_app_open
 
+_shell_home_menu_3:
     cpi r16, 3
-    brne _shell_home_show_menu
+    brne _shell_home_menu_4
     ldi r30, lo8(shell_menu_confirm_test)
     ldi r31, hi8(shell_menu_confirm_test)
     rcall ui_confirm_popup_show
+
+_shell_home_menu_4:
+    cpi r16, 4
+    brne _shell_home_show_menu
+    ldi r30, lo8(shell_menu_confirm_test)
+    ldi r31, hi8(shell_menu_confirm_test)
+    rcall ui_alert_popup_show
 
     rjmp _shell_home_show_menu                 ; show menu after running selected app
 

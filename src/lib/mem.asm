@@ -19,10 +19,10 @@
 ;
 ;   - bytes in the malloc table are indexed starting with 0 and counting up to MALLOC_MAX_BLOCKS
 ;   - each byte corresponds to a block of memory of the same index
-;   - if the value of the byte is 0xff, the block at the corresponding index is free
-;   - if the value of the byte is 0xfe, it means that one block of data is allocated at the index
+;   - if the value of the byte is MEM_FREE_BLOCK_VAL, the block at the corresponding index is free
+;   - if the value of the byte is MEM_END_BLOCK_VAL, it means that one block of data is allocated at the index
 ;   - if the value of the byte is any other number, that number is the index of the next block of the allocated memory
-;       - a chain of blocks terminate when the value is 0xfe
+;       - a chain of blocks terminate when the value is MEM_END_BLOCK_VAL
 .equ    MEM_FREE_BLOCK_VAL,         0xff
 .equ    MEM_END_BLOCK_VAL,          0xfe
 ;   - during allocation of multiple blocks, the final block is allocated first, all the way up to the first block
@@ -61,6 +61,8 @@ _mem_init_wipe:
         pop r\param
     .endr
     ret
+
+
 
 
 ; allocate memory
@@ -142,6 +144,8 @@ _mem_alloc_done:
 
 mem_realloc:
     ret
+
+
 
 
 ; free memory
@@ -253,6 +257,9 @@ _mem_pointer_inc_done:
         pop r\param
     .endr
     ret
+
+
+
 
 
 ; store a byte r17 at pointer r16

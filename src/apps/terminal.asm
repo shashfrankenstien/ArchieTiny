@@ -47,8 +47,18 @@ _terminal_char_wait:
     breq _terminal_char_wait
 
     cpi r17, NAV_OPTIONS
-    breq _terminal_confirm_exit
+    brne _terminal_char_print
 
+    mov r18, r16
+    ldi r30, lo8(terminal_exit_confirm_msg)
+    ldi r31, hi8(terminal_exit_confirm_msg)
+    rcall ui_confirm_popup_show
+    tst r16
+    brne _terminal_exit
+    mov r16, r18
+    rjmp _terminal_char_wait
+
+_terminal_char_print:
     clr r18
     cpse r17, r18
     mov r16, r17
@@ -58,13 +68,7 @@ _terminal_char_wait:
     mov r16, r19
     rjmp _terminal_char_wait
 
-_terminal_confirm_exit:
-    ldi r30, lo8(terminal_exit_confirm_msg)
-    ldi r31, hi8(terminal_exit_confirm_msg)
-    rcall ui_confirm_popup_show
-
-    tst r16
-    breq _terminal_char_wait
+_terminal_exit:
 
     .irp param,19,18,17,16
         pop r\param
