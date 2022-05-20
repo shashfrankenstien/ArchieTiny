@@ -87,13 +87,15 @@ shell_home_task:
     sbi PORTB, LED_PIN
     ldi r20, 0x32                              ; power on debounce delay (0x32 = 50 ms)
     rcall timer_delay_ms_short                 ; short delay before resetting SREG_GPIO_PC at start up (need time for debouncing capacitors to charge)
-    clr r22
-    sts SREG_GPIO_PC, r22                      ; clear gpio button status register
+    clr r20
+    sts SREG_GPIO_PC, r20                      ; clear gpio button status register
     cbi PORTB, LED_PIN
 
     rcall shell_splash_screen
-    sts SREG_GPIO_PC, r22                      ; clear gpio button status register again
+    sts SREG_GPIO_PC, r20                      ; clear gpio button status register again
 
+    clr r16
+    clr r17
 _shell_home_show_menu:
     ldi r30, lo8(shell_menu_apps_list)
     ldi r31, hi8(shell_menu_apps_list)
@@ -116,17 +118,21 @@ _shell_home_menu_2:
 
 _shell_home_menu_3:
     cpi r16, 3
+    mov r20, r16
     brne _shell_home_menu_4
     ldi r30, lo8(shell_menu_confirm_test)
     ldi r31, hi8(shell_menu_confirm_test)
     rcall ui_confirm_popup_show
+    mov r16, r20
 
 _shell_home_menu_4:
     cpi r16, 4
+    mov r20, r16
     brne _shell_home_show_menu
     ldi r30, lo8(shell_menu_confirm_test)
     ldi r31, hi8(shell_menu_confirm_test)
     rcall ui_alert_popup_show
+    mov r16, r20
 
     rjmp _shell_home_show_menu                 ; show menu after running selected app
 

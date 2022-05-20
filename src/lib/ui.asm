@@ -33,7 +33,7 @@ _ui_menu_util_print_item_from_Z:
     push r19
 
     mov r19, r16
-    subi r17, UI_MENU_BORDER_OFFSET             ; move r17 back for border offset
+    subi r17, UI_MENU_BORDER_OFFSET             ; r17 is at horizontal padding address. move it back for border offset
 
     rcall i2c_lock_acquire
     rcall oled_set_relative_cursor              ; set cursor to start writing data
@@ -130,7 +130,9 @@ _ui_menu_util_Z_next_nth_done:
 
 ; reusable scrollable menu component
 ; takes address to the menu item names list in Z pointer
-; returns the selected index out of the menu items in r16
+; also takes previous selected item index in r16 and previous scroll position in r17 (state recall values)
+; returns the selected index out of the menu items in r16; and current scroll position in r17
+;
 ; workflow:
 ;   - setup variable registers and clear screen
 ;   - use _ui_menu_util_print_item_from_Z to print one item from the menu. This leaves Z pointer in the beginning of the next item
@@ -145,6 +147,7 @@ _ui_menu_util_Z_next_nth_done:
 ;   - enable controls - UP, DOWN, OK using nav_kbd_start
 ;       - move the nav cursor and handle scrolling as required using UP and DOWN actions
 ;       - on OK action, return the item number selected by the nav cursor in r16
+;           also return current scroll position in r17 - menu can be recalled back to the previous state by passing back r16 and r17
 ;
 ; scrolling:
 ;   - scrolling assumes that the Z pointer is pointing to the item just below the screen (required by scroll down action)
@@ -160,22 +163,25 @@ _ui_menu_util_Z_next_nth_done:
 ;           we need to search starting from the first item of the menu and reading as many '\0' as the current item selected by the nav cursor
 ;           this is done using _ui_menu_util_Z_next_nth_item helper routine where n is the current nav cursor
 ui_menu_show:
-    .irp param,17,18,19,20,21,22,23,24,25
+    .irp param,18,19,20,21,22,23,24,25
         push r\param
     .endr
+
+    clr r20                                     ; flags register - end of menu reached flag, row highlighted flag
+    mov r21, r16                                ; r21 contains the current item number that the nav cursor is on
+    clr r22                                     ; r22 contains previous nav cursor item number.
+                                                ;       if this is different from r21, highlight operation is performed
+    mov r23, r17                                ; scroll position tracker
+
+    mov r24, r30                                ; save input Z pointer value in r25:r24 (first menu item)
+    mov r25, r31
+
+    mov r16, r23
+    rcall _ui_menu_util_Z_next_nth_item         ; move Z pointer to the previous scroll position (r23 -> supplied through r17)
 
     ldi r17, UI_MENU_HOR_PADDING                ; r17 is the start column address. this can be offset?
     ldi r18, OLED_MAX_COL - UI_MENU_HOR_PADDING ; r18 is the end column address for highlighting. this can be offset too!
     clr r19                                     ; r19 indicates the page (row) number the nav cursor is on (0 by default)
-
-    clr r20                                     ; flags register - end of menu reached flag, row highlighted flag
-    clr r21                                     ; r21 contains the current item number that the nav cursor is on
-    clr r22                                     ; r22 contains previous nav cursor item number.
-                                                ;       if this is different from r21, highlight operation is performed
-    clr r23                                     ; scroll position tracker
-
-    mov r24, r30                                ; save input Z pointer value in r25:r24 (first menu item)
-    mov r25, r31
 
     rcall i2c_lock_acquire
     rcall oled_clr_screen
@@ -300,8 +306,10 @@ _ui_menu_nav_check_ok:
     brne _ui_menu_navigate                      ; if nav is not OK, go back and start over
 
     mov r16, r21                                ; if OK is pressed, return current selected item index to calling routine
+    mov r17, r23                                ; also return current scroll position
+                                                ; menu can be recalled back to the previous state by passing back r16 and r17
 
-    .irp param,25,24,23,22,21,20,19,18,17
+    .irp param,25,24,23,22,21,20,19,18
         pop r\param
     .endr
     ret
