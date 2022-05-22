@@ -36,7 +36,7 @@
 ;       - capped at 256 so that we can use 8 bit pointers and 8 bit MALLOCFREECTR
 ;
 ; - MALLOC_MAX_BLOCKS can't be greater than 250 (never gonna happen on this device, but whatever)
-;   - MALLOC_FREE_RAM is capped at 250 because the last few address values are used as control bytes in the malloc table (0xff, 0xfe, ..)
+;   - MALLOC_MAX_BLOCKS is capped at 250 because the last few address values are used as control bytes in the malloc table (0xff, 0xfe, ..)
 
 
 mem_init:
@@ -142,14 +142,12 @@ _mem_alloc_done:
 
 
 
-mem_realloc:
-    ret
-
-
-
 
 ; free memory
 ; pointer is passed in r16
+; pointer may be at any position of the allocated memory -
+;   - free walks forward till the last block
+;   - free also walks back till a block that is not referenced by any other block (first block)
 mem_free:
     .irp param,17,18,19,20,26,27
         push r\param
@@ -160,19 +158,19 @@ mem_free:
     ldi r17, MALLOC_BLOCK_SIZE
     rcall div8
 
-    mov r17, r16
-    ldi r19, 0xff
+    mov r17, r16                               ; save current block index for later
+    ldi r19, MEM_FREE_BLOCK_VAL
 
 _mem_free_till_end:
     ldi r26, lo8(MALLOC_TABLE_START)           ; load MALLOC_TABLE_START address into X register
     ldi r27, hi8(MALLOC_TABLE_START)
 
-    add r26, r16
+    add r26, r16                               ; jump to block index pointed by r16 (input / MALLOC_BLOCK_SIZE)
     adc r27, r18
 
-    ld r16, X
-    st X, r19
-    inc r20
+    ld r16, X                                  ; read index of next block
+    st X, r19                                  ; mark block as free
+    inc r20                                    ; indicate that we have gained a free block (stored to MALLOCFREECTR at the end)
 
     cpi r16, MEM_FREE_BLOCK_VAL
     breq _mem_free_done
@@ -180,24 +178,24 @@ _mem_free_till_end:
     cpi r16, MEM_END_BLOCK_VAL
     brne _mem_free_till_end
 
-    mov r16, r17
-_mem_free_till_root:
+    mov r16, r17                               ; restore original block index
+_mem_free_till_root:                           ; repeatedly search all blocks for block index in r16 until index is not found (everything is freed)
     ldi r26, lo8(MALLOC_TABLE_START)           ; load MALLOC_TABLE_START address into X register
     ldi r27, hi8(MALLOC_TABLE_START)
 
     ldi r18, 0xff                              ; block index -> start at -1, will be incremented to 0 at the beginning of the search
-_mem_free_search_all:
+_mem_free_search_all:                          ; search all blocks
     inc r18
-    cpi r18, MALLOC_MAX_BLOCKS                 ; check if we have exhausted malloc table - ideally, this should never run
+    cpi r18, MALLOC_MAX_BLOCKS                 ; check if we have exhausted malloc table
     breq _mem_free_done
 
-    ld r17, X+
-    cp r16, r17
-    brne _mem_free_search_all
+    ld r17, X+                                 ; read block index
+    cp r16, r17                                ; check if it matches index we are looking for
+    brne _mem_free_search_all                  ; no match -> go to next block
 
-    st -X, r19
-    inc r20
-    mov r16, r18
+    st -X, r19                                 ; if matched, mark block as free
+    inc r20                                    ; indicate that we have gained a free block (stored to MALLOCFREECTR at the end)
+    mov r16, r18                               ; r18 counter contains the block to search for next
     rjmp _mem_free_till_root
 
 _mem_free_done:
@@ -212,28 +210,34 @@ _mem_free_done:
 
 ; increment pointer
 ; pointer is passed in r16
-mem_pointer_inc:
-    .irp param,17,18,26,27
+; if r17 is 0,
+; - return 0xff on overflow
+; else if r17 is anything else (probably 0x01)
+; - automatically allocate 1 new block on overflow
+; - return 0xff if a new block allocation failed
+internal_mem_pointer_inc:
+    .irp param,18,19,26,27
         push r\param
     .endr
-    mov r18, r16
+    mov r18, r16                                ; save input for later
+    mov r19, r17
 
     ldi r17, MALLOC_BLOCK_SIZE
     rcall div8
 
-    cpi r17, MALLOC_BLOCK_SIZE - 1
-    breq _mem_pointer_inc_roll_block
+    cpi r17, MALLOC_BLOCK_SIZE - 1              ; check if the pointer is at the last byte of the block
+    breq _mem_pointer_inc_roll_block            ; if so, we need to roll over to the next allocated block
 
-    inc r18
-    mov r16, r18
+    mov r16, r18                                ; else, simply increment the input pointer by 1
+    inc r16
     rjmp _mem_pointer_inc_done
 
 _mem_pointer_inc_roll_block:
     ldi r26, lo8(MALLOC_TABLE_START)            ; load MALLOC_TABLE_START address into X register
     ldi r27, hi8(MALLOC_TABLE_START)
 
-    clr r18                                    ; acts as 0 for adc command
-    add r26, r16
+    clr r18                                     ; acts as 0 for adc command
+    add r26, r16                                ; jump to block index pointed by r16 (input / MALLOC_BLOCK_SIZE)
     adc r27, r18
 
     ld r16, X                                   ; read next block address which is stored in current block index in the malloc table
@@ -241,8 +245,44 @@ _mem_pointer_inc_roll_block:
     cpi r16, MEM_FREE_BLOCK_VAL                 ; if next block address is not valid, fail
     breq _mem_pointer_inc_failed
 
-    cpi r16, MEM_END_BLOCK_VAL                  ; if next block address is not valid, fail
+    cpi r16, MEM_END_BLOCK_VAL                  ; if end of allocated memory reached, allocate 1 new block
+    breq _mem_pointer_inc_alloc_block
+
+    ldi r17, MALLOC_BLOCK_SIZE
+    rcall mul8                                  ; normalize next block index and return
+    rjmp _mem_pointer_inc_done
+
+_mem_pointer_inc_alloc_block:                   ; if r17 input was not 0, try to extend by allocating 1 new block of memory
+    tst r19                                     ; input r17 was moved to r19. if this is 0, memory is not extended. return as failed
     breq _mem_pointer_inc_failed
+
+    mov r16, r26                                ; save address to current malloc table entry
+    mov r17, r27
+
+    ldi r26, lo8(MALLOC_TABLE_START)            ; load MALLOC_TABLE_START address into X register
+    ldi r27, hi8(MALLOC_TABLE_START)
+
+    ldi r18, 0xff                               ; block index -> start at -1, will be incremented to 0 at the beginning of the search
+_mem_pointer_inc_find_free_block:
+    inc r18
+    cpi r18, MALLOC_MAX_BLOCKS                  ; check if we have exhausted malloc table - ideally, this should never run
+    breq _mem_pointer_inc_failed
+
+    ld r19, X+                                  ; read value from malloc table
+    cpi r19, MEM_FREE_BLOCK_VAL                 ; check if free
+    brne _mem_pointer_inc_find_free_block
+
+    ldi r19, MEM_END_BLOCK_VAL
+    st -X, r19                                  ; allocate block if free
+
+    mov r26, r16                                ; restore address of previous entry to X
+    mov r27, r17
+    mov r16, r18                                ; get the new index and store it in previous malloc table entry
+    st X, r16
+
+    lds r19, MALLOCFREECTR
+    dec r19                                     ; decrement number of free blocks
+    sts MALLOCFREECTR, r19                      ; update free blocks counter
 
     ldi r17, MALLOC_BLOCK_SIZE
     rcall mul8                                  ; normalize next block index and return
@@ -250,14 +290,36 @@ _mem_pointer_inc_roll_block:
 
 _mem_pointer_inc_failed:
     ldi r16, 0xff                               ; indicate failure by returning 0xff
-    rjmp _mem_pointer_inc_done
 
 _mem_pointer_inc_done:
-    .irp param,27,26,18,17
+    .irp param,27,26,19,18
         pop r\param
     .endr
     ret
 
+
+
+
+; increment pointer
+; - return 0xff on overflow
+mem_pointer_inc:
+    push r17
+    clr r17
+    rcall internal_mem_pointer_inc
+    pop r17
+    ret
+
+
+
+; increment pointer
+; - this routine automatically allocates 1 new block on overflow
+; - return 0xff if a new block allocation failed
+mem_pointer_inc_realloc:
+    push r17
+    ldi r17, 1
+    rcall internal_mem_pointer_inc
+    pop r17
+    ret
 
 
 
