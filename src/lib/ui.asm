@@ -21,123 +21,32 @@
 
 
 
-; ------------------------------------------------------------------------------------------------
-; utilities
-
-; print one entry from the list pointed by Z pointer (until \0 is encountered)
-; also add any fancy borders and stuff as required
-_ui_menu_util_print_item_from_Z:
-    push r16
-    push r17
-    push r18
-    push r19
-
-    mov r19, r16
-    subi r17, UI_MENU_BORDER_OFFSET             ; r17 is at horizontal padding address. move it back for border offset
-
-    rcall i2c_lock_acquire
-    rcall oled_set_relative_cursor              ; set cursor to start writing data
-
-    ; left border
-    rcall oled_io_open_write_data
-    ldi r16, 0xff                               ; vertical line
-    rcall i2c_send_byte
-    clr r16
-    rcall i2c_send_byte
-    clr r16
-    rcall i2c_send_byte
-    rcall oled_io_close
-
-    rcall oled_print_flash                      ; print one entry from the list pointed by Z pointer (until \0 is encountered)
-
-    mov r16, r19
-    mov r17, r18
-    rcall oled_set_relative_cursor              ; set cursor to start writing data
-    ; right border
-    rcall oled_io_open_write_data
-    clr r16
-    rcall i2c_send_byte
-    clr r16
-    rcall i2c_send_byte
-    ldi r16, 0xff                               ; vertical line
-    rcall i2c_send_byte
-    rcall oled_io_close
-
-    rcall i2c_lock_release
-
-    pop r19
-    pop r18
-    pop r17
-    pop r16
-    ret
-
-
-; helper routine to move Z pointer up by 1 menu item
-; NOTE: this will fail if called when Z is on the first menu item. will return Z unchanged
-_ui_menu_util_Z_previous_item:
-    push r16
-    push r17
-
-    ldi r17, 1
-
-    sub r30, r17
-    sbc r31, 0
-
-    lpm r16, Z
-    tst r16
-    brne _ui_menu_util_Z_prev_done
-
-_ui_menu_util_Z_prev_continue:
-    sub r30, r17
-    sbc r31, 0
-
-    lpm r16, Z
-    tst r16
-    brne _ui_menu_util_Z_prev_continue
-
-_ui_menu_util_Z_prev_done:
-    adiw r30, 1
-    pop r17
-    pop r16
-    ret
-
-
-
-
-; helper routine to move Z pointer down by n (r16) menu items
-; keeps incrementing Z until n '\0' characters were encountered
-_ui_menu_util_Z_next_nth_item:
-    tst r16                                         ; if n (r16) is 0, no adjustment to Z required
-    breq _ui_menu_util_Z_next_nth_done
-
-    push r17
-_ui_menu_util_Z_next_nth_continue:
-    lpm r17, Z+
-    tst r17
-    brne _ui_menu_util_Z_next_nth_continue
-
-    dec r16
-    brne _ui_menu_util_Z_next_nth_continue
-
-    pop r17
-_ui_menu_util_Z_next_nth_done:
-    ret
-
-
-
 
 ; ------------------------------------------------------------------------------------------------
-
 ; reusable scrollable menu component
-; takes address to the menu item names list in Z pointer
-; also takes previous selected item index in r16 and previous scroll position in r17 (state recall values)
+;
+; ui_menu_show uses a callback function passed in Z pointer
+; the callback function should:
+;   - take pointer to menu in r25:r24
+;   - take the index of the menu item in r16 and print 1 item at current cursor
+;   - return 0 in r16 if index is out of menu bounds
+;   - return 0 in r16 if the last item was reached and printed. else return whatever
+;
+; a menu from flash might use r25:r24 to point to zero terminated menu item list in flash
+; a menu from file system (directory listing) might pass pointer to directory in r25:r24
+;
+; so,
+; ui_menu_show takes:
+;   - address to the menu in r25:r24 pair
+;   - address to the callback function in r31:r30 pair (Z)
+;   - also previous selected item index in r16 and previous scroll position in r17 (state recall values)
 ; returns the selected index out of the menu items in r16; and current scroll position in r17
 ;
 ; workflow:
 ;   - setup variable registers and clear screen
-;   - use _ui_menu_util_print_item_from_Z to print one item from the menu. This leaves Z pointer in the beginning of the next item
+;   - set r16 to the item index and use icall to print one item from the menu
 ;   - repeat until
-;       - next item starts with 0 (set bit 0 in the flags variable register to indicate end of menu was reached)
+;       - icall returns 0 in r16 (set bit 0 in the flags variable register to indicate end of menu was reached)
 ;       - screen is full (OLED_MAX_PAGE number of items have been printed on screen)
 ;
 ;   - use scrolling if more than OLED_MAX_PAGE items exist in the menu (described separately below) - max menu length is 256??
@@ -150,20 +59,15 @@ _ui_menu_util_Z_next_nth_done:
 ;           also return current scroll position in r17 - menu can be recalled back to the previous state by passing back r16 and r17
 ;
 ; scrolling:
-;   - scrolling assumes that the Z pointer is pointing to the item just below the screen (required by scroll down action)
-;
 ;   - scroll down action:
-;       - to print the next menu item, jump all the way back to _ui_menu_next and print next item with _ui_menu_util_print_item_from_Z
+;       - to print the next menu item, jump all the way back to _ui_menu_next, set r16 and print next item with icall
 ;       - each scroll down action will only result in one additional item being printed
 ;
 ;   - scroll up action:
-;       - to ensure scroll down is not disrupted, while scrolling up, we also move the current Z pointer using _ui_menu_util_Z_previous_item
-;       - we then save this Z pointer - (Z1)
-;       - once we scroll up, to find the item that needs to be printed,
-;           we need to search starting from the first item of the menu and reading as many '\0' as the current item selected by the nav cursor
-;           this is done using _ui_menu_util_Z_next_nth_item helper routine where n is the current nav cursor
+;       - once we scroll up, to find the item that needs to be printed, we use current scroll position register (r23)
+;        - just as before, set r16 and print item with icall
 ui_menu_show:
-    .irp param,18,19,20,21,22,23,24,25
+    .irp param,18,19,20,21,22,23
         push r\param
     .endr
 
@@ -172,12 +76,6 @@ ui_menu_show:
     clr r22                                     ; r22 contains previous nav cursor item number.
                                                 ;       if this is different from r21, highlight operation is performed
     mov r23, r17                                ; scroll position tracker
-
-    mov r24, r30                                ; save input Z pointer value in r25:r24 (first menu item)
-    mov r25, r31
-
-    mov r16, r23
-    rcall _ui_menu_util_Z_next_nth_item         ; move Z pointer to the previous scroll position (r23 -> supplied through r17)
 
     ldi r17, UI_MENU_HOR_PADDING                ; r17 is the start column address. this can be offset?
     ldi r18, OLED_MAX_COL - UI_MENU_HOR_PADDING ; r18 is the end column address for highlighting. this can be offset too!
@@ -189,10 +87,15 @@ ui_menu_show:
 
 _ui_menu_next:
     mov r16, r19                                ; move page (row) address from r19 into t16. r17 already points to start column
-    rcall _ui_menu_util_print_item_from_Z
+    rcall i2c_lock_acquire
+    rcall oled_set_relative_cursor              ; set cursor to start writing data
 
-    lpm r16, Z                                  ; peek next byte to check if we reached the end of list
-    tst r16
+    mov r16, r19
+    add r16, r23
+    icall                                       ; call routine pointed to by r31:r30 (Z)
+    rcall i2c_lock_release
+
+    tst r16                                     ; peek next byte to check if we reached the end of list
     breq _ui_menu_last_item_shown
 
     cpi r19, OLED_MAX_PAGE                      ; check if we reached the end of the screen
@@ -204,24 +107,16 @@ _ui_menu_next:
 ; ------ this section is only used when scrolling up
 _ui_menu_scroll_prev:
     cbr r20, (1<<0)                             ; remove end of menu flag since while scrolling up, we're most likely not showing end of menu anymore
-    rcall _ui_menu_util_Z_previous_item         ; move current Z pointer back to previous item (this is the bottom of the display)
 
-    ; start at the beginning of the menu and print r21 indexed item on the top row
-    push r30
-    push r31
+    clr r16
+    rcall i2c_lock_acquire
+    rcall oled_set_relative_cursor              ; set cursor to start writing data
 
-    mov r30, r24                                ; reload original Z pointer (first menu item)
-    mov r31, r25
+    clr r16
+    add r16, r23
+    icall                                       ; call routine pointed to by r31:r30 (Z)
+    rcall i2c_lock_release
 
-    mov r16, r21
-    rcall _ui_menu_util_Z_next_nth_item         ; move Z pointer to the new cursor index (r21)
-
-    mov r16, r21
-    sub r16, r23                                ; calculate cursor page to print the item. column is already in r17
-    rcall _ui_menu_util_print_item_from_Z
-
-    pop r31
-    pop r30
     rjmp _ui_menu_navigate
 ; ------
 
@@ -308,22 +203,137 @@ _ui_menu_nav_check_ok:
     mov r16, r21                                ; if OK is pressed, return current selected item index to calling routine
     mov r17, r23                                ; also return current scroll position
                                                 ; menu can be recalled back to the previous state by passing back r16 and r17
-
-    .irp param,25,24,23,22,21,20,19,18
+_ui_menu_done:
+    .irp param,23,22,21,20,19,18
         pop r\param
     .endr
     ret
 
 
 
+
+
+
+; the ui module defines a callback routine to print an item from menu defined in flash
+;   - takes pointer to menu in r25:r24
+;   - takes the index of the menu item in r16 and print 1 item at current cursor
+;   - returns 0 in r16 if index is out of menu bounds
+;   - returns 0 in r16 if the last item was reached and printed. else return whatever
+ui_menu_print_flash_item_cb:
+    push r17
+    push r18
+    push r30
+    push r31
+
+    mov r30, r24
+    mov r31, r25
+
+    tst r16                                         ; if n (r16) is 0, no adjustment to Z required
+    breq _ui_menu_print_flash_print_Z
+
+    ldi r18, 0xff                                   ; start char counter at -1
+_ui_menu_print_flash_goto_n:
+    inc r18
+    lpm r17, Z+
+    tst r17
+    brne _ui_menu_print_flash_goto_n
+
+    tst r18                                         ; if we encounter a 0, r18 will be 0
+    breq _ui_menu_print_flash_failed
+    dec r16
+    brne _ui_menu_print_flash_goto_n
+
+_ui_menu_print_flash_print_Z:
+    rcall oled_io_open_write_data
+    rcall oled_print_flash                      ; print one entry from the list pointed by Z pointer (until \0 is encountered)
+    rcall oled_io_close
+
+    lpm r16, Z                                  ; peek next byte to check if we reached the end of list
+    rjmp _ui_menu_print_flash_done
+
+_ui_menu_print_flash_failed:
+    clr r16
+
+_ui_menu_print_flash_done:
+    pop r31
+    pop r30
+    pop r18
+    pop r17
+    ret
+
+
+
+
 ; ------------------------------------------------------------------------------------------------
 
+; reusable confirm y/n popup component
+; takes address to the confirm message in Z pointer
+; should be limited to UI_POPUP_WINDOW_CHAR_WIDTH characters
+ui_confirm_popup_show:
+    .irp param,17,18,22
+        push r\param
+    .endr
+
+    rcall internal_ui_popup_util_save_screen
+    mov r22, r16                                ; save memory pointer
+
+    ; -----------------
+    rcall internal_ui_confirm_util_display_popup
+    ; -----------------
+
+    rcall internal_ui_confirm_util_toggle_yn            ; start the navigation keyboard (blocking)
+    mov r18, r16
+
+    mov r16, r22                                ; restore screen from memory pointer
+    rcall internal_ui_popup_util_restore_screen
+
+    mov r16, r18                                ; return Y/N in r16
+
+    .irp param,22,18,17
+        pop r\param
+    .endr
+    ret
 
 
+
+
+
+; reusable alert popup component - only 1 button (OK)
+; takes address to the alert message in Z pointer
+; should be limited to UI_POPUP_WINDOW_CHAR_WIDTH characters
+ui_alert_popup_show:
+    .irp param,16,17,18
+        push r\param
+    .endr
+
+    rcall internal_ui_popup_util_save_screen
+    mov r17, r16                                ; save memory pointer
+
+    ; -----------------
+    rcall internal_ui_alert_util_display_popup
+    ; -----------------
+
+_ui_alert_wait:
+    rcall nav_kbd_start                         ; start the navigation keyboard (blocking)
+    cpi r16, NAV_OK
+    brne _ui_alert_wait
+
+    mov r16, r17                                ; restore scree from memory pointer
+    rcall internal_ui_popup_util_restore_screen
+
+    .irp param,18,17,16
+        pop r\param
+    .endr
+    ret
+
+
+
+
+; utilities
 
 ; this utility routine saves bytes from screen into dynamic ram
 ; returns pointer to this data in r16
-_ui_popup_util_save_screen:
+internal_ui_popup_util_save_screen:
     .irp param,17,18,19,20,21
         push r\param
     .endr
@@ -383,7 +393,7 @@ _ui_popup_util_read_loop:
 
 ; this utility routine restores bytes from dynamic ram onto the screen
 ; accepts pointer to this data in r16
-_ui_popup_util_restore_screen:
+internal_ui_popup_util_restore_screen:
     .irp param,17,18,19,20,21
         push r\param
     .endr
@@ -434,8 +444,55 @@ _ui_popup_util_write_loop:
 
 
 
+; calls nav_kbd_start and waits till NAV_OK is pressed. any other presses will trigger Y/N toggle
+; starts with default at 'N'
+internal_ui_confirm_util_toggle_yn:
+    .irp param,17,18,19,20
+        push r\param
+    .endr
+    clr r20
+
+_ui_confirm_util_toggle_yn_kbd:
+    rcall nav_kbd_start                         ; start the navigation keyboard (blocking)
+
+    cpi r16, NAV_OK
+    breq _ui_confirm_util_toggle_yn_done
+
+    rcall i2c_lock_acquire
+
+    ldi r17, UI_POPUP_START_COL + UI_POPUP_YN_PADDING
+    ldi r18, UI_POPUP_START_COL + UI_POPUP_YN_PADDING + (UI_POPUP_YN_CHAR_WIDTH * FONT_WIDTH) - 1   ; -1 because ugh.
+    ldi r19, UI_POPUP_START_PAGE + 1
+    rcall oled_invert_inplace_relative_page_row
+
+    ldi r17, UI_POPUP_START_COL
+    ldi r18, UI_POPUP_START_COL + UI_POPUP_WINDOW_WIDTH
+    ldi r16, ((UI_POPUP_START_PAGE + UI_POPUP_WINDOW_HEIGHT) * 8) - 1
+    rcall oled_draw_h_line_overlay
+
+    rcall i2c_lock_release
+
+    com r20
+
+    rjmp _ui_confirm_util_toggle_yn_kbd
+
+_ui_confirm_util_toggle_yn_done:
+    mov r16, r20
+    .irp param,20,19,18,17
+        pop r\param
+    .endr
+    ret
+
+
+
+
+
+
+
+
+
 ; display confirm popup formatted as required
-_ui_confirm_util_display_popup:
+internal_ui_confirm_util_display_popup:
     push r16
     push r17
     push r18
@@ -535,88 +592,12 @@ _ui_confirm_util_blanks2:
 
 
 
-; calls nav_kbd_start and waits till NAV_OK is pressed. any other presses will trigger Y/N toggle
-; starts with default at 'N'
-_ui_confirm_util_toggle_yn:
-    .irp param,17,18,19,20
-        push r\param
-    .endr
-    clr r20
-
-_ui_confirm_util_toggle_yn_kbd:
-    rcall nav_kbd_start                         ; start the navigation keyboard (blocking)
-
-    cpi r16, NAV_OK
-    breq _ui_confirm_util_toggle_yn_done
-
-    rcall i2c_lock_acquire
-
-    ldi r17, UI_POPUP_START_COL + UI_POPUP_YN_PADDING
-    ldi r18, UI_POPUP_START_COL + UI_POPUP_YN_PADDING + (UI_POPUP_YN_CHAR_WIDTH * FONT_WIDTH) - 1   ; -1 because ugh.
-    ldi r19, UI_POPUP_START_PAGE + 1
-    rcall oled_invert_inplace_relative_page_row
-
-    ldi r17, UI_POPUP_START_COL
-    ldi r18, UI_POPUP_START_COL + UI_POPUP_WINDOW_WIDTH
-    ldi r16, ((UI_POPUP_START_PAGE + UI_POPUP_WINDOW_HEIGHT) * 8) - 1
-    rcall oled_draw_h_line_overlay
-
-    rcall i2c_lock_release
-
-    com r20
-
-    rjmp _ui_confirm_util_toggle_yn_kbd
-
-_ui_confirm_util_toggle_yn_done:
-    mov r16, r20
-    .irp param,20,19,18,17
-        pop r\param
-    .endr
-    ret
-
-
-
-
-
-
-; reusable confirm y/n popup component
-; takes address to the confirm message in Z pointer
-; should be limited to UI_POPUP_WINDOW_CHAR_WIDTH characters
-ui_confirm_popup_show:
-    .irp param,17,18,22
-        push r\param
-    .endr
-
-    rcall _ui_popup_util_save_screen
-    mov r22, r16                                ; save memory pointer
-
-    ; -----------------
-    rcall _ui_confirm_util_display_popup
-    ; -----------------
-
-    rcall _ui_confirm_util_toggle_yn            ; start the navigation keyboard (blocking)
-    mov r18, r16
-
-    mov r16, r22                                ; restore screen from memory pointer
-    rcall _ui_popup_util_restore_screen
-
-    mov r16, r18                                ; return Y/N in r16
-
-    .irp param,22,18,17
-        pop r\param
-    .endr
-    ret
-
-
-
-
-
 
 
 
 
 ; display alert popup formatted as required
-_ui_alert_util_display_popup:
+internal_ui_alert_util_display_popup:
     push r16
     push r17
     push r18
@@ -710,36 +691,4 @@ _ui_alert_util_blanks1:
     pop r18
     pop r17
     pop r16
-    ret
-
-
-
-
-
-; reusable alert popup component - only 1 button (OK)
-; takes address to the alert message in Z pointer
-; should be limited to UI_POPUP_WINDOW_CHAR_WIDTH characters
-ui_alert_popup_show:
-    .irp param,16,17,18
-        push r\param
-    .endr
-
-    rcall _ui_popup_util_save_screen
-    mov r17, r16                                ; save memory pointer
-
-    ; -----------------
-    rcall _ui_alert_util_display_popup
-    ; -----------------
-
-_ui_alert_wait:
-    rcall nav_kbd_start                         ; start the navigation keyboard (blocking)
-    cpi r16, NAV_OK
-    brne _ui_alert_wait
-
-    mov r16, r17                                ; restore scree from memory pointer
-    rcall _ui_popup_util_restore_screen
-
-    .irp param,18,17,16
-        pop r\param
-    .endr
     ret

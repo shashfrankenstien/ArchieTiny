@@ -97,8 +97,10 @@ shell_home_task:
     clr r16
     clr r17
 _shell_home_show_menu:
-    ldi r30, lo8(shell_menu_apps_list)
-    ldi r31, hi8(shell_menu_apps_list)
+    ldi r24, lo8(shell_menu_apps_list)
+    ldi r25, hi8(shell_menu_apps_list)
+    ldi r30, lo8(pm(ui_menu_print_flash_item_cb))
+    ldi r31, hi8(pm(ui_menu_print_flash_item_cb))
     rcall ui_menu_show                         ; show apps menu
                                                ; let user select from shell_menu_apps_list list. rcall appropriate routine using selected index
 _shell_home_menu_0:
