@@ -61,7 +61,7 @@ $(BUILD_PREFIX).hex: $(BUILD_PREFIX).elf
 
 
 flash-avr: $(BUILD_PREFIX).hex
-	avrdude -v -p$(MCU) -cstk500v1 -P$(PORT) -b19200 -e -U efuse:w:0xff:m -U hfuse:w:0xdf:m -U lfuse:w:0xe1:m
+	avrdude -v -p$(MCU) -cstk500v1 -P$(PORT) -b19200 -e -U efuse:w:0xff:m -U hfuse:w:0xd5:m -U lfuse:w:0xe1:m
 	avrdude -P $(PORT) -c stk500v1 -b 19200 -p $(MCU) -D -U flash:w:$<:i
 
 

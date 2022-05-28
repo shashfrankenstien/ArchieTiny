@@ -160,18 +160,11 @@ _taskmanager_add_clr_reg_spaces:
     brne _taskmanager_add_clr_reg_spaces    ;   +1 byte for SREG
                                             ;   +1 because the SP will be point to the next location
 
-    lsr r17                                 ; Divide r17:r16 (task subroutine address) by 2
-    ror r16                                 ; division by 2 seems important here
-                                            ; because returning seems to be multiplying the value by 2 before calling :/
-
     st Y+, r17                              ; store function entry point address high and low bytes
     st Y+, r16                              ; note - stack should be in reverse
 
-    ldi r18, hi8(_taskmanager_task_complete)  ; store function final return address high and low bytes
-    ldi r19, lo8(_taskmanager_task_complete)  ; store function final return address high and low bytes
-
-    lsr r18                                 ; Divide r19:r18 by 2 before storing
-    ror r19
+    ldi r18, hi8(pm(_taskmanager_task_complete))  ; store function final return address high and low bytes
+    ldi r19, lo8(pm(_taskmanager_task_complete))  ; store function final return address high and low bytes
 
     st Y+, r18
     st Y, r19

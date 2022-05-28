@@ -67,7 +67,7 @@ shell_menu_apps_list:
     .asciz "fs test"
     .asciz "fs format"
     .asciz "fs_dir_make"
-    .asciz "test4"
+    .asciz "fs_dir_remove"
     .asciz "test5"
     .asciz "test6"
     .asciz "test7"
@@ -125,11 +125,9 @@ _shell_home_menu_2:
 _shell_home_menu_3:
     cpi r16, 3
     brne _shell_home_menu_4
-    mov r20, r16
     ldi r30, lo8(shell_menu_confirm_test)
     ldi r31, hi8(shell_menu_confirm_test)
     rcall ui_alert_popup_show
-    mov r16, r20
 
 _shell_home_menu_4:
     cpi r16, 4
@@ -143,13 +141,23 @@ _shell_home_menu_5:
 
 _shell_home_menu_6:
     cpi r16, 6
-    brne _shell_home_show_menu
+    brne _shell_home_menu_7
     mov r20, r16
     clr r16
     rcall fs_dir_make
     mov r16, r20
 
-    rjmp _shell_home_show_menu                 ; show menu after running selected app
+_shell_home_menu_7:
+    cpi r16, 7
+    brne _shell_home_show_menu
+    mov r20, r16
+    mov r21, r17
+    clr r16
+    clr r17
+    rcall fs_dir_remove
+    mov r16, r20
+    mov r17, r21
+    rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 
 

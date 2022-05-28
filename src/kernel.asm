@@ -53,12 +53,12 @@ main:                               ; initialize
     rcall mem_init                  ; initialize dynamic memory management (malloc)
 
     ; ui
-    ldi r17, hi8(shell_home_task)         ; add task to task manager table
-    ldi r16, lo8(shell_home_task)
+    ldi r17, hi8(pm(shell_home_task))   ; add task to task manager table
+    ldi r16, lo8(pm(shell_home_task))   ; pm() divides r17:r16 (task subroutine address) by 2
     rcall taskmanager_add
 
-    ldi r17, hi8(test3)             ; add task to task manager table
-    ldi r16, lo8(test3)
+    ldi r17, hi8(pm(test3))             ; add task to task manager table
+    ldi r16, lo8(pm(test3))
     rcall taskmanager_add
 
     cbi PORTB, LED_PIN
@@ -73,7 +73,7 @@ pool:
 
 
 test3:
-    ldi r20, 0x64                                       ; set delay
+    ldi r20, 150                                       ; set delay
 
 test3_loop:
     rcall timer_delay_ms_short
@@ -138,7 +138,7 @@ test3_loop:
 ;     mov r22, r16
 
 ;     rcall i2c_lock_acquire
-;     ldi r16, 6
+;     ldi r16, 7
 ;     ldi r17, 0            ; right top position
 ;     rcall oled_set_cursor                      ; set cursor to start writing data
 ;     mov r16, r22
@@ -158,7 +158,7 @@ test3_loop:
 ;     mov r22, r16
 
 ;     rcall i2c_lock_acquire
-;     ldi r16, 7
+;     ldi r16, 6
 ;     ldi r17, 0            ; right top position
 ;     rcall oled_set_cursor                      ; set cursor to start writing data
 ;     mov r16, r22
