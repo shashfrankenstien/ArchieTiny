@@ -37,7 +37,7 @@ sudo apt install freeglut3-dev
 # Digispark
 ### fuses
 - Low fuse: 0xe1  -- 16 MHz mode with no clock divide
-- High fuse: 0x5d -- EEPROM not preserved, Watchdog timer always on
+- High fuse: 0x5d -- EEPROM not preserved, brown-out detection enabled at 2.7v
 - Extended fuse: 0xfe -- Self-programming enabled
 
 
@@ -57,12 +57,14 @@ GND | GND | pin 4
 
 ### default fuses
 - Low fuse: 0x62  -- 8 MHz mode with clock divide by 8 (1 MHz)
-- High fuse: 0xdf -- SPI enabled
+- High fuse: 0xdf -- SPI enabled, EEPROM not preserved
 - Extended fuse: 0xff  -- Self-programming disabled
 
 ### change to 16 MHz clock
 - Low fuse: 0xe1  -- 16 MHz mode with no clock divide
 
+### change to preserve eeprom and enable brown-out detection
+- High fuse: 0xd5  -- EEPROM preserved, brown-out detection enabled at 1.8v
 
 
 -----

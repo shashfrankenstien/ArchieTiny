@@ -88,7 +88,28 @@
 
 
 
+.equ    EEPROM_SIZE,            512                          ; bytes
+.equ    EEPROM_RESERVED_SIZE,   5
 
+
+.equ    FS_FREE_SIZE,           EEPROM_SIZE - EEPROM_RESERVED_SIZE
+.equ    FS_CLUSTER_SIZE,        20
+.equ    FS_MAX_CLUSTERS,        FS_FREE_SIZE / (FS_CLUSTER_SIZE + 2)  ; +2 for doubly linked FAT
+.equ    FAT_BYTE_SIZE,          FS_MAX_CLUSTERS * 2
+
+; error handling for FS_MAX_CLUSTERS greater than 250
+.iflt 250 - FS_MAX_CLUSTERS         ; test if 250 - FS_MAX_CLUSTERS is less than 0
+    .err                            ; address overflow!
+.endif
+
+
+.equ    FATFREECTR,             EEPROM_RESERVED_SIZE         ; 1 byte free cluster counter as FS_MAX_BLOCKS is restricted to 250
+.equ    FAT_START,              FATFREECTR + 1
+.equ    FAT_END,                FAT_START + FAT_BYTE_SIZE
+
+
+
+; -------------------------------------------------
 
 ; gpio config
 .equ    LED_PIN,            1

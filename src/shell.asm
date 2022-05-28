@@ -61,16 +61,16 @@ _shell_splash_wait:                            ; wait for button press and exit
 ; passed to ui_menu_show routine
 shell_menu_apps_list:
     .asciz "splash"                            ; index 0
-    .asciz "another splash"                    ; index 1
-    .asciz "terminal"                          ; index 2
-    .asciz "malloc 1"                       ; index 3
-    .asciz "malloc 2"                       ; index 3
-    .asciz "test2"                       ; index 3
-    .asciz "test3"                       ; index 3
-    .asciz "test4"                       ; index 3
-    .asciz "test5"                       ; index 3
-    .asciz "test6"                       ; index 3
-    .asciz "test7"                       ; index 3
+    .asciz "terminal"                          ; index 1
+    .asciz "malloc 1"                          ; index 2
+    .asciz "malloc 2"
+    .asciz "fs test"
+    .asciz "fs format"
+    .asciz "fs_dir_make"
+    .asciz "test4"
+    .asciz "test5"
+    .asciz "test6"
+    .asciz "test7"
     .byte 0                                    ; end of list
 
 
@@ -111,30 +111,100 @@ _shell_home_menu_0:
 _shell_home_menu_1:
     cpi r16, 1
     brne _shell_home_menu_2
-    rcall shell_splash_screen
+    rcall terminal_app_open
 
 _shell_home_menu_2:
     cpi r16, 2
     brne _shell_home_menu_3
-    rcall terminal_app_open
-
-_shell_home_menu_3:
-    cpi r16, 3
     mov r20, r16
-    brne _shell_home_menu_4
     ldi r30, lo8(shell_menu_confirm_test)
     ldi r31, hi8(shell_menu_confirm_test)
     rcall ui_confirm_popup_show
     mov r16, r20
 
-_shell_home_menu_4:
-    cpi r16, 4
+_shell_home_menu_3:
+    cpi r16, 3
+    brne _shell_home_menu_4
     mov r20, r16
-    brne _shell_home_show_menu
     ldi r30, lo8(shell_menu_confirm_test)
     ldi r31, hi8(shell_menu_confirm_test)
     rcall ui_alert_popup_show
     mov r16, r20
 
+_shell_home_menu_4:
+    cpi r16, 4
+    brne _shell_home_menu_5
+    rcall fs_test_print
+
+_shell_home_menu_5:
+    cpi r16, 5
+    brne _shell_home_menu_6
+    rcall fs_format
+
+_shell_home_menu_6:
+    cpi r16, 6
+    brne _shell_home_show_menu
+    mov r20, r16
+    clr r16
+    rcall fs_dir_make
+    mov r16, r20
+
     rjmp _shell_home_show_menu                 ; show menu after running selected app
 
+
+
+
+
+
+
+
+
+
+
+fs_test_print:
+    .irp param,16,17,18,19,24,25
+        push r\param
+    .endr
+
+    clr r24                    ; load address low byte into register pair r25:r24
+    clr r25                    ; load address high byte into register pair r25:r24
+
+_fs_test_next_section:
+    rcall i2c_lock_acquire
+    rcall oled_clr_screen
+
+    clr r16
+_fs_test_next_line:
+    clr r17
+    rcall oled_set_cursor
+
+    ldi r18, 8
+_fs_test_next:
+    mov r19, r16
+    rcall eeprom_read
+    rcall oled_print_hex_digits
+    mov r16, r19
+    adiw r24, 1
+    dec r18
+    brne _fs_test_next
+
+    inc r16
+    cpi r16, OLED_MAX_PAGE + 1
+    brlo _fs_test_next_line
+
+    rcall i2c_lock_release
+
+_fs_test_wait:                            ; wait for button press and exit
+    sleep
+    lds r16, SREG_GPIO_PC
+    cbr r17, (1<<GPIO_BTN_0_PRS) | (1<<GPIO_BTN_1_PRS) | (1<<GPIO_BTN_2_PRS)
+    sts SREG_GPIO_PC, r17                      ; clear GPIO_BTN_x_PRS
+    sbrc r16, GPIO_BTN_0_PRS
+    rjmp _fs_test_next_section
+    sbrs r16, GPIO_BTN_1_PRS
+    rjmp _fs_test_wait
+
+    .irp param,25,24,19,18,17,16
+        pop r\param
+    .endr
+    ret

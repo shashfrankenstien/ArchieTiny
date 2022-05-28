@@ -10,7 +10,7 @@
 
 
 .equ    UI_POPUP_WINDOW_CHAR_WIDTH,   8                                                       ; 8 text characters
-.equ    UI_POPUP_WINDOW_WIDTH,        (FONT_WIDTH * UI_POPUP_WINDOW_CHAR_WIDTH)             ; 8 text characters
+.equ    UI_POPUP_WINDOW_WIDTH,        (FONT_WIDTH * UI_POPUP_WINDOW_CHAR_WIDTH)               ; 8 text characters
 .equ    UI_POPUP_WINDOW_HEIGHT,       2                                                       ; 2 rows (pages)
 
 .equ    UI_POPUP_START_COL,           (MAX_FONT_PIXELS_PER_ROW - UI_POPUP_WINDOW_WIDTH) / 2

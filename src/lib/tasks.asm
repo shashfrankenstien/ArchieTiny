@@ -153,10 +153,11 @@ _slot_found:
     st X, r29
 
     clr r23
-    .rept 18 + 1 + 1
+    ldi r22, 18 + 1 + 1
+_taskmanager_add_clr_reg_spaces:
     st Y+, r23                              ; clear spaces for registers
-    .endr                                   ;   +18 bytes for these registers => len([0,1,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31])
-                                            ;   +1 byte for SREG
+    dec r22                                 ;   +18 bytes for these registers => len([0,1,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31])
+    brne _taskmanager_add_clr_reg_spaces    ;   +1 byte for SREG
                                             ;   +1 because the SP will be point to the next location
 
     lsr r17                                 ; Divide r17:r16 (task subroutine address) by 2
