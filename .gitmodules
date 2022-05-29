@@ -4,3 +4,6 @@
 [submodule "vendor/simavr"]
 	path = vendor/simavr
 	url = https://github.com/buserror/simavr.git
+[submodule "vendor/ATTinyDebugTools"]
+	path = vendor/ATTinyDebugTools
+	url = https://github.com/shashfrankenstien/ATTinyDebugTools.git
