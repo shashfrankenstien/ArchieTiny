@@ -136,14 +136,14 @@ fs_raw_read:
 
 
 
-
+; create a new directory
 ;   - take a pointer to the parent directory cluster in r16
-; we also need the name (limited to 8 bytes) - sounds like a job for malloc
+;   - we also need the name (limited to 8 bytes) - sounds like a job for malloc pointer in r17
 fs_dir_make:
-    push r17
-    ldi r17, FS_DIR_SIGNATURE
+    push r18
+    ldi r18, FS_DIR_SIGNATURE
     rcall internal_fs_create_item
-    pop r17
+    pop r18
     ret
 
 
@@ -360,50 +360,48 @@ _fs_util_search_cluster_done:
 ; can be used to create files or directories
 ; to create a new item, we
 ;   - take a pointer to the parent directory cluster in r16
-;   - take signature in r17
-; we also need the name (limited to 8 bytes) - sounds like a job for malloc
+;   - we also need the name (limited to 8 bytes) - sounds like a job for malloc pointer in r17
+;   - take signature in r18
 ; first, we need to make room in the parent directory for the new entry
 internal_fs_create_item:
-    .irp param,17,18,19,20,21,24,25
+    .irp param,17,18,19,20,21,22,24,25
         push r\param
     .endr
 
-    mov r21, r17
-    mov r17, r16
+    mov r20, r16                                ; save parent directory cluster index for later
 
     ldi r16, FAT_END_CLUSTER_VAL
-    rcall internal_fs_search_alloc_cluster
+    rcall internal_fs_search_alloc_cluster      ; allocate a new cluster for the new item
 
     cpi r16, 0xff
     breq _fs_create_item_done ; NOT!
 
-    mov r19, r16
-    mov r16, r17
+    mov r19, r16                                ; save newly allocated cluster index in r19
+    mov r16, r20                                ; restore parent directory cluster index to r16
 
 _fs_create_item_find_end_cluster:
-    mov r17, r16
+    mov r20, r16
     rcall internal_fs_cluster_idx_to_fat
     adiw r24, 1                                 ; just read the next address
     rcall eeprom_read
     cpi r16, FAT_END_CLUSTER_VAL
     brlo _fs_create_item_find_end_cluster       ; checks for both FAT_END_CLUSTER_VAL and FAT_FREE_CLUSTER_VAL
 
-    mov r20, r17
-    mov r16, r17                                ; r17 now has last cluster index of the parent directory
+    mov r16, r20                                ; r20 now has last cluster index of the parent directory
     rcall internal_fs_cluster_idx_to_raw
 
-    ldi r17, FS_DIR_ENTRY_SIZE
-    clr r18
+    ldi r21, FS_DIR_ENTRY_SIZE                  ; look for bottom of the directory contents
+    clr r22
 _fs_create_item_find_slot:
-    rcall eeprom_read                       ; read signature byte
+    rcall eeprom_read                           ; read signature byte
     tst r16
     breq _fs_create_item_slot_found
 
-    add r24, r17
+    add r24, r21
     clr r16
     adc r25, r16
-    inc r18
-    cpi r18, (FS_CLUSTER_SIZE / FS_DIR_ENTRY_SIZE)
+    inc r22
+    cpi r22, (FS_CLUSTER_SIZE / FS_DIR_ENTRY_SIZE)
     brne _fs_create_item_find_slot
 
     ; no free slots. need to extend the directory to a new cluster
@@ -413,13 +411,13 @@ _fs_create_item_find_slot:
     breq _fs_create_item_done ; NOT!
 
 _fs_create_item_slot_found:
-    mov r16, r21
+    mov r16, r18                               ; write signature byte
     rcall eeprom_write                         ; eeprom contains 0 at this address. so use eeprom_write instead of eeprom_update
     adiw r24, FS_DIR_ENTRY_NAME_MAX_LEN + 1
     mov r16, r19
     rcall eeprom_write                         ; use eeprom_write instead of eeprom_update
 
-    cpi r18, (FS_CLUSTER_SIZE / FS_DIR_ENTRY_SIZE) - 1
+    cpi r22, (FS_CLUSTER_SIZE / FS_DIR_ENTRY_SIZE) - 1
     breq _fs_create_item_done
 
     adiw r24, 1
@@ -428,7 +426,7 @@ _fs_create_item_slot_found:
     mov r16, r19
 
 _fs_create_item_done:
-    .irp param,25,24,21,20,19,18,17
+    .irp param,25,24,22,21,20,19,18,17
         pop r\param
     .endr
     ret

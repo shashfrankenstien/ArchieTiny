@@ -1,4 +1,4 @@
-.include "config.inc"                       ; LED_PIN, GPIO_BTN_0, ADC_CHAN_0, SREG_GPIO_PC
+.include "config.inc"                       ; LED_PIN, GPIO_BTN_0, ADC_CHAN_0, SREG_GPIO_PC, ...
 
 ; gpio mode, write and read registers
 .equ    DDRB,               0x17
@@ -111,7 +111,7 @@ gpio_btn_press_isr:
     push r17
     push r20
 
-    ldi r20, 100
+    ldi r20, PC_BTN_WAIT_INTERVAL
     rcall timer_delay_clock_cycles              ; wait a bit to allow pin to stabilize
 
     lds r17, SREG_GPIO_PC

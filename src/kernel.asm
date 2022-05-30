@@ -83,7 +83,7 @@ test3_loop:
     ; ldi r16, 6
     ; ldi r17, OLED_MAX_COL - (FONT_WIDTH * 8)            ; right position
     ; rcall oled_set_cursor                      ; set cursor to start writing data
-    ; lds r16, SREG_GPIO_PC
+    ; lds r16, ADC_CHAN_0_VAL
     ; rcall oled_print_binary_digits
 
     ; ldi r16, 7
