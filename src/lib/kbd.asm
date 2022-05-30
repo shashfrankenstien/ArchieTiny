@@ -38,7 +38,7 @@ _text_kbd_show_scrub:
 
 _text_kbd_sleep_start:
     lds r16, SREG_GPIO_PC
-    cbr r16, (1<<GPIO_BTN_0_PRS) | (1<<GPIO_BTN_1_PRS) | (1<<GPIO_BTN_2_PRS)
+    cbr r16, (1<<GPIO_BTN_0_PRS)
     sts SREG_GPIO_PC, r16                      ; clear GPIO_BTN_x_PRS
 
     sleep
@@ -59,23 +59,23 @@ _text_kbd_sleep_start:
 ; PC INT buttons
 _text_kbd_handle_pc_btn_0:
     sbrs r18, GPIO_BTN_0_PRS
-    rjmp _text_kbd_handle_pc_btn_1
+    rjmp _text_kbd_sleep_start
 
     ldi r21, NAV_OK
     rjmp _text_kbd_done                        ; return that OK button was pressed
 
-_text_kbd_handle_pc_btn_1:
-    sbrs r18, GPIO_BTN_1_PRS
-    rjmp _text_kbd_handle_pc_btn_2
+; _text_kbd_handle_pc_btn_1:
+;     sbrs r18, GPIO_BTN_1_PRS
+;     rjmp _text_kbd_handle_pc_btn_2
 
-    ldi r21, NAV_OPTIONS
-    rjmp _text_kbd_done                        ; return that options button was pressed
+;     ldi r21, NAV_OPTIONS
+;     rjmp _text_kbd_done                        ; return that options button was pressed
 
-_text_kbd_handle_pc_btn_2:
-    sbrs r18, GPIO_BTN_2_PRS
-    rjmp _text_kbd_sleep_start
+; _text_kbd_handle_pc_btn_2:
+;     sbrs r18, GPIO_BTN_2_PRS
+;     rjmp _text_kbd_sleep_start
 
-    rjmp _text_kbd_sleep_start
+;     rjmp _text_kbd_sleep_start
 
 ; ADC buttons
 _text_kbd_handle_adc_btn_0:                    ; check if adc btn 0 is pressed; ACTION - return new line '\n'
@@ -170,7 +170,7 @@ nav_kbd_start:
 
 _nav_kbd_sleep_start:
     lds r16, SREG_GPIO_PC
-    cbr r16, (1<<GPIO_BTN_0_PRS) | (1<<GPIO_BTN_1_PRS) | (1<<GPIO_BTN_2_PRS)
+    cbr r16, (1<<GPIO_BTN_0_PRS)
     sts SREG_GPIO_PC, r16                      ; clear GPIO_BTN_x_PRS
 
     sleep
@@ -191,22 +191,22 @@ _nav_kbd_sleep_start:
 ; PC INT buttons
 _nav_kbd_handle_pc_btn_0:
     sbrs r18, GPIO_BTN_0_PRS
-    rjmp _nav_kbd_handle_pc_btn_1
+    rjmp _nav_kbd_handle_adc_btn_0
 
     ldi r16, NAV_OK
     rjmp _nav_kbd_done
 
-_nav_kbd_handle_pc_btn_1:
-    sbrs r18, GPIO_BTN_1_PRS
-    rjmp _nav_kbd_handle_pc_btn_2
+; _nav_kbd_handle_pc_btn_1:
+;     sbrs r18, GPIO_BTN_1_PRS
+;     rjmp _nav_kbd_handle_pc_btn_2
 
-    rjmp _nav_kbd_sleep_start
+;     rjmp _nav_kbd_sleep_start
 
-_nav_kbd_handle_pc_btn_2:
-    sbrs r18, GPIO_BTN_2_PRS
-    rjmp _nav_kbd_sleep_start
+; _nav_kbd_handle_pc_btn_2:
+;     sbrs r18, GPIO_BTN_2_PRS
+;     rjmp _nav_kbd_sleep_start
 
-    rjmp _nav_kbd_sleep_start
+;     rjmp _nav_kbd_sleep_start
 
 ; ADC buttons
 _nav_kbd_handle_adc_btn_0:                    ; check if adc btn 0 is pressed; ACTION - navigate up
@@ -245,7 +245,7 @@ _nav_kbd_handle_adc_btn_4:                    ; check if adc btn 4 is pressed; A
 
 _nav_kbd_done:
     lds r18, SREG_GPIO_PC
-    cbr r18, (1<<GPIO_BTN_0_PRS) | (1<<GPIO_BTN_1_PRS) | (1<<GPIO_BTN_2_PRS)
+    cbr r18, (1<<GPIO_BTN_0_PRS)
     sts SREG_GPIO_PC, r18                      ; clear GPIO_BTN_x_PRS
 
     .irp param,22,21,20,18

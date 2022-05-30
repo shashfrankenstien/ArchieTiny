@@ -209,15 +209,23 @@ Tasks Table is set up starting at RAM address TASK_RAM_START (Should be greater 
 - The voltages are usually below these values. just to be sure, we set the threshold to be a few counts above these values (see config.inc)
 
 ADC button        | Resistance (R2) | Voltage | ADC threshold (8 MSB precision)
-------------------|-----------------|---------|--------------
-ADC_VD_CH0_BTN_0  | 51 K            | 1.222 v | 0b01110000
-ADC_VD_CH0_BTN_1  | 68 K            | 1.395 v | 0b10000000
-ADC_VD_CH0_BTN_2  | 100 K           | 1.613 v | 0b10010100
-ADC_VD_CH0_BTN_3  | 300 K           | 2.074 v | 0b10111111
-ADC_VD_CH0_BTN_4  | 1 M             | 2.305 v | 0b11010100
+------------------|-----------------|---------|----------------------
+ADC_VD_CH0_BTN_0  | 51 K            | 1.222 v | 0x70    | 0b01110000
+ADC_VD_CH0_BTN_1  | 68 K            | 1.395 v | 0x80    | 0b10000000
+ADC_VD_CH0_BTN_2  | 100 K           | 1.613 v | 0x94    | 0b10010100
+ADC_VD_CH0_BTN_3  | 300 K           | 2.074 v | 0xbf    | 0b10111111
+ADC_VD_CH0_BTN_4  | 1 M             | 2.305 v | 0xd4    | 0b11010100
 
 
 - similarly, chanel 2 (R1 = 37 kilo ohm, VREF = VIN = vcc = 2.95 v)
+
+ADC button        | Resistance (R2) | Voltage | ADC threshold (8 MSB precision)
+------------------|-----------------|---------|----------------------
+ADC_VD_CH1_BTN_0  | 1 K             | 0.078 v | 0x06    | 0b00000110
+ADC_VD_CH1_BTN_1  | 51 K            | 1.710 v | 0x94    | 0b10100101
+ADC_VD_CH1_BTN_2  | 100 K           | 2.153 v | 0xba    | 0b10111010
+
+
 
 
 ## Dynamic heap memory allocation (malloc)

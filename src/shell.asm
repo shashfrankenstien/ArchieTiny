@@ -204,13 +204,12 @@ _fs_test_next:
 
 _fs_test_wait:                            ; wait for button press and exit
     sleep
-    lds r16, SREG_GPIO_PC
-    cbr r17, (1<<GPIO_BTN_0_PRS) | (1<<GPIO_BTN_1_PRS) | (1<<GPIO_BTN_2_PRS)
-    sts SREG_GPIO_PC, r17                      ; clear GPIO_BTN_x_PRS
-    sbrc r16, GPIO_BTN_0_PRS
-    rjmp _fs_test_next_section
-    sbrs r16, GPIO_BTN_1_PRS
-    rjmp _fs_test_wait
+    rcall nav_kbd_start
+
+    cpi r16, NAV_DOWN
+    breq _fs_test_next_section
+    cpi r16, NAV_OK
+    brne _fs_test_wait
 
     .irp param,25,24,19,18,17,16
         pop r\param

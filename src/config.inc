@@ -17,10 +17,10 @@
 .equ    SREG_ADC_VD_HLD,          SREG_GPIO_PC + 1
 ; ADC utility
 .equ    ADC_CHAN_0_VAL,           SREG_ADC_VD_HLD + 1
-.equ    ADC_CHAN_2_VAL,           ADC_CHAN_0_VAL + 1
+.equ    ADC_CHAN_1_VAL,           ADC_CHAN_0_VAL + 1
 
 ; console utility
-.equ    TEXTMODE_CURSOR_PAGE,     ADC_CHAN_2_VAL + 1          ; byte to track text-mode page address
+.equ    TEXTMODE_CURSOR_PAGE,     ADC_CHAN_1_VAL + 1          ; byte to track text-mode page address
 .equ    TEXTMODE_CURSOR_COL,      TEXTMODE_CURSOR_PAGE + 1    ; byte to track text-mode column address
 
 
@@ -114,12 +114,13 @@
 
 ; gpio config
 .equ    LED_PIN,            1
-.equ    GPIO_BTN_0,         3
-.equ    GPIO_BTN_1,         4
+.equ    GPIO_BTN_0,         4
 ; ADC voltage divider buttons
-.equ    ADC_CHAN_0,         0
-.equ    ADC_CHAN_2,         2
+.equ    ADC_CHAN_0,         0                               ; channel 0 is mapped to ADC hardware channel 0
+.equ    ADC_CHAN_1,         3                               ; channel 1 is mapped to ADC hardware channel 3
 
+.equ    ADC_CHAN_0_PIN,     5
+.equ    ADC_CHAN_1_PIN,     3
 
 ; -------------------------------------------------
 
@@ -137,43 +138,46 @@
 ;         - R2 = RESET pin pull-up = 50 kilo ohm aprox (guess??)
 ;
 ; - We set the threshold to be a few counts above these values
-
+;
 ; ADC button        | Resistance (R2) | Voltage | ADC threshold (8 MSB precision)
-; ------------------|-----------------|---------|--------------
-; ADC_VD_CH0_BTN_0  | 51 K            | 1.222 v | 0b01110000
-; ADC_VD_CH0_BTN_1  | 68 K            | 1.395 v | 0b10000000
-; ADC_VD_CH0_BTN_2  | 100 K           | 1.613 v | 0b10010100
-; ADC_VD_CH0_BTN_3  | 300 K           | 2.074 v | 0b10111111
-; ADC_VD_CH0_BTN_4  | 1 M             | 2.305 v | 0b11010100
+; ------------------|-----------------|---------|----------------------
+; ADC_VD_CH0_BTN_0  | 51 K            | 1.222 v | 0x70    | 0b01110000
+; ADC_VD_CH0_BTN_1  | 68 K            | 1.395 v | 0x80    | 0b10000000
+; ADC_VD_CH0_BTN_2  | 100 K           | 1.613 v | 0x94    | 0b10010100
+; ADC_VD_CH0_BTN_3  | 300 K           | 2.074 v | 0xbf    | 0b10111111
+; ADC_VD_CH0_BTN_4  | 1 M             | 2.305 v | 0xd4    | 0b11010100
 
 
-.equ    ADC_VD_CH0_BTN_0,       0                            ; bit corresponding to button 0
-.equ    ADC_VD_CH0_BTN_1,       1                            ; bit corresponding to button 1
-.equ    ADC_VD_CH0_BTN_2,       2                            ; bit corresponding to button 2
-.equ    ADC_VD_CH0_BTN_3,       3                            ; bit corresponding to button 3
-.equ    ADC_VD_CH0_BTN_4,       4                            ; bit corresponding to button 4
+.equ    ADC_VD_CH0_BTN_0,       0                       ; bit corresponding to button 0
+.equ    ADC_VD_CH0_BTN_1,       1                       ; bit corresponding to button 1
+.equ    ADC_VD_CH0_BTN_2,       2                       ; bit corresponding to button 2
+.equ    ADC_VD_CH0_BTN_3,       3                       ; bit corresponding to button 3
+.equ    ADC_VD_CH0_BTN_4,       4                       ; bit corresponding to button 4
 
-.equ    ADC_VD_CH0_BTN_0_TRESH, 0b01110000 + 16               ; ADC threshold for button 0
-.equ    ADC_VD_CH0_BTN_1_TRESH, 0b10000000 + 16               ; ADC threshold for button 1
-.equ    ADC_VD_CH0_BTN_2_TRESH, 0b10010100 + 16 + 8           ; ADC threshold for button 2 - slightly tuned up
-.equ    ADC_VD_CH0_BTN_3_TRESH, 0b10111111 + 16               ; ADC threshold for button 3
-.equ    ADC_VD_CH0_BTN_4_TRESH, 0b11010100 + 16               ; ADC threshold for button 4
+.equ    ADC_VD_CH0_BTN_0_TRESH, 0x70 + 16               ; ADC threshold for button 0
+.equ    ADC_VD_CH0_BTN_1_TRESH, 0x80 + 16               ; ADC threshold for button 1
+.equ    ADC_VD_CH0_BTN_2_TRESH, 0x94 + 16 + 8           ; ADC threshold for button 2 - slightly tuned up
+.equ    ADC_VD_CH0_BTN_3_TRESH, 0xbf + 16               ; ADC threshold for button 3
+.equ    ADC_VD_CH0_BTN_4_TRESH, 0xd4 + 16               ; ADC threshold for button 4
 
 ; -------------------------------------------------
 ; similarly, chanel 2 (R1 = 37 kilo ohm, VREF = VIN = vcc = 2.95 v)
 ; ADC button        | Resistance (R2) | Voltage | ADC threshold (8 MSB precision)
-; ------------------|-----------------|---------|--------------
-; ADC_VD_CH2_BTN_0  | 1 K             | 1.222 v | 0b01110000
-; ADC_VD_CH2_BTN_1  | 68 K            | 1.395 v | 0b10000000
-; ADC_VD_CH2_BTN_2  | 100 K           | 1.613 v | 0b10010100
+; ------------------|-----------------|---------|----------------------
+; ADC_VD_CH1_BTN_0  | 10 K            | 0.628 v | 0x36    | 0b00110110
+; ADC_VD_CH1_BTN_1  | 30 K            | 1.321 v | 0x72    | 0b01110010
+; ADC_VD_CH1_BTN_2  | 51 K            | 1.710 v | 0x94    | 0b10100101
 
-.equ    ADC_VD_CH2_BTN_0,       5                            ; bit corresponding to channel 2 button 0
-.equ    ADC_VD_CH2_BTN_1,       6                            ; bit corresponding to channel 2 button 1
-.equ    ADC_VD_CH2_BTN_2,       7                            ; bit corresponding to channel 2 button 2
+.equ    ADC_VD_CH1_BTN_0,       5                       ; bit corresponding to channel 1 button 0
+.equ    ADC_VD_CH1_BTN_1,       6                       ; bit corresponding to channel 1 button 1
+.equ    ADC_VD_CH1_BTN_2,       7                       ; bit corresponding to channel 1 button 2
 
-.equ    ADC_VD_CH2_BTN_0_TRESH, 6 + 16                  ; ADC threshold for channel 2 button 0
-.equ    ADC_VD_CH2_BTN_1_TRESH, 0x95 + 16               ; ADC threshold for channel 2 button 1
-.equ    ADC_VD_CH2_BTN_2_TRESH, 0xba + 16               ; ADC threshold for channel 2 button 2
+; .equ    ADC_VD_CH1_BTN_0_TRESH, 0x36 + 16               ; ADC threshold for channel 1 button 0
+; .equ    ADC_VD_CH1_BTN_1_TRESH, 0x72 + 16               ; ADC threshold for channel 1 button 1
+; .equ    ADC_VD_CH1_BTN_2_TRESH, 0x94 + 16               ; ADC threshold for channel 1 button 2
+.equ    ADC_VD_CH1_BTN_0_TRESH, 0x06 + 16               ; ADC threshold for channel 1 button 0
+.equ    ADC_VD_CH1_BTN_1_TRESH, 0x94 + 16               ; ADC threshold for channel 1 button 1
+.equ    ADC_VD_CH1_BTN_2_TRESH, 0xba + 16               ; ADC threshold for channel 1 button 2
 
 
 ; -------------------------------------------------
@@ -186,7 +190,7 @@
 ;     - Given the ADC conversion period (110 micro seconds), we should make sure multiple readings are within threshold to confirm a button press
 ;     - To be absolutely safe, we can take a bunch of readings waiting a few ms between them; report a press only if all the readings pass the same threshold
 
-.equ    ADC_BTN_NUM_RE_READS,      18
+.equ    ADC_BTN_NUM_RE_READS,      15
 .equ    ADC_BTN_RE_READ_INTERVAL,  3           ; milli seconds
 ; -------------------------------------------------
 .equ    PC_BTN_WAIT_INTERVAL,      76          ; 20 us -> see timer_delay_clock_cycles

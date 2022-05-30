@@ -40,23 +40,20 @@
 
 ; SREG_GPIO_PC - gpio status register (pin change interrupts)
 ;   - register holds 8 gpio status flags
-;      -----------------------------------------------------------------------------------------------------------------------
-;      |  N/A  |  N/A  | GPIO_BTN_2_HLD | GPIO_BTN_1_HLD | GPIO_BTN_0_HLD | GPIO_BTN_2_PRS | GPIO_BTN_1_PRS | GPIO_BTN_0_PRS |
-;      -----------------------------------------------------------------------------------------------------------------------
+;      -----------------------------------------------------------------------------------
+;      |  N/A  |  N/A  |  N/A  | GPIO_BTN_0_HLD |  N/A  |  N/A  |  N/A  | GPIO_BTN_0_PRS |
+;      -----------------------------------------------------------------------------------
 ;
 ; GPIO_BTN_x_PRS - where x is 0, 1 or 2
 ;   - flag is set when a falling edge is detected on button x
 ;   - this flag should be cleared after action is taken about the press
 ; GPIO_BTN_x_HLD - where x is 0, 1 or 2
 ;   - flag is set when a falling edge is detected and cleared when rising edge is detected on button x
+;
+; *I only GPIO_BTN_0 used for now
 
 .equ    GPIO_BTN_0_PRS,     0
-.equ    GPIO_BTN_1_PRS,     1
-.equ    GPIO_BTN_2_PRS,     2
-
-.equ    GPIO_BTN_0_HLD,     GPIO_BTN_0_PRS + 3
-.equ    GPIO_BTN_1_HLD,     GPIO_BTN_1_PRS + 3
-.equ    GPIO_BTN_2_HLD,     GPIO_BTN_2_PRS + 3
+.equ    GPIO_BTN_0_HLD,     GPIO_BTN_0_PRS + 4
 
 ; --------------------------------------------------------------------------------
 
@@ -64,9 +61,9 @@
 ; - register is dynamically updated from 'gpio_adc_vd_btn_read' and also returned in r16
 ;   - SREG_ADC_VD_HLD holds upto 8 flags indicating a button hold
 ;   - only 5 assigned for now
-;      ----------------------------------------------------------------------------------------------------
-;      |  N/A  |  N/A  |  N/A  | ADC_VD_CH0_BTN_4 | ADC_VD_CH0_BTN_3 | ADC_VD_CH0_BTN_2 | ADC_VD_CH0_BTN_1 | ADC_VD_CH0_BTN_0 |
-;      ----------------------------------------------------------------------------------------------------
+;      --------------------------------------------------------------------------------------------------------------------------------------------------------------
+;      |  ADC_VD_CH1_BTN_2  |  ADC_VD_CH1_BTN_1  |  ADC_VD_CH1_BTN_0  | ADC_VD_CH0_BTN_4 | ADC_VD_CH0_BTN_3 | ADC_VD_CH0_BTN_2 | ADC_VD_CH0_BTN_1 | ADC_VD_CH0_BTN_0 |
+;      ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 ; --------------------------------------------------------------------------------
@@ -88,11 +85,9 @@ gpio_btn_init:
     out GIMSK, r16
 
     sbi PORTB, GPIO_BTN_0                      ; pull high (active low)
-    sbi PORTB, GPIO_BTN_1                      ; pull high (active low)
     cbi DDRB, GPIO_BTN_0
-    cbi DDRB, GPIO_BTN_1
 
-    ldi r16, (1<<GPIO_BTN_0) | (1<<GPIO_BTN_1)
+    ldi r16, (1<<GPIO_BTN_0)
     out PCMSK, r16                             ; enable button 1 pin change interrupt
 
     clr r16
@@ -121,11 +116,6 @@ gpio_btn_press_isr:
     sbrc r16, GPIO_BTN_0                        ; if button is set, clear HLD flag
     cbr r17, (1<<GPIO_BTN_0_HLD)
 
-    sbrs r16, GPIO_BTN_1                        ; active low. act only if cleared
-    ori r17, (1<<GPIO_BTN_1_PRS) | (1<<GPIO_BTN_1_HLD)
-    sbrc r16, GPIO_BTN_1                        ; if button is set, clear HLD flag
-    cbr r17, (1<<GPIO_BTN_1_HLD)
-
     sts SREG_GPIO_PC, r17
 
     pop r20
@@ -139,6 +129,9 @@ gpio_btn_press_isr:
 
 ; intializes ADC (ADC_CHAN_0)
 gpio_adc_init:
+    sbi PORTB, ADC_CHAN_0_PIN                 ; enable pullup resistor
+    sbi PORTB, ADC_CHAN_1_PIN                 ; enable pullup resistor
+
     ldi r16, ADC_MUX_SETTINGS | ADC_CHAN_0    ; select ADC channel
     out ADMUX, r16
 
@@ -170,20 +163,20 @@ gpio_adc_conv_isr:
     in r16, ADMUX
     andi r16, 0x0f                            ; check MUX[3:0]
     cpi r16, ADC_CHAN_0
-    brne gpio_adc_conv_isr_chan2
+    brne gpio_adc_conv_isr_chan1
 
     in r16, ADCH                              ; read ADC converted data (high byte resolution only)
     sts ADC_CHAN_0_VAL, r16
-    ldi r16, ADC_MUX_SETTINGS | ADC_CHAN_2    ; select next ADC channel
+    ldi r16, ADC_MUX_SETTINGS | ADC_CHAN_1    ; select next ADC channel
     out ADMUX, r16
     rjmp gpio_adc_conv_isr_done
 
-gpio_adc_conv_isr_chan2:
-    cpi r16, ADC_CHAN_2
+gpio_adc_conv_isr_chan1:
+    cpi r16, ADC_CHAN_1
     brne gpio_adc_conv_isr_done
 
     in r16, ADCH                              ; read ADC converted data (high byte resolution only)
-    sts ADC_CHAN_2_VAL, r16
+    sts ADC_CHAN_1_VAL, r16
     ldi r16, ADC_MUX_SETTINGS | ADC_CHAN_0    ; select next ADC channel
     out ADMUX, r16
 
@@ -225,50 +218,50 @@ _adc_vd_handle_c0b0:
     cpi r18, ADC_VD_CH0_BTN_0_TRESH
     brsh _adc_vd_handle_c0b1
     sbr r16, (1<<ADC_VD_CH0_BTN_0)
-    rjmp _adc_vd_handle_c2b0
+    rjmp _adc_vd_handle_c1b0
 
 _adc_vd_handle_c0b1:
     cpi r18, ADC_VD_CH0_BTN_1_TRESH
     brsh _adc_vd_handle_c0b2
     sbr r16, (1<<ADC_VD_CH0_BTN_1)
-    rjmp _adc_vd_handle_c2b0
+    rjmp _adc_vd_handle_c1b0
 
 _adc_vd_handle_c0b2:
     cpi r18, ADC_VD_CH0_BTN_2_TRESH
     brsh _adc_vd_handle_c0b3
     sbr r16, (1<<ADC_VD_CH0_BTN_2)
-    rjmp _adc_vd_handle_c2b0
+    rjmp _adc_vd_handle_c1b0
 
 _adc_vd_handle_c0b3:
     cpi r18, ADC_VD_CH0_BTN_3_TRESH
     brsh _adc_vd_handle_c0b4
     sbr r16, (1<<ADC_VD_CH0_BTN_3)
-    rjmp _adc_vd_handle_c2b0
+    rjmp _adc_vd_handle_c1b0
 
 _adc_vd_handle_c0b4:
     cpi r18, ADC_VD_CH0_BTN_4_TRESH
-    brsh _adc_vd_handle_c2b0
+    brsh _adc_vd_handle_c1b0
     sbr r16, (1<<ADC_VD_CH0_BTN_4)
-    ; rjmp _adc_vd_handle_c2b0
+    ; rjmp _adc_vd_handle_c1b0
 
-_adc_vd_handle_c2b0:
-    lds r18, ADC_CHAN_2_VAL                 ; read ADC high byte into r18 (ADLAR = 1; 8 bit precision)
+_adc_vd_handle_c1b0:
+    lds r18, ADC_CHAN_1_VAL                 ; read ADC high byte into r18 (ADLAR = 1; 8 bit precision)
 
-    cpi r18, ADC_VD_CH2_BTN_0_TRESH
-    brsh _adc_vd_handle_c2b1
-    sbr r16, (1<<ADC_VD_CH2_BTN_0)
+    cpi r18, ADC_VD_CH1_BTN_0_TRESH
+    brsh _adc_vd_handle_c1b1
+    sbr r16, (1<<ADC_VD_CH1_BTN_0)
     rjmp _adc_vd_handle_btn_done
 
-_adc_vd_handle_c2b1:
-    cpi r18, ADC_VD_CH2_BTN_1_TRESH
-    brsh _adc_vd_handle_c2b2
-    sbr r16, (1<<ADC_VD_CH2_BTN_1)
+_adc_vd_handle_c1b1:
+    cpi r18, ADC_VD_CH1_BTN_1_TRESH
+    brsh _adc_vd_handle_c1b2
+    sbr r16, (1<<ADC_VD_CH1_BTN_1)
     rjmp _adc_vd_handle_btn_done
 
-_adc_vd_handle_c2b2:
-    cpi r18, ADC_VD_CH2_BTN_2_TRESH
+_adc_vd_handle_c1b2:
+    cpi r18, ADC_VD_CH1_BTN_2_TRESH
     brsh _adc_vd_handle_btn_done
-    sbr r16, (1<<ADC_VD_CH2_BTN_2)
+    sbr r16, (1<<ADC_VD_CH1_BTN_2)
     ; rjmp _adc_vd_handle_btn_done
 
 _adc_vd_handle_btn_done:
@@ -288,7 +281,7 @@ _adc_vd_handle_iter_compare:
     rjmp _adc_vd_all_done
 
 _adc_vd_all_error:
-    clr r16                                 ; if button is still pressed, or any iteration compare failed, return nothing
+    clr r16                                 ; if any iteration compare failed, or if button is still pressed, return 0 (nothing)
 
 _adc_vd_all_done:
     cbi ADCSRA, ADEN                        ; turn off ADC
