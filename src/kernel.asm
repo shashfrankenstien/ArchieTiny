@@ -80,11 +80,11 @@ test3_loop:
 
     rcall i2c_lock_acquire
 
-    ; ldi r16, 6
-    ; ldi r17, OLED_MAX_COL - (FONT_WIDTH * 8)            ; right position
-    ; rcall oled_set_cursor                      ; set cursor to start writing data
-    ; lds r16, ADC_CHAN_0_VAL
-    ; rcall oled_print_binary_digits
+    ldi r16, 6
+    ldi r17, OLED_MAX_COL - (FONT_WIDTH * 8)            ; right position
+    rcall oled_set_cursor                      ; set cursor to start writing data
+    lds r16, SREG_ADC_VD_HLD
+    rcall oled_print_binary_digits
 
     ; ldi r16, 7
     ; ldi r17, OLED_MAX_COL - (FONT_WIDTH * 8)            ; right position
@@ -134,6 +134,7 @@ test3_loop:
 ;     push r16
 ;     push r17
 ;     push r18
+;     push r22
 
 ;     mov r22, r16
 
@@ -144,6 +145,7 @@ test3_loop:
 ;     mov r16, r22
 ;     rcall oled_print_hex_digits
 ;     rcall i2c_lock_release
+;     pop r22
 ;     pop r18
 ;     pop r17
 ;     pop r16
@@ -154,7 +156,7 @@ test3_loop:
 ;     push r16
 ;     push r17
 ;     push r18
-
+;     push r22
 ;     mov r22, r16
 
 ;     rcall i2c_lock_acquire
@@ -164,6 +166,7 @@ test3_loop:
 ;     mov r16, r22
 ;     rcall oled_print_hex_digits
 ;     rcall i2c_lock_release
+;     pop r22
 ;     pop r18
 ;     pop r17
 ;     pop r16

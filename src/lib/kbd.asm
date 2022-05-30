@@ -79,7 +79,7 @@ _text_kbd_handle_pc_btn_2:
 
 ; ADC buttons
 _text_kbd_handle_adc_btn_0:                    ; check if adc btn 0 is pressed; ACTION - return new line '\n'
-    sbrs r18, ADC_VD_BTN_0
+    sbrs r18, ADC_VD_CH0_BTN_0
     rjmp _text_kbd_handle_adc_btn_1
 
     mov r16, r22                               ; copy over current page index into r16. current column index is already in r17
@@ -92,7 +92,7 @@ _text_kbd_handle_adc_btn_0:                    ; check if adc btn 0 is pressed; 
 
 
 _text_kbd_handle_adc_btn_1:                    ; check if adc btn 1 is pressed; ACTION - scrub prev
-    sbrs r18, ADC_VD_BTN_1
+    sbrs r18, ADC_VD_CH0_BTN_1
     rjmp _text_kbd_handle_adc_btn_2
 
     cpi r20, ' ' + 1                           ; lower cap at ' ' and start over at FONT_LUT_SIZE
@@ -104,7 +104,7 @@ _text_kbd_no_char_rollover_rev:
 
 
 _text_kbd_handle_adc_btn_2:                    ; check if adc btn 2 is pressed; ACTION - scrub next
-    sbrs r18, ADC_VD_BTN_2
+    sbrs r18, ADC_VD_CH0_BTN_2
     rjmp _text_kbd_handle_adc_btn_3
 
     inc r20                                    ; scrub to next character
@@ -116,7 +116,7 @@ _text_kbd_no_char_rollover:
 
 
 _text_kbd_handle_adc_btn_3:                    ; check if adc btn 3 is pressed; ACTION - return backspace '\b'
-    sbrs r18, ADC_VD_BTN_3
+    sbrs r18, ADC_VD_CH0_BTN_3
     rjmp _text_kbd_handle_adc_btn_4
 
     mov r16, r22                               ; copy over current page index into r16. current column index is already in r17
@@ -129,7 +129,7 @@ _text_kbd_handle_adc_btn_3:                    ; check if adc btn 3 is pressed; 
 
 
 _text_kbd_handle_adc_btn_4:                    ; check if adc btn 4 is pressed; ACTION - return current character
-    sbrs r18, ADC_VD_BTN_4
+    sbrs r18, ADC_VD_CH0_BTN_4
     rjmp _text_kbd_sleep_start
 
     rjmp _text_kbd_done
@@ -210,35 +210,35 @@ _nav_kbd_handle_pc_btn_2:
 
 ; ADC buttons
 _nav_kbd_handle_adc_btn_0:                    ; check if adc btn 0 is pressed; ACTION - navigate up
-    sbrs r18, ADC_VD_BTN_0
+    sbrs r18, ADC_VD_CH0_BTN_0
     rjmp _nav_kbd_handle_adc_btn_1
 
     ldi r16, NAV_UP
     rjmp _nav_kbd_done
 
 _nav_kbd_handle_adc_btn_1:                    ; check if adc btn 1 is pressed; ACTION - navigate down
-    sbrs r18, ADC_VD_BTN_1
+    sbrs r18, ADC_VD_CH0_BTN_1
     rjmp _nav_kbd_handle_adc_btn_2
 
     ldi r16, NAV_DOWN
     rjmp _nav_kbd_done
 
 _nav_kbd_handle_adc_btn_2:                    ; check if adc btn 2 is pressed; ACTION - navigate left
-    sbrs r18, ADC_VD_BTN_2
+    sbrs r18, ADC_VD_CH0_BTN_2
     rjmp _nav_kbd_handle_adc_btn_3
 
     ldi r16, NAV_LEFT
     rjmp _nav_kbd_done
 
 _nav_kbd_handle_adc_btn_3:                    ; check if adc btn 3 is pressed; ACTION - navigate right
-    sbrs r18, ADC_VD_BTN_3
+    sbrs r18, ADC_VD_CH0_BTN_3
     rjmp _nav_kbd_handle_adc_btn_4
 
     ldi r16, NAV_RIGHT
     rjmp _nav_kbd_done
 
 _nav_kbd_handle_adc_btn_4:                    ; check if adc btn 4 is pressed; ACTION - navigate OK
-    ; sbrs r18, ADC_VD_BTN_4
+    ; sbrs r18, ADC_VD_CH0_BTN_4
     ; rjmp _nav_kbd_sleep_start
 
     rjmp _nav_kbd_sleep_start

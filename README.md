@@ -178,17 +178,16 @@ Tasks Table is set up starting at RAM address TASK_RAM_START (Should be greater 
     - on rising edge interrupt (button release), GPIO_BTN_x_HLD bits are automatically cleared
 
 ### Button press (voltage divided ADC)
-- ADC ISR writes 8-bit precision byte from ADC_VD_BTNS_CHAN to ADC_VD_BTNS_VAL register. We can use this byte to identify button press and release
-- Since this method can technically support quite a few buttons, we use 2 bytes to report on press and release state (this can thus support upto 8 buttons)
+- ADC ISR writes 8-bit precision byte from ADC_CHAN_x to ADC_CHAN_x_VAL register. We can use this byte to identify button press and release
 - We need to check expected voltage levels in ascending order
-    - only 1 button can be pressed at a time.
-    - check lowest voltage threshold. If ADC reading is lower, set ADC_VD_BTN_x bit in r16 indicating press
+    - only 1 button can be pressed at a time per channel.
+    - check lowest voltage threshold. If ADC reading is lower, set ADC_VD_CHx_BTN_y bit in r16 indicating press
     - continue checking as long as no press is identified
 
 - Reading button presses (Software stabilization)
     - ADC clock speed is clk / 128. for clk = 16 MHz, ADC clock speed will be 125 kHz
     - ADC generally takes about 13 - 15 ADC clocks to perform a conversion.
-    - Let's approx to 14 which gives us a conversion frequency of ~9 kHz (i.e. once every ~110 micro seconds)
+    - Let's approx to 14 which gives us a conversion frequency of ~9 kHz (i.e. each conversion takes ~110 micro seconds)
     - We're using a 680 pF capacitor against 50 k ohm internal pull-up (RESET pin) for smoothing. So, time to charge up to 63% is (50 * 10^3 * 681 * 10^-12) = 34 micro seconds (TAO).
         We might read a wrong value during this charge / discharge time. We can assume that the capacitor will be reasonably full at 5 * TAO
     - Given the ADC conversion period (110 micro seconds), we should make sure multiple readings are within threshold to confirm a button press
@@ -207,15 +206,18 @@ Tasks Table is set up starting at RAM address TASK_RAM_START (Should be greater 
         - VIN = Vpin = 2.42 v
         - R2 = RESET pin pull-up = 50 kilo ohm aprox (guess??)
 
-- The voltages are usually below these values. just to be sure, we set the threshold to be a few counts above these values
+- The voltages are usually below these values. just to be sure, we set the threshold to be a few counts above these values (see config.inc)
 
-ADC button    | Resistance (R2) | Voltage | ADC threshold (8 MSB precision)
---------------|-----------------|---------|--------------
-ADC_VD_BTN_0  | 51 K            | 1.222 v | 0b01110000
-ADC_VD_BTN_1  | 68 K            | 1.395 v | 0b10000000
-ADC_VD_BTN_2  | 100 K           | 1.613 v | 0b10010100
-ADC_VD_BTN_3  | 300 K           | 2.074 v | 0b10111111
-ADC_VD_BTN_4  | 1 M             | 2.305 v | 0b11010100
+ADC button        | Resistance (R2) | Voltage | ADC threshold (8 MSB precision)
+------------------|-----------------|---------|--------------
+ADC_VD_CH0_BTN_0  | 51 K            | 1.222 v | 0b01110000
+ADC_VD_CH0_BTN_1  | 68 K            | 1.395 v | 0b10000000
+ADC_VD_CH0_BTN_2  | 100 K           | 1.613 v | 0b10010100
+ADC_VD_CH0_BTN_3  | 300 K           | 2.074 v | 0b10111111
+ADC_VD_CH0_BTN_4  | 1 M             | 2.305 v | 0b11010100
+
+
+- similarly, chanel 2 (R1 = 37 kilo ohm, VREF = VIN = vcc = 2.95 v)
 
 
 ## Dynamic heap memory allocation (malloc)

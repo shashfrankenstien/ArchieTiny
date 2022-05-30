@@ -21,8 +21,7 @@
                                             ; Bits 3:0 – MUX[3:0]: Analog Channel and Gain Selection Bits (0000 selects ADC0 channel)
 
 .equ    ADCSRA,             0x06            ; ADCSRA – ADC Control and Status Register A
-.equ    ADC_CTRL_A,         0b00101111      ; Bit 5 – ADATE: ADC Auto Trigger Enable
-                                            ; Bit 3 – ADIE: ADC Interrupt Enable
+.equ    ADC_CTRL_A,         0b00001111      ; Bit 3 – ADIE: ADC Interrupt Enable
                                             ; Bits 2:0 – ADPS[2:0]: ADC Prescaler Select Bits (111 divides sys clock by 128)
 ; control bits
 .equ    ADEN,               7               ; ADCSRA Bit 7 – ADEN: ADC Enable (use this to turn on and off ADC - turn off before sleep to save power)
@@ -31,7 +30,7 @@
 
 
 .equ    ADCSRB,             0x03            ; ADCSRB – ADC Control and Status Register B
-.equ    ADC_CTRL_B,         0b00000000      ; Bits 2:0 – ADTS[2:0]: ADC Auto Trigger Source (000 enable free-running mode if ADATE and ADIE are set)
+.equ    ADC_CTRL_B,         0b00000000      ; Bits 2:0 – ADTS[2:0]: ADC Auto Trigger Source (000 default. we will manually trigger using ADSC)
 
 
 .equ    ADCH,               0x05            ; ADCH – The ADC Data Register high byte (read only this when ADLAR is set)
@@ -66,7 +65,7 @@
 ;   - SREG_ADC_VD_HLD holds upto 8 flags indicating a button hold
 ;   - only 5 assigned for now
 ;      ----------------------------------------------------------------------------------------------------
-;      |  N/A  |  N/A  |  N/A  | ADC_VD_BTN_4 | ADC_VD_BTN_3 | ADC_VD_BTN_2 | ADC_VD_BTN_1 | ADC_VD_BTN_0 |
+;      |  N/A  |  N/A  |  N/A  | ADC_VD_CH0_BTN_4 | ADC_VD_CH0_BTN_3 | ADC_VD_CH0_BTN_2 | ADC_VD_CH0_BTN_1 | ADC_VD_CH0_BTN_0 |
 ;      ----------------------------------------------------------------------------------------------------
 
 
@@ -146,11 +145,10 @@ gpio_adc_init:
     ldi r16, ADC_CTRL_A                       ; set clock prescaler
     out ADCSRA, r16
 
-    ldi r16, ADC_CTRL_B                       ; set free-running mode
+    ldi r16, ADC_CTRL_B                       ; default byte 0 (all low)
     out ADCSRB, r16
 
-    sbi ADCSRA, ADEN                          ; turn on ADC
-    sbi ADCSRA, ADSC                          ; start free running ADC conversion
+    cbi ADCSRA, ADEN                          ; keep ADC off
 
     clr r16
     sts SREG_ADC_VD_HLD, r16                  ; clear ADC button status register
@@ -163,82 +161,139 @@ gpio_adc_init:
 ; - this ISR will read, use and increment ADMUX MUX[3:0]
 ;       - this will enable it to read the next configured ADC during the following ADC interrupt
 ;       - also, by reading ADMUX MUX[3:0], it can store the conversion in the correct ADC_CHAN_x_VAL register
+; - a new conversion is triggered before reti
 gpio_adc_conv_isr:
     push r16
-    in r16, ADCH
+    push r17
+    in r17, SREG
+
+    in r16, ADMUX
+    andi r16, 0x0f                            ; check MUX[3:0]
+    cpi r16, ADC_CHAN_0
+    brne gpio_adc_conv_isr_chan2
+
+    in r16, ADCH                              ; read ADC converted data (high byte resolution only)
     sts ADC_CHAN_0_VAL, r16
+    ldi r16, ADC_MUX_SETTINGS | ADC_CHAN_2    ; select next ADC channel
+    out ADMUX, r16
+    rjmp gpio_adc_conv_isr_done
+
+gpio_adc_conv_isr_chan2:
+    cpi r16, ADC_CHAN_2
+    brne gpio_adc_conv_isr_done
+
+    in r16, ADCH                              ; read ADC converted data (high byte resolution only)
+    sts ADC_CHAN_2_VAL, r16
+    ldi r16, ADC_MUX_SETTINGS | ADC_CHAN_0    ; select next ADC channel
+    out ADMUX, r16
+
+gpio_adc_conv_isr_done:
+    out SREG, r17
+    pop r17
     pop r16
+    sbi ADCSRA, ADSC                          ; start next ADC conversion
     reti
 
 
 
 ; [TODO] add comments
+; voltage levels are checked to be below each threshold
+; lowest voltage thresholds are checked first to avoid false positives
+; checks are repeated ADC_BTN_NUM_RE_READS number of times with ADC_BTN_RE_READ_INTERVAL delay between each reading
+; if all ADC_BTN_NUM_RE_READS readings are the same, button press is reported
 gpio_adc_vd_btn_read:
-    .irp param,17,18,20
+    .irp param,17,18,19,20
         push r\param
     .endr
-    clr r16
-    ldi r18, ADC_BTN_NUM_RE_READS           ; total number of consecutinve readings required
+
+    sbi ADCSRA, ADEN                        ; turn on ADC
+    sbi ADCSRA, ADSC                        ; start ADC conversions
+
+    clr r16                                 ; clear r16 to hold output
+    ldi r17, 0xff                           ; r17 will hold previous iteration r16 state. first iteration is indicated by 0xff
+
+    ldi r19, ADC_BTN_NUM_RE_READS           ; total number of consecutinve readings required
     ldi r20, ADC_BTN_RE_READ_INTERVAL       ; set sleep time
-    rjmp _adc_vd_handle_btn0
+    ; rjmp _adc_vd_handle_c0b0
 
 _adc_vd_handle_sleep_restart:
     rcall timer_delay_ms_short
 
-_adc_vd_handle_btn0:
-    lds r17, ADC_VD_BTNS_VAL                 ; read ADC high byte into r17 (ADLAR = 1; 8 bit precision)
+_adc_vd_handle_c0b0:
+    lds r18, ADC_CHAN_0_VAL                 ; read ADC high byte into r18 (ADLAR = 1; 8 bit precision)
 
-    cpi r17, ADC_VD_BTN_0_TRESH
-    brsh _adc_vd_handle_btn1
-    ldi r16, (1<<ADC_VD_BTN_0)
+    cpi r18, ADC_VD_CH0_BTN_0_TRESH
+    brsh _adc_vd_handle_c0b1
+    sbr r16, (1<<ADC_VD_CH0_BTN_0)
+    rjmp _adc_vd_handle_c2b0
+
+_adc_vd_handle_c0b1:
+    cpi r18, ADC_VD_CH0_BTN_1_TRESH
+    brsh _adc_vd_handle_c0b2
+    sbr r16, (1<<ADC_VD_CH0_BTN_1)
+    rjmp _adc_vd_handle_c2b0
+
+_adc_vd_handle_c0b2:
+    cpi r18, ADC_VD_CH0_BTN_2_TRESH
+    brsh _adc_vd_handle_c0b3
+    sbr r16, (1<<ADC_VD_CH0_BTN_2)
+    rjmp _adc_vd_handle_c2b0
+
+_adc_vd_handle_c0b3:
+    cpi r18, ADC_VD_CH0_BTN_3_TRESH
+    brsh _adc_vd_handle_c0b4
+    sbr r16, (1<<ADC_VD_CH0_BTN_3)
+    rjmp _adc_vd_handle_c2b0
+
+_adc_vd_handle_c0b4:
+    cpi r18, ADC_VD_CH0_BTN_4_TRESH
+    brsh _adc_vd_handle_c2b0
+    sbr r16, (1<<ADC_VD_CH0_BTN_4)
+    ; rjmp _adc_vd_handle_c2b0
+
+_adc_vd_handle_c2b0:
+    lds r18, ADC_CHAN_2_VAL                 ; read ADC high byte into r18 (ADLAR = 1; 8 bit precision)
+
+    cpi r18, ADC_VD_CH2_BTN_0_TRESH
+    brsh _adc_vd_handle_c2b1
+    sbr r16, (1<<ADC_VD_CH2_BTN_0)
     rjmp _adc_vd_handle_btn_done
 
-_adc_vd_handle_btn1:
-    cpi r17, ADC_VD_BTN_1_TRESH
-    brsh _adc_vd_handle_btn2
-    ldi r16, (1<<ADC_VD_BTN_1)
+_adc_vd_handle_c2b1:
+    cpi r18, ADC_VD_CH2_BTN_1_TRESH
+    brsh _adc_vd_handle_c2b2
+    sbr r16, (1<<ADC_VD_CH2_BTN_1)
     rjmp _adc_vd_handle_btn_done
 
-_adc_vd_handle_btn2:
-    cpi r17, ADC_VD_BTN_2_TRESH
-    brsh _adc_vd_handle_btn3
-    ldi r16, (1<<ADC_VD_BTN_2)
-    rjmp _adc_vd_handle_btn_done
-
-_adc_vd_handle_btn3:
-    cpi r17, ADC_VD_BTN_3_TRESH
-    brsh _adc_vd_handle_btn4
-    ldi r16, (1<<ADC_VD_BTN_3)
-    rjmp _adc_vd_handle_btn_done
-
-_adc_vd_handle_btn4:
-    cpi r17, ADC_VD_BTN_4_TRESH
+_adc_vd_handle_c2b2:
+    cpi r18, ADC_VD_CH2_BTN_2_TRESH
     brsh _adc_vd_handle_btn_done
-    ldi r16, (1<<ADC_VD_BTN_4)
-    rjmp _adc_vd_handle_btn_done
+    sbr r16, (1<<ADC_VD_CH2_BTN_2)
+    ; rjmp _adc_vd_handle_btn_done
 
 _adc_vd_handle_btn_done:
-    push r16
-    dec r18
+    cpi r17, 0xff                           ; check if in first iteration
+    brne _adc_vd_handle_iter_compare
+    mov r17, r16                            ; mov r16 to r17 in the first iteration
+_adc_vd_handle_iter_compare:
+    cpse r16, r17
+    rjmp _adc_vd_all_error                  ; if previous and current state is not same, fail with error
+    mov r17, r16                            ; save current state r16 to prev state r17
+    dec r19
     brne _adc_vd_handle_sleep_restart
 
-    pop r16
-    ldi r18, ADC_BTN_NUM_RE_READS - 1
-_adc_vd_handle_iter_compare:
-    pop r17
-    cpse r16, r17
-    clr r16
-    dec r18
-    brne _adc_vd_handle_iter_compare
-
-    lds r17, SREG_ADC_VD_HLD
+    lds r18, SREG_ADC_VD_HLD                ; finished without error. update SREG_ADC_VD_HLD
     sts SREG_ADC_VD_HLD, r16
-    cpse r16, r17                           ; compare previous and current reading. if equal, determine that the button is still pressed
+    cpse r16, r18                           ; compare previous and current reading. if equal, determine that the button is still pressed
     rjmp _adc_vd_all_done
-    clr r16                                 ; if button is still pressed, return nothing
+
+_adc_vd_all_error:
+    clr r16                                 ; if button is still pressed, or any iteration compare failed, return nothing
 
 _adc_vd_all_done:
-    .irp param,20,18,17
+    cbi ADCSRA, ADEN                        ; turn off ADC
+
+    .irp param,20,19,18,17
         pop r\param
     .endr
     ret
