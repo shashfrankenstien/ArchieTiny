@@ -197,7 +197,7 @@ _ui_menu_nav_check_down:
 
 
 _ui_menu_nav_check_ok:
-    cpi r16, NAV_OK
+    cpi r16, KBD_OK
     brne _ui_menu_navigate                      ; if nav is not OK, go back and start over
 
     mov r16, r21                                ; if OK is pressed, return current selected item index to calling routine
@@ -315,7 +315,7 @@ ui_alert_popup_show:
 
 _ui_alert_wait:
     rcall nav_kbd_start                         ; start the navigation keyboard (blocking)
-    cpi r16, NAV_OK
+    cpi r16, KBD_OK
     brne _ui_alert_wait
 
     mov r16, r17                                ; restore scree from memory pointer
@@ -444,7 +444,7 @@ _ui_popup_util_write_loop:
 
 
 
-; calls nav_kbd_start and waits till NAV_OK is pressed. any other presses will trigger Y/N toggle
+; calls nav_kbd_start and waits till KBD_OK is pressed. any other presses will trigger Y/N toggle
 ; starts with default at 'N'
 internal_ui_confirm_util_toggle_yn:
     .irp param,17,18,19,20
@@ -455,7 +455,7 @@ internal_ui_confirm_util_toggle_yn:
 _ui_confirm_util_toggle_yn_kbd:
     rcall nav_kbd_start                         ; start the navigation keyboard (blocking)
 
-    cpi r16, NAV_OK
+    cpi r16, KBD_OK
     breq _ui_confirm_util_toggle_yn_done
 
     rcall i2c_lock_acquire

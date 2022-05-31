@@ -208,7 +208,7 @@ _fs_test_wait:                            ; wait for button press and exit
 
     cpi r16, NAV_DOWN
     breq _fs_test_next_section
-    cpi r16, NAV_OK
+    cpi r16, KBD_OK
     brne _fs_test_wait
 
     .irp param,25,24,19,18,17,16

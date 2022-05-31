@@ -1,11 +1,11 @@
 .include "config.inc"                                   ; TERMINAL_PROMPT_CHAR
 
 ; this module implements a command line terminal using
-;   - gpio.asm to read button presses and stuff
-;   - sh1106.asm (oled) to display the command line terminal
+;   - lib/kbd.asm typing and reading button presses
+;   - lib/textmode.asm and drivers/sh1106.asm (oled) to display the command line terminal
 ;
-; input is directly written to oled for now
-; once we see a new line character 10 (\n),
+; input is simply written to oled for now
+; [TODO]: once we see a new line character 10 (\n),
 ;   - we can read back the full line from the oled or ram
 ;   - parsing can be done as a stream until we hit character 10 (\n)
 
@@ -43,10 +43,10 @@ _terminal_char_wait:
     rcall text_kbd_start
     mov r19, r16
 
-    cpi r17, NAV_OK
+    cpi r17, KBD_OK
     breq _terminal_char_wait
 
-    cpi r17, NAV_OPTIONS
+    cpi r17, KBD_CANCEL
     brne _terminal_char_print
 
     mov r18, r16

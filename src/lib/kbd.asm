@@ -5,14 +5,125 @@
 ;   - remove previous character (button - TBD)
 ;   - complete typing and return (button - TBD)
 
-; navigation kbd
+
+; constants to behave as enum
+.equ    KBD_OK,         0xff
+.equ    KBD_CANCEL,     0xfe
 
 .equ    NAV_UP,         0x00
 .equ    NAV_DOWN,       0x01
 .equ    NAV_LEFT,       0x02
 .equ    NAV_RIGHT,      0x03
-.equ    NAV_OK,         0xff
-.equ    NAV_OPTIONS,    0xfe
+
+
+; general button aliases
+.equ    ENTER_BTN,          ADC_VD_CH1_BTN_1
+.equ    EXIT_BTN,           ADC_VD_CH1_BTN_0
+
+; button aliases for nav_kbd_start
+.equ    NAV_UP_BTN,         ADC_VD_CH0_BTN_0
+.equ    NAV_DOWN_BTN,       ADC_VD_CH0_BTN_1
+.equ    NAV_LEFT_BTN,       ADC_VD_CH0_BTN_2
+.equ    NAV_RIGHT_BTN,      ADC_VD_CH0_BTN_3
+
+; button aliases for text_kbd_start
+.equ    SCRUB_OK_BTN,       ADC_VD_CH0_BTN_4
+.equ    SCRUB_NEXT_BTN,     ADC_VD_CH0_BTN_0
+.equ    SCRUB_PREV_BTN,     ADC_VD_CH0_BTN_1
+.equ    SCRUB_BACKSP_BTN,   ADC_VD_CH0_BTN_2
+
+
+
+
+
+
+; returns button presses in terms of navigation indications - NAV_UP, NAV_DOWN, NAV_LEFT, NAV_RIGHT, KBD_OK and KBD_CANCEL
+nav_kbd_start:
+    .irp param,18,20,21,22
+        push r\param
+    .endr
+    ; clr r21                                  ; r21 will house any control characters that need be returned
+
+_nav_kbd_sleep_start:
+    lds r16, SREG_GPIO_PC
+    cbr r16, (1<<GPIO_BTN_0_PRS)
+    sts SREG_GPIO_PC, r16                      ; clear GPIO_BTN_x_PRS
+
+    sleep
+
+    rcall gpio_adc_vd_btn_read
+    mov r18, r16
+    tst r18
+    brne _nav_kbd_handle_NAV_DOWN_BTN
+
+    lds r18, SREG_GPIO_PC
+    sbrs r18, GPIO_BTN_0_PRS                   ; PC INT button (only 1 button)
+    rjmp _nav_kbd_sleep_start
+
+    ldi r16, KBD_OK
+    rjmp _nav_kbd_done                         ; return that OK button was pressed
+
+; ADC buttons
+_nav_kbd_handle_NAV_DOWN_BTN:                  ; check if adc btn 1 is pressed; ACTION - navigate down
+    sbrs r18, NAV_DOWN_BTN
+    rjmp _nav_kbd_handle_NAV_UP_BTN
+
+    ldi r16, NAV_DOWN
+    rjmp _nav_kbd_done
+
+_nav_kbd_handle_NAV_UP_BTN:                    ; check if adc btn 0 is pressed; ACTION - navigate up
+    sbrs r18, NAV_UP_BTN
+    rjmp _nav_kbd_handle_ENTER_BTN
+
+    ldi r16, NAV_UP
+    rjmp _nav_kbd_done
+
+_nav_kbd_handle_ENTER_BTN:                     ; check if adc btn 0 is pressed; ACTION - navigate up
+    sbrs r18, ENTER_BTN
+    rjmp _nav_kbd_handle_EXIT_BTN
+
+    ldi r16, KBD_OK
+    rjmp _nav_kbd_done
+
+_nav_kbd_handle_EXIT_BTN:                      ; check if adc btn 0 is pressed; ACTION - navigate up
+    sbrs r18, EXIT_BTN
+    rjmp _nav_kbd_handle_NAV_LEFT_BTN
+
+    ldi r16, KBD_CANCEL
+    rjmp _nav_kbd_done
+
+_nav_kbd_handle_NAV_LEFT_BTN:                  ; check if adc btn 2 is pressed; ACTION - navigate left
+    sbrs r18, NAV_LEFT_BTN
+    rjmp _nav_kbd_handle_NAV_RIGHT_BTN
+
+    ldi r16, NAV_LEFT
+    rjmp _nav_kbd_done
+
+_nav_kbd_handle_NAV_RIGHT_BTN:                    ; check if adc btn 3 is pressed; ACTION - navigate right
+    sbrs r18, NAV_RIGHT_BTN
+    rjmp _nav_kbd_sleep_start
+
+    ldi r16, NAV_RIGHT
+    rjmp _nav_kbd_done
+
+; _nav_kbd_handle_adc_btn_4:                    ; check if adc btn 4 is pressed; ACTION - navigate OK
+;     ; sbrs r18, ADC_VD_CH0_BTN_4
+;     ; rjmp _nav_kbd_sleep_start
+
+;     rjmp _nav_kbd_sleep_start
+
+_nav_kbd_done:
+    lds r18, SREG_GPIO_PC
+    cbr r18, (1<<GPIO_BTN_0_PRS)
+    sts SREG_GPIO_PC, r18                      ; clear GPIO_BTN_x_PRS
+
+    .irp param,22,21,20,18
+        pop r\param
+    .endr
+    ret
+
+
+
 
 
 
@@ -28,7 +139,7 @@ text_kbd_start:
     ldi r16, ' '                               ; if we receive control character (less than ' '), we replace with first character
 
 _text_kbd_show_scrub:
-    mov r20, r16                               ; r20 will track character scrubbing
+    mov r20, r16                               ; r20 will track character scrubbing (scrub position)
     rcall textmode_put_char_inv                ; write initial scrub character from r16
 
     rcall textmode_get_cursor                  ; get and store current cursor address. this is performed after textmode_put_char_inv so that new lines are handled better
@@ -45,67 +156,27 @@ _text_kbd_sleep_start:
 
     rcall gpio_adc_vd_btn_read
     mov r18, r16
-    clr r16
-    cpse r18, r16
-    rjmp _text_kbd_handle_adc_btn_0
+    tst r18
+    brne _text_kbd_handle_SCRUB_OK_BTN
 
     lds r18, SREG_GPIO_PC
-    clr r16
-    cpse r18, r16
-    rjmp _text_kbd_handle_pc_btn_0
-
+    sbrs r18, GPIO_BTN_0_PRS                   ; PC INT button (only 1 button)
     rjmp _text_kbd_sleep_start
 
-; PC INT buttons
-_text_kbd_handle_pc_btn_0:
-    sbrs r18, GPIO_BTN_0_PRS
-    rjmp _text_kbd_sleep_start
-
-    ldi r21, NAV_OK
+    ldi r21, KBD_OK
     rjmp _text_kbd_done                        ; return that OK button was pressed
 
-; _text_kbd_handle_pc_btn_1:
-;     sbrs r18, GPIO_BTN_1_PRS
-;     rjmp _text_kbd_handle_pc_btn_2
+; ADC buttons - check each (switch case)
+_text_kbd_handle_SCRUB_OK_BTN:                 ; ACTION - return current character to caller
+    sbrs r18, SCRUB_OK_BTN
+    rjmp _text_kbd_handle_SCRUB_NEXT_BTN
 
-;     ldi r21, NAV_OPTIONS
-;     rjmp _text_kbd_done                        ; return that options button was pressed
-
-; _text_kbd_handle_pc_btn_2:
-;     sbrs r18, GPIO_BTN_2_PRS
-;     rjmp _text_kbd_sleep_start
-
-;     rjmp _text_kbd_sleep_start
-
-; ADC buttons
-_text_kbd_handle_adc_btn_0:                    ; check if adc btn 0 is pressed; ACTION - return new line '\n'
-    sbrs r18, ADC_VD_CH0_BTN_0
-    rjmp _text_kbd_handle_adc_btn_1
-
-    mov r16, r22                               ; copy over current page index into r16. current column index is already in r17
-    rcall textmode_set_cursor                  ; set cursor back to where it was before kbd was called
-    ldi r16, ' '
-    rcall textmode_put_char                    ; clear the kbd inverted character
-
-    ldi r21, '\n'
-    rjmp _text_kbd_done                        ; return '\n'
+    rjmp _text_kbd_done                        ; done section will take care of returning the selected character
 
 
-_text_kbd_handle_adc_btn_1:                    ; check if adc btn 1 is pressed; ACTION - scrub prev
-    sbrs r18, ADC_VD_CH0_BTN_1
-    rjmp _text_kbd_handle_adc_btn_2
-
-    cpi r20, ' ' + 1                           ; lower cap at ' ' and start over at FONT_LUT_SIZE
-    brsh _text_kbd_no_char_rollover_rev
-    ldi r20, ' ' + FONT_LUT_SIZE
-_text_kbd_no_char_rollover_rev:
-    dec r20                                    ; scrub to prev character
-    rjmp _text_kbd_scrub_overwrite_inplace
-
-
-_text_kbd_handle_adc_btn_2:                    ; check if adc btn 2 is pressed; ACTION - scrub next
-    sbrs r18, ADC_VD_CH0_BTN_2
-    rjmp _text_kbd_handle_adc_btn_3
+_text_kbd_handle_SCRUB_NEXT_BTN:               ; ACTION - scrub to next character
+    sbrs r18, SCRUB_NEXT_BTN
+    rjmp _text_kbd_handle_SCRUB_PREV_BTN
 
     inc r20                                    ; scrub to next character
     cpi r20, ' ' + FONT_LUT_SIZE               ; cap at FONT_LUT_SIZE and start over at ' '
@@ -115,9 +186,21 @@ _text_kbd_no_char_rollover:
     rjmp _text_kbd_scrub_overwrite_inplace
 
 
-_text_kbd_handle_adc_btn_3:                    ; check if adc btn 3 is pressed; ACTION - return backspace '\b'
-    sbrs r18, ADC_VD_CH0_BTN_3
-    rjmp _text_kbd_handle_adc_btn_4
+_text_kbd_handle_SCRUB_PREV_BTN:               ; ACTION - scrub to prev character
+    sbrs r18, SCRUB_PREV_BTN
+    rjmp _text_kbd_handle_SCRUB_BACKSP_BTN
+
+    cpi r20, ' ' + 1                           ; lower cap at ' ' and start over at FONT_LUT_SIZE
+    brsh _text_kbd_no_char_rollover_rev
+    ldi r20, ' ' + FONT_LUT_SIZE
+_text_kbd_no_char_rollover_rev:
+    dec r20                                    ; scrub to prev character
+    rjmp _text_kbd_scrub_overwrite_inplace
+
+
+_text_kbd_handle_SCRUB_BACKSP_BTN:             ; ACTION - return backspace '\b'
+    sbrs r18, SCRUB_BACKSP_BTN
+    rjmp _text_kbd_handle_ENTER_BTN
 
     mov r16, r22                               ; copy over current page index into r16. current column index is already in r17
     rcall textmode_set_cursor                  ; set cursor back to where it was before kbd was called
@@ -128,10 +211,24 @@ _text_kbd_handle_adc_btn_3:                    ; check if adc btn 3 is pressed; 
     rjmp _text_kbd_done
 
 
-_text_kbd_handle_adc_btn_4:                    ; check if adc btn 4 is pressed; ACTION - return current character
-    sbrs r18, ADC_VD_CH0_BTN_4
+_text_kbd_handle_ENTER_BTN:                    ; ACTION - return new line '\n'
+    sbrs r18, ENTER_BTN
+    rjmp _text_kbd_handle_EXIT_BTN
+
+    mov r16, r22                               ; copy over current page index into r16. current column index is already in r17
+    rcall textmode_set_cursor                  ; set cursor back to where it was before kbd was called
+    ldi r16, ' '
+    rcall textmode_put_char                    ; clear the kbd inverted character
+
+    ldi r21, '\n'
+    rjmp _text_kbd_done                        ; return '\n'
+
+
+_text_kbd_handle_EXIT_BTN:                     ; ACTION - exit application?
+    sbrs r18, EXIT_BTN
     rjmp _text_kbd_sleep_start
 
+    ldi r21, KBD_CANCEL
     rjmp _text_kbd_done
 
 
@@ -151,103 +248,6 @@ _text_kbd_done:
 
     mov r16, r20                               ; return whatever is in r20 through r16
     mov r17, r21                               ; return whatever is in r21 through r17
-    .irp param,22,21,20,18
-        pop r\param
-    .endr
-    ret
-
-
-
-
-
-
-; returns button presses in terms of navigation indications - UP, DOWN, LEFT, RIGHT
-nav_kbd_start:
-    .irp param,18,20,21,22
-        push r\param
-    .endr
-    ; clr r21                                    ; r21 will house any control characters that need be returned
-
-_nav_kbd_sleep_start:
-    lds r16, SREG_GPIO_PC
-    cbr r16, (1<<GPIO_BTN_0_PRS)
-    sts SREG_GPIO_PC, r16                      ; clear GPIO_BTN_x_PRS
-
-    sleep
-
-    rcall gpio_adc_vd_btn_read
-    mov r18, r16
-    clr r16
-    cpse r18, r16
-    rjmp _nav_kbd_handle_adc_btn_0
-
-    lds r18, SREG_GPIO_PC
-    clr r16
-    cpse r18, r16
-    rjmp _nav_kbd_handle_pc_btn_0
-
-    rjmp _nav_kbd_sleep_start
-
-; PC INT buttons
-_nav_kbd_handle_pc_btn_0:
-    sbrs r18, GPIO_BTN_0_PRS
-    rjmp _nav_kbd_handle_adc_btn_0
-
-    ldi r16, NAV_OK
-    rjmp _nav_kbd_done
-
-; _nav_kbd_handle_pc_btn_1:
-;     sbrs r18, GPIO_BTN_1_PRS
-;     rjmp _nav_kbd_handle_pc_btn_2
-
-;     rjmp _nav_kbd_sleep_start
-
-; _nav_kbd_handle_pc_btn_2:
-;     sbrs r18, GPIO_BTN_2_PRS
-;     rjmp _nav_kbd_sleep_start
-
-;     rjmp _nav_kbd_sleep_start
-
-; ADC buttons
-_nav_kbd_handle_adc_btn_0:                    ; check if adc btn 0 is pressed; ACTION - navigate up
-    sbrs r18, ADC_VD_CH0_BTN_0
-    rjmp _nav_kbd_handle_adc_btn_1
-
-    ldi r16, NAV_UP
-    rjmp _nav_kbd_done
-
-_nav_kbd_handle_adc_btn_1:                    ; check if adc btn 1 is pressed; ACTION - navigate down
-    sbrs r18, ADC_VD_CH0_BTN_1
-    rjmp _nav_kbd_handle_adc_btn_2
-
-    ldi r16, NAV_DOWN
-    rjmp _nav_kbd_done
-
-_nav_kbd_handle_adc_btn_2:                    ; check if adc btn 2 is pressed; ACTION - navigate left
-    sbrs r18, ADC_VD_CH0_BTN_2
-    rjmp _nav_kbd_handle_adc_btn_3
-
-    ldi r16, NAV_LEFT
-    rjmp _nav_kbd_done
-
-_nav_kbd_handle_adc_btn_3:                    ; check if adc btn 3 is pressed; ACTION - navigate right
-    sbrs r18, ADC_VD_CH0_BTN_3
-    rjmp _nav_kbd_handle_adc_btn_4
-
-    ldi r16, NAV_RIGHT
-    rjmp _nav_kbd_done
-
-_nav_kbd_handle_adc_btn_4:                    ; check if adc btn 4 is pressed; ACTION - navigate OK
-    ; sbrs r18, ADC_VD_CH0_BTN_4
-    ; rjmp _nav_kbd_sleep_start
-
-    rjmp _nav_kbd_sleep_start
-
-_nav_kbd_done:
-    lds r18, SREG_GPIO_PC
-    cbr r18, (1<<GPIO_BTN_0_PRS)
-    sts SREG_GPIO_PC, r18                      ; clear GPIO_BTN_x_PRS
-
     .irp param,22,21,20,18
         pop r\param
     .endr
