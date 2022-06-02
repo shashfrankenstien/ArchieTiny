@@ -8,6 +8,11 @@
 - https://ftp.gnu.org/pub/old-gnu/Manuals/gas-2.9.1/html_chapter/as_7.html
 
 
+### Portability (CR2477 at 1000 mAh??)
+- https://www.batteriesandbutter.com/coin_batttery_chart.html
+- http://howardtechnical.com/voltage-divider-calculator/
+
+
 ## Debugging
 - https://github.com/vince-br-549/ESP8266-as-ISP
 - https://randomnerdtutorials.com/arduino-poor-mans-oscilloscope/
@@ -63,10 +68,15 @@ GND | GND | pin 4
 ### change to 16 MHz clock
 - Low fuse: 0xe1  -- 16 MHz mode with no clock divide
 
-### change to preserve eeprom and enable brown-out detection
-- High fuse: 0xd5  -- EEPROM preserved, brown-out detection enabled at 1.8v
+### change to preserve eeprom
+- High fuse: 0xd7  -- EEPROM preserved
 
 
+# Power Management
+- disable Timer1 since we are not using that for anything at the moment (PRR bit 3)
+- disable brown-out detection (maybe worth setting to 1.8 volts. see high fuse)
+- MCUCR – MCU Control Register - Bit 5 – SE: Sleep Enable
+    - The SE bit must be written to logic one to make the MCU enter the sleep mode when the SLEEP instruction is executed
 -----
 
 # ArchieTiny implementation NOTES

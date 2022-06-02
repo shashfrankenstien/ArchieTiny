@@ -17,32 +17,39 @@
 
 
 ; general button aliases
-.equ    ENTER_BTN,          ADC_VD_CH1_BTN_1
-.equ    EXIT_BTN,           ADC_VD_CH1_BTN_0
+.equ    ENTER_BTN,          ADC_VD_CH1_BTN_0
+.equ    EXIT_BTN,           ADC_VD_CH1_BTN_1
 
 ; button aliases for nav_kbd_start
-.equ    NAV_UP_BTN,         ADC_VD_CH0_BTN_0
-.equ    NAV_DOWN_BTN,       ADC_VD_CH0_BTN_1
-.equ    NAV_LEFT_BTN,       ADC_VD_CH0_BTN_2
-.equ    NAV_RIGHT_BTN,      ADC_VD_CH0_BTN_3
+; .equ    NAV_UP_BTN,         ADC_VD_CH0_BTN_0
+; .equ    NAV_DOWN_BTN,       ADC_VD_CH0_BTN_1
+; .equ    NAV_LEFT_BTN,       ADC_VD_CH0_BTN_2
+; .equ    NAV_RIGHT_BTN,      ADC_VD_CH0_BTN_3
+
+.equ    NAV_UP_BTN,         ADC_VD_CH0_BTN_2
+.equ    NAV_DOWN_BTN,       ADC_VD_CH0_BTN_3
+.equ    NAV_LEFT_BTN,       ADC_VD_CH0_BTN_1
+.equ    NAV_RIGHT_BTN,      ADC_VD_CH0_BTN_0
 
 ; button aliases for text_kbd_start
+; .equ    SCRUB_OK_BTN,       ADC_VD_CH0_BTN_4
+; .equ    SCRUB_NEXT_BTN,     ADC_VD_CH0_BTN_0
+; .equ    SCRUB_PREV_BTN,     ADC_VD_CH0_BTN_1
+; .equ    SCRUB_BACKSP_BTN,   ADC_VD_CH0_BTN_2
+; .equ    SCRUB_SPACE_BTN,    ADC_VD_CH0_BTN_3
+
 .equ    SCRUB_OK_BTN,       ADC_VD_CH0_BTN_4
-.equ    SCRUB_NEXT_BTN,     ADC_VD_CH0_BTN_0
-.equ    SCRUB_PREV_BTN,     ADC_VD_CH0_BTN_1
-.equ    SCRUB_BACKSP_BTN,   ADC_VD_CH0_BTN_2
-
-
+.equ    SCRUB_NEXT_BTN,     ADC_VD_CH0_BTN_2
+.equ    SCRUB_PREV_BTN,     ADC_VD_CH0_BTN_3
+.equ    SCRUB_BACKSP_BTN,   ADC_VD_CH0_BTN_1
+.equ    SCRUB_SPACE_BTN,    ADC_VD_CH0_BTN_0
 
 
 
 
 ; returns button presses in terms of navigation indications - NAV_UP, NAV_DOWN, NAV_LEFT, NAV_RIGHT, KBD_OK and KBD_CANCEL
 nav_kbd_start:
-    .irp param,18,20,21,22
-        push r\param
-    .endr
-    ; clr r21                                  ; r21 will house any control characters that need be returned
+    push r18
 
 _nav_kbd_sleep_start:
     lds r16, SREG_GPIO_PC
@@ -117,9 +124,7 @@ _nav_kbd_done:
     cbr r18, (1<<GPIO_BTN_0_PRS)
     sts SREG_GPIO_PC, r18                      ; clear GPIO_BTN_x_PRS
 
-    .irp param,22,21,20,18
-        pop r\param
-    .endr
+    pop r18
     ret
 
 
@@ -188,7 +193,7 @@ _text_kbd_no_char_rollover:
 
 _text_kbd_handle_SCRUB_PREV_BTN:               ; ACTION - scrub to prev character
     sbrs r18, SCRUB_PREV_BTN
-    rjmp _text_kbd_handle_SCRUB_BACKSP_BTN
+    rjmp _text_kbd_handle_SCRUB_SPACE_BTN
 
     cpi r20, ' ' + 1                           ; lower cap at ' ' and start over at FONT_LUT_SIZE
     brsh _text_kbd_no_char_rollover_rev
@@ -196,6 +201,14 @@ _text_kbd_handle_SCRUB_PREV_BTN:               ; ACTION - scrub to prev characte
 _text_kbd_no_char_rollover_rev:
     dec r20                                    ; scrub to prev character
     rjmp _text_kbd_scrub_overwrite_inplace
+
+
+_text_kbd_handle_SCRUB_SPACE_BTN:             ; ACTION - return space ' '
+    sbrs r18, SCRUB_SPACE_BTN
+    rjmp _text_kbd_handle_SCRUB_BACKSP_BTN
+
+    ldi r21, ' '
+    rjmp _text_kbd_done
 
 
 _text_kbd_handle_SCRUB_BACKSP_BTN:             ; ACTION - return backspace '\b'
@@ -246,8 +259,8 @@ _text_kbd_done:
     mov r16, r22                               ; copy over current page index into r16. current column index is already in r17
     rcall textmode_set_cursor                  ; set cursor back to where it was before kbd was called
 
-    mov r16, r20                               ; return whatever is in r20 through r16
-    mov r17, r21                               ; return whatever is in r21 through r17
+    mov r16, r20                               ; return whatever is in r20 through r16 (character at scrub position)
+    mov r17, r21                               ; return whatever is in r21 through r17 (control character)
     .irp param,22,21,20,18
         pop r\param
     .endr

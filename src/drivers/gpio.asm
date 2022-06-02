@@ -213,7 +213,7 @@ _adc_vd_handle_sleep_restart:
     rcall timer_delay_ms_short
 
 _adc_vd_handle_c0b0:
-    lds r18, ADC_CHAN_0_VAL                 ; read ADC high byte into r18 (ADLAR = 1; 8 bit precision)
+    lds r18, ADC_CHAN_0_VAL                 ; read ADC byte into r18 (ADLAR = 1; 8 bit precision)
 
     cpi r18, ADC_VD_CH0_BTN_0_TRESH
     brsh _adc_vd_handle_c0b1
@@ -245,7 +245,7 @@ _adc_vd_handle_c0b4:
     ; rjmp _adc_vd_handle_c1b0
 
 _adc_vd_handle_c1b0:
-    lds r18, ADC_CHAN_1_VAL                 ; read ADC high byte into r18 (ADLAR = 1; 8 bit precision)
+    lds r18, ADC_CHAN_1_VAL                 ; read ADC byte into r18 (ADLAR = 1; 8 bit precision)
 
     cpi r18, ADC_VD_CH1_BTN_0_TRESH
     brsh _adc_vd_handle_c1b1

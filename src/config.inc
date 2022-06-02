@@ -164,20 +164,17 @@
 ; similarly, chanel 2 (R1 = 37 kilo ohm, VREF = VIN = vcc = 2.95 v)
 ; ADC button        | Resistance (R2) | Voltage | ADC threshold (8 MSB precision)
 ; ------------------|-----------------|---------|----------------------
-; ADC_VD_CH1_BTN_0  | 10 K            | 0.628 v | 0x36    | 0b00110110
-; ADC_VD_CH1_BTN_1  | 30 K            | 1.321 v | 0x72    | 0b01110010
+; ADC_VD_CH1_BTN_0  | 5.1 K           | 0.357 v | 0x1f    | 0b00011111
+; ADC_VD_CH1_BTN_1  | 20 K            | 1.035 v | 0x59    | 0b01011001
 ; ADC_VD_CH1_BTN_2  | 51 K            | 1.710 v | 0x94    | 0b10100101
 
 .equ    ADC_VD_CH1_BTN_0,       5                       ; bit corresponding to channel 1 button 0
 .equ    ADC_VD_CH1_BTN_1,       6                       ; bit corresponding to channel 1 button 1
 .equ    ADC_VD_CH1_BTN_2,       7                       ; bit corresponding to channel 1 button 2
 
-; .equ    ADC_VD_CH1_BTN_0_TRESH, 0x36 + 16               ; ADC threshold for channel 1 button 0
-; .equ    ADC_VD_CH1_BTN_1_TRESH, 0x72 + 16               ; ADC threshold for channel 1 button 1
-; .equ    ADC_VD_CH1_BTN_2_TRESH, 0x94 + 16               ; ADC threshold for channel 1 button 2
-.equ    ADC_VD_CH1_BTN_0_TRESH, 0x06 + 16               ; ADC threshold for channel 1 button 0
-.equ    ADC_VD_CH1_BTN_1_TRESH, 0x94 + 16               ; ADC threshold for channel 1 button 1
-.equ    ADC_VD_CH1_BTN_2_TRESH, 0xba + 16               ; ADC threshold for channel 1 button 2
+.equ    ADC_VD_CH1_BTN_0_TRESH, 0x1f + 16               ; ADC threshold for channel 1 button 0
+.equ    ADC_VD_CH1_BTN_1_TRESH, 0x59 + 16               ; ADC threshold for channel 1 button 1
+.equ    ADC_VD_CH1_BTN_2_TRESH, 0x94 + 16               ; ADC threshold for channel 1 button 2
 
 
 ; -------------------------------------------------

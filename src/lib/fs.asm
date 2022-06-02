@@ -455,6 +455,9 @@ internal_fs_remove_item:
     mov r18, r16
     pop r16
 
+    cpi r18, FS_MAX_CLUSTERS - 1                ; excluding root directory
+    brsh _fs_remove_item_done ; NOT!
+
     rcall internal_fs_dir_item_idx_to_raw
 
     tst r16                                     ; test signature byte

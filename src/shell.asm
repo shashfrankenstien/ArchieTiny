@@ -107,11 +107,13 @@ _shell_home_menu_0:
     cpi r16, 0
     brne _shell_home_menu_1
     rcall shell_splash_screen
+    rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 _shell_home_menu_1:
     cpi r16, 1
     brne _shell_home_menu_2
     rcall terminal_app_open
+    rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 _shell_home_menu_2:
     cpi r16, 2
@@ -121,6 +123,7 @@ _shell_home_menu_2:
     ldi r31, hi8(shell_menu_confirm_test)
     rcall ui_confirm_popup_show
     mov r16, r20
+    rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 _shell_home_menu_3:
     cpi r16, 3
@@ -128,16 +131,19 @@ _shell_home_menu_3:
     ldi r30, lo8(shell_menu_confirm_test)
     ldi r31, hi8(shell_menu_confirm_test)
     rcall ui_alert_popup_show
+    rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 _shell_home_menu_4:
     cpi r16, 4
     brne _shell_home_menu_5
     rcall fs_test_print
+    rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 _shell_home_menu_5:
     cpi r16, 5
     brne _shell_home_menu_6
     rcall fs_format
+    rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 _shell_home_menu_6:
     cpi r16, 6
@@ -146,6 +152,7 @@ _shell_home_menu_6:
     clr r16
     rcall fs_dir_make
     mov r16, r20
+    rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 _shell_home_menu_7:
     cpi r16, 7
@@ -158,8 +165,6 @@ _shell_home_menu_7:
     mov r16, r20
     mov r17, r21
     rjmp _shell_home_show_menu                 ; show menu after running selected option
-
-
 
 
 
