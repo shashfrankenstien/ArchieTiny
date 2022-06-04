@@ -20,8 +20,8 @@ shell_splash_screen:
     ldi r16, 0x66
     ldi r17, ((OLED_MAX_COL - (FONT_WIDTH * hello_world_len) - 8) / 2)          ; x1 - position at the center with 8/2 pixels of padding on either side
     ldi r18, OLED_MAX_COL - ((OLED_MAX_COL - (FONT_WIDTH * hello_world_len) - 8) / 2)    ; x2
-    ldi r19, (2 * 8) + 5                                ; y1
-    ldi r20, (4 * 8) + 3                                ; y2
+    ldi r19, (1 * 8) + 5                                ; y1
+    ldi r20, (5 * 8) + 3                                ; y2
     rcall oled_fill_rect_by_pixel                       ; fill oled with data in r16
 
     ; =========

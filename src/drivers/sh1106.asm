@@ -642,9 +642,10 @@ _rect_page_n_done:
     dec r20                                    ; iterator for intermediate pages
     inc r19                                    ; start from the second page since first one is already handled (y1)
 
-    mov r16, r22                               ; load back the fill byte that was originally saved away
 _rect_next_page2:                              ; iterate intermediate pages
+    mov r16, r22                               ; load back the fill byte that was originally saved away
     rcall oled_fill_page_row
+    inc r19
     dec r20
     brne _rect_next_page2
 
