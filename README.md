@@ -1,5 +1,11 @@
 # Archie Tiny OS (ATtiny85)
 
+
+<p align="center">
+  <img  src="imgs/ArchieTiny_01.jpg" height=500px>
+</p>
+
+
 - https://www.youtube.com/playlist?list=PLuCmHWky5GN4iyRNNchJ4GMcVCSOgdOvc
 - http://www.avr-asm-tutorial.net/
 - https://blog.oddbit.com/post/2019-01-22-debugging-attiny-code-pt-1/
