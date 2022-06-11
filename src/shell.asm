@@ -63,14 +63,17 @@ shell_menu_apps_list:
     .asciz "splash"                            ; index 0
     .asciz "terminal"                          ; index 1
     .asciz "malloc 1"                          ; index 2
-    .asciz "malloc 2"
-    .asciz "fs test"
-    .asciz "fs format"
-    .asciz "fs_dir_make"
-    .asciz "fs_dir_remove"
-    .asciz "test5"
-    .asciz "test6"
-    .asciz "test7"
+    .asciz "malloc 2"                          ; index 3
+    .asciz "fs test"                           ; index 4
+    .asciz "fs format"                         ; index 5
+    .asciz "fs_dir_make"                       ; index 6
+    .asciz "fs_dir_remove"                     ; index 7
+    .asciz "scan i2c"                          ; index 8
+    .asciz "fram test"                         ; index 9
+    .asciz "fram write"                        ; index 10
+    .asciz "test"                              ; index 11
+    .asciz "test2"                             ; index 12
+    .asciz "test3"                             ; index 13
     .byte 0                                    ; end of list
 
 
@@ -156,7 +159,7 @@ _shell_home_menu_6:
 
 _shell_home_menu_7:
     cpi r16, 7
-    brne _shell_home_show_menu
+    brne _shell_home_menu_8
     mov r20, r16
     mov r21, r17
     clr r16
@@ -166,8 +169,78 @@ _shell_home_menu_7:
     mov r17, r21
     rjmp _shell_home_show_menu                 ; show menu after running selected option
 
+_shell_home_menu_8:
+    cpi r16, 8
+    brne _shell_home_menu_9
+    rcall shell_i2c_scanner
+    rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 
+_shell_home_menu_9:
+    cpi r16, 9
+    brne _shell_home_menu_10
+    rcall fram_test_print
+    rjmp _shell_home_show_menu                 ; show menu after running selected option
+
+_shell_home_menu_10:
+    cpi r16, 10
+    brne _shell_home_show_menu
+    rcall fram_test_write
+    rjmp _shell_home_show_menu                 ; show menu after running selected option
+
+
+
+
+
+
+
+
+
+shell_i2c_scanner:
+    push r16
+    push r17
+
+    clr r16
+    clr r17
+    rcall i2c_lock_acquire
+
+    rcall oled_clr_screen
+    rcall oled_set_cursor
+
+    ldi r16, 0x77                               ; 0x78 - 0x7f are only for PCA9685. ignoring this because mb85rc64 is ACKing 0x7c???? :/
+_shell_i2c_scanner_next:
+    mov r17, r16
+    lsl r16
+    rcall i2c_do_start_condition
+    rcall i2c_send_byte
+    rcall i2c_do_stop_condition
+
+    lsr r16                                     ; ACK bit is moved into carry flag -> carry is cleared on successful ACK
+    brcs _shell_i2c_scanner_noprint
+
+    mov r16, r17
+    rcall oled_print_hex_digits
+    rcall oled_io_open_write_data               ; this tells the device to expect a list of data bytes until stop condition
+    ldi r16, ' '
+    rcall oled_io_put_char
+    rcall oled_io_close
+
+_shell_i2c_scanner_noprint:
+    mov r16, r17
+    dec r16
+    brne _shell_i2c_scanner_next
+
+    rcall i2c_lock_release
+_shell_i2c_scanner_wait:                        ; wait for button press and exit
+    sleep
+    rcall nav_kbd_start
+
+    cpi r16, KBD_OK
+    brne _shell_i2c_scanner_wait
+
+    pop r17
+    pop r16
+    ret
 
 
 
@@ -215,6 +288,93 @@ _fs_test_wait:                            ; wait for button press and exit
     breq _fs_test_next_section
     cpi r16, KBD_OK
     brne _fs_test_wait
+
+    .irp param,25,24,19,18,17,16
+        pop r\param
+    .endr
+    ret
+
+
+
+
+
+
+fram_test_write:
+    .irp param,16,17,24,25
+        push r\param
+    .endr
+
+    clr r24                    ; load address low byte into register pair r25:r24
+    clr r25                    ; load address high byte into register pair r25:r24
+
+    rcall i2c_lock_acquire
+    rcall fram_io_open_writer
+    ldi r17, 20
+
+_fram_test_write_next:
+    mov r16, r17
+    rcall i2c_send_byte
+    dec r17
+    brne _fram_test_write_next
+
+    rcall fram_io_close
+    rcall i2c_lock_release
+
+    .irp param,25,24,17,16
+        pop r\param
+    .endr
+    ret
+
+
+
+
+fram_test_print:
+    .irp param,16,17,18,19,24,25
+        push r\param
+    .endr
+
+    clr r24                    ; load address low byte into register pair r25:r24
+    clr r25                    ; load address high byte into register pair r25:r24
+
+_fram_test_next_section:
+    rcall oled_lock_acquire
+    rcall i2c_lock_acquire
+    rcall oled_clr_screen
+    rcall i2c_lock_release
+
+    clr r16
+_fram_test_next_line:
+    clr r17
+    rcall i2c_lock_acquire
+    rcall oled_set_cursor
+    rcall i2c_lock_release
+
+    ldi r18, 8
+_fram_test_next:
+    mov r19, r16
+    rcall fram_read
+    rcall i2c_lock_acquire
+    rcall oled_print_hex_digits
+    rcall i2c_lock_release
+    mov r16, r19
+    adiw r24, 1
+    dec r18
+    brne _fram_test_next
+
+    inc r16
+    cpi r16, OLED_MAX_PAGE + 1
+    brlo _fram_test_next_line
+
+    rcall oled_lock_release
+
+_fram_test_wait:                            ; wait for button press and exit
+    sleep
+    rcall nav_kbd_start
+
+    cpi r16, NAV_DOWN
+    breq _fram_test_next_section
+    cpi r16, KBD_OK
+    brne _fram_test_wait
 
     .irp param,25,24,19,18,17,16
         pop r\param

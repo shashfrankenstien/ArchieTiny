@@ -78,6 +78,7 @@ test3:
 test3_loop:
     rcall timer_delay_ms_short
 
+    rcall oled_lock_acquire
     rcall i2c_lock_acquire
 
     ; ldi r16, 6
@@ -134,6 +135,7 @@ test3_loop:
 ;     brne test3_write_loop
 
     rcall i2c_lock_release
+    rcall oled_lock_release
     rjmp test3_loop
 
 

@@ -162,6 +162,7 @@ Tasks Table is set up starting at RAM address TASK_RAM_START (Should be greater 
 
 
 ## OLED display (using I2C)
+- In SH1106 driver, 128x64 OLED is centered in most cases within the 132x64 ram, that means pixel (2,0) in ram is pixel (0,0) on the display
 - SH1106 Command Table is on page 30 of the datasheet
 - documentation and resources recommend sleeping for 100 ms before displaying anything on the screen
 - fonts - https://github.com/Tecate/bitmap-fonts - see vendor/bdf_fonts for more

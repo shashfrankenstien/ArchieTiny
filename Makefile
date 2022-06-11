@@ -11,8 +11,9 @@ SRC=src/kernel.asm \
 	src/lib/mem.asm \
 	src/drivers/usi_i2c.asm \
 	src/drivers/gpio.asm \
-	src/drivers/sh1106.asm \
 	src/drivers/eeprom.asm \
+	src/drivers/sh1106.asm \
+	src/drivers/mb85rc64.asm \
 	src/lib/textmode.asm \
 	src/lib/kbd.asm \
 	src/lib/fs.asm \

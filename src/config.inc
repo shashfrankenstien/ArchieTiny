@@ -172,9 +172,9 @@
 .equ    ADC_VD_CH1_BTN_1,       6                       ; bit corresponding to channel 1 button 1
 .equ    ADC_VD_CH1_BTN_2,       7                       ; bit corresponding to channel 1 button 2
 
-.equ    ADC_VD_CH1_BTN_0_TRESH, 0x1f + 16               ; ADC threshold for channel 1 button 0
-.equ    ADC_VD_CH1_BTN_1_TRESH, 0x59 + 16               ; ADC threshold for channel 1 button 1
-.equ    ADC_VD_CH1_BTN_2_TRESH, 0x94 + 16               ; ADC threshold for channel 1 button 2
+.equ    ADC_VD_CH1_BTN_0_TRESH, 0x1f + 20               ; ADC threshold for channel 1 button 0
+.equ    ADC_VD_CH1_BTN_1_TRESH, 0x59 + 20               ; ADC threshold for channel 1 button 1
+.equ    ADC_VD_CH1_BTN_2_TRESH, 0x94 + 20               ; ADC threshold for channel 1 button 2
 
 
 ; -------------------------------------------------

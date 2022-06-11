@@ -21,28 +21,28 @@
 .equ    EXIT_BTN,           ADC_VD_CH1_BTN_1
 
 ; button aliases for nav_kbd_start
-; .equ    NAV_UP_BTN,         ADC_VD_CH0_BTN_0
-; .equ    NAV_DOWN_BTN,       ADC_VD_CH0_BTN_1
-; .equ    NAV_LEFT_BTN,       ADC_VD_CH0_BTN_2
-; .equ    NAV_RIGHT_BTN,      ADC_VD_CH0_BTN_3
+.equ    NAV_UP_BTN,         ADC_VD_CH0_BTN_0
+.equ    NAV_DOWN_BTN,       ADC_VD_CH0_BTN_1
+.equ    NAV_LEFT_BTN,       ADC_VD_CH0_BTN_2
+.equ    NAV_RIGHT_BTN,      ADC_VD_CH0_BTN_3
 
-.equ    NAV_UP_BTN,         ADC_VD_CH0_BTN_2
-.equ    NAV_DOWN_BTN,       ADC_VD_CH0_BTN_3
-.equ    NAV_LEFT_BTN,       ADC_VD_CH0_BTN_1
-.equ    NAV_RIGHT_BTN,      ADC_VD_CH0_BTN_0
+; .equ    NAV_UP_BTN,         ADC_VD_CH0_BTN_2
+; .equ    NAV_DOWN_BTN,       ADC_VD_CH0_BTN_3
+; .equ    NAV_LEFT_BTN,       ADC_VD_CH0_BTN_1
+; .equ    NAV_RIGHT_BTN,      ADC_VD_CH0_BTN_0
 
 ; button aliases for text_kbd_start
-; .equ    SCRUB_OK_BTN,       ADC_VD_CH0_BTN_4
-; .equ    SCRUB_NEXT_BTN,     ADC_VD_CH0_BTN_0
-; .equ    SCRUB_PREV_BTN,     ADC_VD_CH0_BTN_1
-; .equ    SCRUB_BACKSP_BTN,   ADC_VD_CH0_BTN_2
-; .equ    SCRUB_SPACE_BTN,    ADC_VD_CH0_BTN_3
-
 .equ    SCRUB_OK_BTN,       ADC_VD_CH0_BTN_4
-.equ    SCRUB_NEXT_BTN,     ADC_VD_CH0_BTN_2
-.equ    SCRUB_PREV_BTN,     ADC_VD_CH0_BTN_3
-.equ    SCRUB_BACKSP_BTN,   ADC_VD_CH0_BTN_1
-.equ    SCRUB_SPACE_BTN,    ADC_VD_CH0_BTN_0
+.equ    SCRUB_NEXT_BTN,     ADC_VD_CH0_BTN_0
+.equ    SCRUB_PREV_BTN,     ADC_VD_CH0_BTN_1
+.equ    SCRUB_BACKSP_BTN,   ADC_VD_CH0_BTN_2
+.equ    SCRUB_SPACE_BTN,    ADC_VD_CH0_BTN_3
+
+; .equ    SCRUB_OK_BTN,       ADC_VD_CH0_BTN_4
+; .equ    SCRUB_NEXT_BTN,     ADC_VD_CH0_BTN_2
+; .equ    SCRUB_PREV_BTN,     ADC_VD_CH0_BTN_3
+; .equ    SCRUB_BACKSP_BTN,   ADC_VD_CH0_BTN_1
+; .equ    SCRUB_SPACE_BTN,    ADC_VD_CH0_BTN_0
 
 
 

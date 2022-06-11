@@ -206,7 +206,7 @@ i2c_send_byte:                           ; send one byte and return ACK / NACK
 
 
 
-_i2c_read_byte:
+internal_i2c_read_byte:
     push r17
 
     cbi DDRB, I2C_SDA_PIN               ; change SDA pin to input
@@ -234,10 +234,10 @@ _i2c_read_byte:
 
 i2c_read_byte_ack:                           ; read one byte and send back ACK
     clr r16
-    rcall _i2c_read_byte
+    rcall internal_i2c_read_byte
     ret
 
 i2c_read_byte_nack:                           ; read one byte and send back NACK
     ldi r16, 0xff
-    rcall _i2c_read_byte
+    rcall internal_i2c_read_byte
     ret

@@ -2,7 +2,7 @@
 ; this program interfaces with SH1106 OLED display over i2c
 
 .equ OLED_ADDR,                 0b00111100              ; 0x3c
-.equ OLED_WRITE_ADDR,           (OLED_ADDR << 1)        ; 0x78
+.equ OLED_WRITE_ADDR,           (OLED_ADDR << 1) | 0x00 ; 0x78
 .equ OLED_READ_ADDR,            (OLED_ADDR << 1) | 0x01 ; 0x79
 
 ; control byte                                          ; if bit 8 is set, we can send 1 data byte after this
@@ -42,9 +42,9 @@
 
 ; SREG_OLED - oled status register (1)
 ;   - register holds 8 oled status flags
-;      ----------------------------------------------------------------------------------------------
-;      |  N/A  |  N/A  |  N/A  |  N/A  |  OLED_COLOR_INVERT  |  SCRL_PG2  |  SCRL_PG1  |  SCRL_PG0  |
-;      ----------------------------------------------------------------------------------------------
+;      ----------------------------------------------------------------------------------------------------
+;      |  N/A  |  N/A  |  N/A  |  OLED_LOCK  |  OLED_COLOR_INVERT  |  SCRL_PG2  |  SCRL_PG1  |  SCRL_PG0  |
+;      ----------------------------------------------------------------------------------------------------
 ;
 ; SCRL_PG[2:0] - display scroll page (bits 2:0)
 ;   - this is a 3 bit number indicating current page scroll position on the screen (0 - 7)
@@ -57,7 +57,11 @@
 ;   - if OLED_COLOR_INVERT is set, anything written through the oled routines will be inverted (1's complement using COM instruction)
 ;       if OLED_COLOR_INVERT is cleared, it writes without 1's complement
 .equ    OLED_COLOR_INVERT,       3
-
+;
+; OLED_LOCK (bit 4)
+; if we add a second i2c device and we want to read from it and write to oled, I2C_BUS_LOCK will not work
+;   - while we acquire and release the i2c lock for every operation, cursor can be reset by another task
+.equ    OLED_LOCK,               4         ; oled lock can be acquired by setting bit 4 of SREG_OLED register
 
 ; --------------------------------------------------
 .equ    OLED_MAX_COL,            127                ; max column index (128 x 64)
@@ -106,6 +110,39 @@ oled_init:
     ret
 
 
+; -----------------------------
+; oled_lock_acquire will sleep till lock can be acquired
+;   it returns once it is able to acquire the lock
+oled_lock_acquire:
+    push r16
+    rjmp _oled_locked_wait
+
+_oled_lock_wait_sleep:
+    sei
+    sleep
+_oled_locked_wait:
+    cli                              ; stop interrupts while checking and trying to acquire lock bits
+    lds r16, SREG_OLED
+    sbrc r16, OLED_LOCK              ; check if lock is available to acquire
+    rjmp _oled_lock_wait_sleep       ; sleep till lock available
+
+    sbr r16, (1 << OLED_LOCK)        ; acquire lock
+    sts SREG_OLED, r16
+    sei                              ; enable interrupts and return
+    pop r16
+    ret
+
+
+oled_lock_release:
+    push r16
+    lds r16, SREG_OLED               ; release the lock
+    cbr r16, (1 << OLED_LOCK)
+    sts SREG_OLED, r16
+    pop r16
+    ret
+
+
+
 ; ----------------- i2c IO wrappers ---------------
 
 ; use this routine to start a command list write transaction
@@ -144,7 +181,6 @@ oled_io_open_read_data:
     ldi r16, OLED_WRITE_DATA                   ; so, first we need to write the command byte indicating we want to access data (OLED_WRITE_DATA)
     rcall i2c_send_byte
 
-    rcall i2c_do_stop_condition
     rcall i2c_do_start_condition               ; then, we send a restart event after which we will be able to read display RAM data
 
     ldi r16, OLED_READ_ADDR                    ; i2c communication to read
@@ -231,7 +267,8 @@ oled_set_cursor:
 
     inc r17
     inc r17                                    ; screen is somehow offset by 2 columns ?? :/
-
+                                               ; In SH1106 driver, 128x64 OLED is centered within the 132x64 ram,
+                                               ;    that means pixel (2,0) in ram is pixel (0,0) on the display
     mov r18, r17
     swap r18
     andi r18, 0x0f                             ; keep high nibble of column address by swapping nibbles + andi 0x0f
