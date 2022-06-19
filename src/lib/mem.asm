@@ -324,6 +324,58 @@ mem_pointer_inc_realloc:
 
 
 
+; ; decrement pointer
+; ; pointer is passed in r16
+; ; - return input back on overflow
+; mem_pointer_dec:
+;     .irp param,17,18,19,26,27
+;         push r\param
+;     .endr
+;     mov r19, r16                                ; save input for later
+
+;     ldi r17, MALLOC_BLOCK_SIZE
+;     rcall div8
+
+;     cpi r17, 1                                  ; check if the pointer is at the first byte of the block
+;     brlo _mem_pointer_dec_roll_block            ; if so, we need to roll over to the prev allocated block
+
+;     mov r16, r18                                ; else, simply decrement the input pointer by 1
+;     dec r16
+;     rjmp _mem_pointer_dec_done
+
+; _mem_pointer_dec_roll_block:
+;     ldi r26, lo8(MALLOC_TABLE_START)           ; load MALLOC_TABLE_START address into X register
+;     ldi r27, hi8(MALLOC_TABLE_START)
+
+;     ldi r18, 0xff                              ; block index -> start at -1, will be incremented to 0 at the beginning of the search
+; _mem_pointer_dec_search_all:                          ; search all blocks
+;     inc r18
+;     cpi r18, MALLOC_MAX_BLOCKS                 ; check if we have exhausted malloc table
+;     breq _mem_pointer_dec_failed
+
+;     ld r17, X+                                 ; read block index
+;     cp r16, r17                                ; check if it matches index we are looking for
+;     brne _mem_pointer_dec_search_all           ; no match -> go to next block
+
+;     mov r16, r18                               ; r18 counter contains the block to go to
+;     ldi r17, MALLOC_BLOCK_SIZE
+;     rcall mul8                                 ; if matched, move pointer to block
+;     ldi r17, MALLOC_BLOCK_SIZE - 1
+;     add r16, r17
+;     rjmp _mem_pointer_dec_done
+
+; _mem_pointer_dec_failed:
+;     mov r16, r19
+
+; _mem_pointer_dec_done:
+;     .irp param,27,26,19,18,17
+;         pop r\param
+;     .endr
+;     ret
+
+
+
+
 ; store a byte r17 at pointer r16
 mem_store:
     push r18

@@ -71,7 +71,7 @@ shell_menu_apps_list:
     .asciz "scan i2c"                          ; index 8
     .asciz "fram test"                         ; index 9
     .asciz "fram write"                        ; index 10
-    .asciz "test"                              ; index 11
+    .asciz "malloc 3"                          ; index 11
     .asciz "test2"                             ; index 12
     .asciz "test3"                             ; index 13
     .byte 0                                    ; end of list
@@ -184,8 +184,18 @@ _shell_home_menu_9:
 
 _shell_home_menu_10:
     cpi r16, 10
-    brne _shell_home_show_menu
+    brne _shell_home_menu_11
     rcall fram_test_write
+    rjmp _shell_home_show_menu                 ; show menu after running selected option
+
+_shell_home_menu_11:
+    cpi r16, 11
+    brne _shell_home_menu_done
+    ldi r30, lo8(shell_menu_confirm_test)
+    ldi r31, hi8(shell_menu_confirm_test)
+    rcall ui_input_popup_show
+
+_shell_home_menu_done:
     rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 
@@ -309,7 +319,7 @@ fram_test_write:
 
     rcall i2c_lock_acquire
     rcall fram_io_open_writer
-    ldi r17, 20
+    ldi r17, 25
 
 _fram_test_write_next:
     mov r16, r17

@@ -19,7 +19,7 @@
 .equ    UI_POPUP_YN_CHAR_WIDTH,       6                                                       ; cant be changed. this is hard coded to => " Y  N "
 .equ    UI_POPUP_YN_PADDING,          ((UI_POPUP_WINDOW_CHAR_WIDTH - UI_POPUP_YN_CHAR_WIDTH) / 2) * FONT_WIDTH   ; Y/N blocks are totally 6 characters wide
 
-
+.equ    UI_POPUP_OK_PADDING,          4
 
 
 ; ------------------------------------------------------------------------------------------------
@@ -87,13 +87,15 @@ ui_menu_show:
 
 _ui_menu_next:
     mov r16, r19                                ; move page (row) address from r19 into t16. r17 already points to start column
+    rcall oled_lock_acquire                     ; routine pointed by Z can acquire i2c lock internally, but oled lock is held externally to maintain oled cursor position
     rcall i2c_lock_acquire
     rcall oled_set_relative_cursor              ; set cursor to start writing data
+    rcall i2c_lock_release
 
     mov r16, r19
     add r16, r23
     icall                                       ; call routine pointed to by r31:r30 (Z)
-    rcall i2c_lock_release
+    rcall oled_lock_release
 
     tst r16                                     ; peek next byte to check if we reached the end of list
     breq _ui_menu_last_item_shown
@@ -109,13 +111,15 @@ _ui_menu_scroll_prev:
     cbr r20, (1<<0)                             ; remove end of menu flag since while scrolling up, we're most likely not showing end of menu anymore
 
     clr r16
+    rcall oled_lock_acquire                     ; routine pointed by Z can acquire i2c lock internally, but oled lock is held externally to maintain oled cursor position
     rcall i2c_lock_acquire
     rcall oled_set_relative_cursor              ; set cursor to start writing data
+    rcall i2c_lock_release
 
     clr r16
     add r16, r23
     icall                                       ; call routine pointed to by r31:r30 (Z)
-    rcall i2c_lock_release
+    rcall oled_lock_release
 
     rjmp _ui_menu_navigate
 ; ------
@@ -265,35 +269,61 @@ _ui_menu_print_flash_done:
 
 
 ; ------------------------------------------------------------------------------------------------
+str_ui_confirm_popup_YN:
+    .asciz " Y "
+    .asciz " N "
+
+str_ui_alert_popup_OK:
+    .asciz " OK "
+
+.balign 2
+
 
 ; reusable confirm y/n popup component
 ; takes address to the confirm message in Z pointer
 ; should be limited to UI_POPUP_WINDOW_CHAR_WIDTH characters
+; returns Y/N in r16 as 0xff/0x00
 ui_confirm_popup_show:
-    .irp param,17,18,22
+    .irp param,17,18,19
         push r\param
     .endr
 
     rcall internal_ui_popup_util_save_screen
-    mov r22, r16                                ; save memory pointer
+    mov r19, r16                                ; save memory pointer
 
     ; -----------------
-    rcall internal_ui_confirm_util_display_popup
+    rcall internal_ui_display_popup_frame
+
+    rcall i2c_lock_acquire
+    ldi r16, UI_POPUP_START_PAGE + 1                                              ; next row
+    ldi r17, UI_POPUP_START_COL + UI_POPUP_YN_PADDING
+    rcall oled_set_relative_cursor
+
+    ldi r30, lo8(str_ui_confirm_popup_YN)
+    ldi r31, hi8(str_ui_confirm_popup_YN)
+    rcall oled_print_flash                                                  ; print Y
+
+    rcall oled_color_inv_start                                              ; show as selected by default
+    rcall oled_print_flash                                                  ; print N
+    rcall oled_color_inv_stop
+
+    rcall i2c_lock_release
+    rcall internal_ui_display_popup_bottom_border
+
     ; -----------------
 
     rcall internal_ui_confirm_util_toggle_yn            ; start the navigation keyboard (blocking)
     mov r18, r16
 
-    mov r16, r22                                ; restore screen from memory pointer
+    mov r16, r19                                ; restore screen from memory pointer
     rcall internal_ui_popup_util_restore_screen
 
     mov r16, r18                                ; return Y/N in r16
 
-    .irp param,22,18,17
+    .irp param,19,18,17
         pop r\param
     .endr
     ret
-
 
 
 
@@ -302,15 +332,31 @@ ui_confirm_popup_show:
 ; takes address to the alert message in Z pointer
 ; should be limited to UI_POPUP_WINDOW_CHAR_WIDTH characters
 ui_alert_popup_show:
-    .irp param,16,17,18
+    .irp param,16,17,18,19
         push r\param
     .endr
 
     rcall internal_ui_popup_util_save_screen
-    mov r17, r16                                ; save memory pointer
+    mov r19, r16                                ; save memory pointer
 
     ; -----------------
-    rcall internal_ui_alert_util_display_popup
+    rcall internal_ui_display_popup_frame
+
+    rcall i2c_lock_acquire
+    ldi r16, UI_POPUP_START_PAGE + 1                                              ; next row
+    ldi r17, UI_POPUP_START_COL + (UI_POPUP_WINDOW_WIDTH / 2) - UI_POPUP_OK_PADDING
+    rcall oled_set_relative_cursor
+
+    ldi r30, lo8(str_ui_alert_popup_OK)
+    ldi r31, hi8(str_ui_alert_popup_OK)
+
+    rcall oled_color_inv_start                                              ; show as selected by default
+    rcall oled_print_flash                                                  ; print OK
+    rcall oled_color_inv_stop
+
+    rcall i2c_lock_release
+    rcall internal_ui_display_popup_bottom_border
+
     ; -----------------
 
 _ui_alert_wait:
@@ -318,10 +364,10 @@ _ui_alert_wait:
     cpi r16, KBD_OK
     brne _ui_alert_wait
 
-    mov r16, r17                                ; restore scree from memory pointer
+    mov r16, r19                                ; restore screen from memory pointer
     rcall internal_ui_popup_util_restore_screen
 
-    .irp param,18,17,16
+    .irp param,19,18,17,16
         pop r\param
     .endr
     ret
@@ -329,6 +375,83 @@ _ui_alert_wait:
 
 
 
+
+; reusable input popup component - UI_POPUP_WINDOW_CHAR_WIDTH allowed characters
+; takes address to the input prompt message in Z pointer
+; should be limited to UI_POPUP_WINDOW_CHAR_WIDTH characters
+ui_input_popup_show:
+    .irp param,16,17,18,19,20
+        push r\param
+    .endr
+
+    rcall internal_ui_popup_util_save_screen
+    mov r19, r16                                ; save memory pointer
+
+    ; -----------------
+    rcall internal_ui_display_popup_frame
+
+    ldi r16, UI_POPUP_START_PAGE + 1                                              ; next row
+    ldi r17, UI_POPUP_START_COL + 1
+    rcall textmode_set_cursor
+    ; -----------------
+
+    ldi r16, 7
+    mov r18, r16
+    rcall mem_alloc
+    mov r20, r16                                 ; save mem pointer to be used later
+
+    ldi r16, 'a'
+_ui_input_wait:
+    rcall internal_ui_display_popup_bottom_border
+    rcall text_kbd_start                         ; start the navigation keyboard (blocking)
+    cpi r17, KBD_OK
+    breq _ui_input_done
+    cpi r17, '\n'
+    breq _ui_input_done
+    cpi r17, KBD_CANCEL
+    breq _ui_input_cancelled
+
+    tst r18
+    breq _ui_input_wait
+
+    rcall textmode_put_char
+    mov r17, r16
+    mov r16, r20
+    rcall mem_store
+    rcall mem_pointer_inc
+    mov r20, r16
+    mov r16, r17
+    dec r18
+    brne _ui_input_wait
+
+_ui_input_end_wait:
+    rcall nav_kbd_start                         ; start the navigation keyboard (blocking)
+    cpi r16, KBD_OK
+    breq _ui_input_done
+    cpi r16, KBD_CANCEL
+    breq _ui_input_cancelled
+
+    rjmp _ui_input_end_wait
+
+_ui_input_cancelled:
+    mov r16, r20
+    rcall mem_free
+    ldi r20, 0xff                               ; load cancelled code
+
+_ui_input_done:
+    mov r16, r19                                ; restore screen from memory pointer
+    rcall internal_ui_popup_util_restore_screen
+
+    mov r16, r20
+    .irp param,20,19,18,17,16
+        pop r\param
+    .endr
+    ret
+
+
+
+
+; ----------------------------------------------------------
 ; utilities
 
 ; this utility routine saves bytes from screen into dynamic ram
@@ -459,18 +582,13 @@ _ui_confirm_util_toggle_yn_kbd:
     breq _ui_confirm_util_toggle_yn_done
 
     rcall i2c_lock_acquire
-
     ldi r17, UI_POPUP_START_COL + UI_POPUP_YN_PADDING
     ldi r18, UI_POPUP_START_COL + UI_POPUP_YN_PADDING + (UI_POPUP_YN_CHAR_WIDTH * FONT_WIDTH) - 1   ; -1 because ugh.
     ldi r19, UI_POPUP_START_PAGE + 1
     rcall oled_invert_inplace_relative_page_row
-
-    ldi r17, UI_POPUP_START_COL
-    ldi r18, UI_POPUP_START_COL + UI_POPUP_WINDOW_WIDTH
-    ldi r16, ((UI_POPUP_START_PAGE + UI_POPUP_WINDOW_HEIGHT) * 8) - 1
-    rcall oled_draw_h_line_overlay
-
     rcall i2c_lock_release
+
+    rcall internal_ui_display_popup_bottom_border
 
     com r20
 
@@ -491,8 +609,9 @@ _ui_confirm_util_toggle_yn_done:
 
 
 
-; display confirm popup formatted as required
-internal_ui_confirm_util_display_popup:
+; display popup frame formatted as required
+; takes address to the alert message in Z pointer. this is printed on the first line
+internal_ui_display_popup_frame:
     push r16
     push r17
     push r18
@@ -514,117 +633,12 @@ internal_ui_confirm_util_display_popup:
     mov r17, r16
 
     rcall oled_io_open_write_data
-_ui_confirm_util_blanks0:
+_ui_display_popup_frame_blanks0:
     clr r16
     rcall i2c_send_byte
     inc r17
     cpi r17, UI_POPUP_WINDOW_WIDTH - 2
-    brlo _ui_confirm_util_blanks0
-    rcall oled_io_close
-
-    ldi r16, UI_POPUP_START_PAGE
-    ldi r17, UI_POPUP_START_COL + UI_POPUP_WINDOW_WIDTH - 1
-    rcall oled_set_relative_cursor
-
-    rcall oled_io_open_write_data
-    ldi r16, 0xff
-    rcall i2c_send_byte
-    rcall oled_io_close
-
-    ; ---------------
-    ldi r16, UI_POPUP_START_PAGE + 1                                              ; next row
-    ldi r17, UI_POPUP_START_COL
-    rcall oled_set_relative_cursor
-
-    rcall oled_io_open_write_data
-    ldi r16, 0xff
-    rcall i2c_send_byte
-
-    ldi r17, UI_POPUP_YN_PADDING - 1                                              ; -1 for border character
-_ui_confirm_util_blanks1:
-    clr r16
-    rcall i2c_send_byte
-    dec r17
-    brne _ui_confirm_util_blanks1
-
-    ldi r16, ' '
-    rcall oled_io_put_char
-    ldi r16, 'Y'
-    rcall oled_io_put_char
-    ldi r16, ' '
-    rcall oled_io_put_char
-
-    rcall oled_color_inv_start                                                      ; show as selected by default
-    ldi r16, ' '
-    rcall oled_io_put_char
-    ldi r16, 'N'
-    rcall oled_io_put_char
-    ldi r16, ' '
-    rcall oled_io_put_char
-    rcall oled_color_inv_stop
-
-    ldi r17, UI_POPUP_YN_PADDING - 1                                              ; -1 for border character
-_ui_confirm_util_blanks2:
-    clr r16
-    rcall i2c_send_byte
-    dec r17
-    brne _ui_confirm_util_blanks2
-
-    ldi r16, 0xff
-    rcall i2c_send_byte
-
-    rcall oled_io_close
-
-    ; ---------------
-    ldi r18, UI_POPUP_START_COL + UI_POPUP_WINDOW_WIDTH
-    ldi r17, UI_POPUP_START_COL
-    ldi r16, (UI_POPUP_START_PAGE * 8)
-    rcall oled_draw_h_line_overlay
-
-    ldi r16, ((UI_POPUP_START_PAGE + UI_POPUP_WINDOW_HEIGHT) * 8) - 1
-    rcall oled_draw_h_line_overlay
-
-    rcall i2c_lock_release
-    pop r18
-    pop r17
-    pop r16
-    ret
-
-
-
-
-
-
-
-; display alert popup formatted as required
-internal_ui_alert_util_display_popup:
-    push r16
-    push r17
-    push r18
-
-    rcall i2c_lock_acquire
-
-    ldi r16, UI_POPUP_START_PAGE
-    ldi r17, UI_POPUP_START_COL
-    rcall oled_set_relative_cursor
-
-    rcall oled_io_open_write_data
-    ldi r16, 0xff
-    rcall i2c_send_byte
-    rcall oled_io_close
-
-    rcall oled_print_flash
-    ldi r17, FONT_WIDTH
-    rcall mul8
-    mov r17, r16
-
-    rcall oled_io_open_write_data
-_ui_alert_util_blanks0:
-    clr r16
-    rcall i2c_send_byte
-    inc r17
-    cpi r17, UI_POPUP_WINDOW_WIDTH - 2
-    brlo _ui_alert_util_blanks0
+    brlo _ui_display_popup_frame_blanks0
     rcall oled_io_close
 
     ldi r16, UI_POPUP_START_PAGE
@@ -646,34 +660,12 @@ _ui_alert_util_blanks0:
     rcall i2c_send_byte
 
     ldi r17, UI_POPUP_WINDOW_WIDTH - 2                                            ; float Ok button to the right with left padding
-_ui_alert_util_blanks1:
+_ui_display_popup_frame_blanks1:
     clr r16
     rcall i2c_send_byte
     dec r17
-    brne _ui_alert_util_blanks1
+    brne _ui_display_popup_frame_blanks1
 
-    ldi r16, 0xff
-    rcall i2c_send_byte
-    rcall oled_io_close
-
-    ; ---------------
-    ldi r16, UI_POPUP_START_PAGE + 1                                              ; next row
-    ldi r17, UI_POPUP_START_COL + (UI_POPUP_WINDOW_WIDTH / 2)
-    rcall oled_set_relative_cursor
-
-    rcall oled_io_open_write_data
-    ldi r16, 0xff
-    rcall i2c_send_byte
-    ldi r16, 0xff
-    rcall i2c_send_byte
-    rcall oled_color_inv_start                                                    ; show as selected by default
-    ldi r16, 'O'
-    rcall oled_io_put_char
-    ldi r16, 'k'
-    rcall oled_io_put_char
-    rcall oled_color_inv_stop
-    ldi r16, 0xff
-    rcall i2c_send_byte
     ldi r16, 0xff
     rcall i2c_send_byte
     rcall oled_io_close
@@ -684,6 +676,22 @@ _ui_alert_util_blanks1:
     ldi r16, (UI_POPUP_START_PAGE * 8)
     rcall oled_draw_h_line_overlay
 
+    rcall i2c_lock_release
+    pop r18
+    pop r17
+    pop r16
+    ret
+
+
+
+internal_ui_display_popup_bottom_border:
+    push r16
+    push r17
+    push r18
+    rcall i2c_lock_acquire
+
+    ldi r18, UI_POPUP_START_COL + UI_POPUP_WINDOW_WIDTH
+    ldi r17, UI_POPUP_START_COL
     ldi r16, ((UI_POPUP_START_PAGE + UI_POPUP_WINDOW_HEIGHT) * 8) - 1
     rcall oled_draw_h_line_overlay
 
