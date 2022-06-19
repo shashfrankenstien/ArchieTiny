@@ -245,8 +245,8 @@ _shell_i2c_scanner_wait:                        ; wait for button press and exit
     sleep
     rcall nav_kbd_start
 
-    cpi r16, KBD_OK
-    brne _shell_i2c_scanner_wait
+    sbrs r16, ENTER_BTN                         ; if enter button is pressed, skip the next statement
+    rjmp _shell_i2c_scanner_wait
 
     pop r17
     pop r16
@@ -294,10 +294,11 @@ _fs_test_wait:                            ; wait for button press and exit
     sleep
     rcall nav_kbd_start
 
-    cpi r16, NAV_DOWN
-    breq _fs_test_next_section
-    cpi r16, KBD_OK
-    brne _fs_test_wait
+    sbrc r16, NAV_DOWN_BTN                ; if down button is not pressed, skip the next statement
+    rjmp _fs_test_next_section
+
+    sbrs r16, ENTER_BTN                   ; if enter button is pressed, skip the next statement
+    rjmp _fs_test_wait
 
     .irp param,25,24,19,18,17,16
         pop r\param
@@ -381,10 +382,12 @@ _fram_test_wait:                            ; wait for button press and exit
     sleep
     rcall nav_kbd_start
 
-    cpi r16, NAV_DOWN
-    breq _fram_test_next_section
-    cpi r16, KBD_OK
-    brne _fram_test_wait
+
+    sbrc r16, NAV_DOWN_BTN                ; if down button is not pressed, skip the next statement
+    rjmp _fram_test_next_section
+
+    sbrs r16, ENTER_BTN                   ; if enter button is pressed, skip the next statement
+    rjmp _fram_test_wait
 
     .irp param,25,24,19,18,17,16
         pop r\param

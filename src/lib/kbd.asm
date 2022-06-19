@@ -10,12 +10,6 @@
 .equ    KBD_OK,         0xff
 .equ    KBD_CANCEL,     0xfe
 
-.equ    NAV_UP,         0x00
-.equ    NAV_DOWN,       0x01
-.equ    NAV_LEFT,       0x02
-.equ    NAV_RIGHT,      0x03
-
-
 ; general button aliases
 .equ    ENTER_BTN,          ADC_VD_CH1_BTN_0
 .equ    EXIT_BTN,           ADC_VD_CH1_BTN_1
@@ -47,7 +41,8 @@
 
 
 
-; returns button presses in terms of navigation indications - NAV_UP, NAV_DOWN, NAV_LEFT, NAV_RIGHT, KBD_OK and KBD_CANCEL
+; returns button presses in terms of navigation bits in r16. see SREG_ADC_VD_HLD desc in drivers/gpio.asm
+;  - NAV_UP_BTN, NAV_DOWN_BTN, NAV_LEFT_BTN, NAV_RIGHT_BTN, ENTER_BTN and EXIT_BTN
 nav_kbd_start:
     push r18
 
@@ -58,66 +53,16 @@ _nav_kbd_sleep_start:
 
     sleep
 
-    rcall gpio_adc_vd_btn_read
-    mov r18, r16
-    tst r18
-    brne _nav_kbd_handle_NAV_DOWN_BTN
+    rcall gpio_adc_vd_btn_read                 ; ADC buttons
+    tst r16
+    brne _nav_kbd_done
 
     lds r18, SREG_GPIO_PC
     sbrs r18, GPIO_BTN_0_PRS                   ; PC INT button (only 1 button)
     rjmp _nav_kbd_sleep_start
 
-    ldi r16, KBD_OK
+    ldi r16, (1<<ENTER_BTN)
     rjmp _nav_kbd_done                         ; return that OK button was pressed
-
-; ADC buttons
-_nav_kbd_handle_NAV_DOWN_BTN:                  ; check if adc btn 1 is pressed; ACTION - navigate down
-    sbrs r18, NAV_DOWN_BTN
-    rjmp _nav_kbd_handle_NAV_UP_BTN
-
-    ldi r16, NAV_DOWN
-    rjmp _nav_kbd_done
-
-_nav_kbd_handle_NAV_UP_BTN:                    ; check if adc btn 0 is pressed; ACTION - navigate up
-    sbrs r18, NAV_UP_BTN
-    rjmp _nav_kbd_handle_ENTER_BTN
-
-    ldi r16, NAV_UP
-    rjmp _nav_kbd_done
-
-_nav_kbd_handle_ENTER_BTN:                     ; check if adc btn 0 is pressed; ACTION - navigate up
-    sbrs r18, ENTER_BTN
-    rjmp _nav_kbd_handle_EXIT_BTN
-
-    ldi r16, KBD_OK
-    rjmp _nav_kbd_done
-
-_nav_kbd_handle_EXIT_BTN:                      ; check if adc btn 0 is pressed; ACTION - navigate up
-    sbrs r18, EXIT_BTN
-    rjmp _nav_kbd_handle_NAV_LEFT_BTN
-
-    ldi r16, KBD_CANCEL
-    rjmp _nav_kbd_done
-
-_nav_kbd_handle_NAV_LEFT_BTN:                  ; check if adc btn 2 is pressed; ACTION - navigate left
-    sbrs r18, NAV_LEFT_BTN
-    rjmp _nav_kbd_handle_NAV_RIGHT_BTN
-
-    ldi r16, NAV_LEFT
-    rjmp _nav_kbd_done
-
-_nav_kbd_handle_NAV_RIGHT_BTN:                    ; check if adc btn 3 is pressed; ACTION - navigate right
-    sbrs r18, NAV_RIGHT_BTN
-    rjmp _nav_kbd_sleep_start
-
-    ldi r16, NAV_RIGHT
-    rjmp _nav_kbd_done
-
-; _nav_kbd_handle_adc_btn_4:                    ; check if adc btn 4 is pressed; ACTION - navigate OK
-;     ; sbrs r18, ADC_VD_CH0_BTN_4
-;     ; rjmp _nav_kbd_sleep_start
-
-;     rjmp _nav_kbd_sleep_start
 
 _nav_kbd_done:
     lds r18, SREG_GPIO_PC
@@ -133,6 +78,7 @@ _nav_kbd_done:
 
 
 ; accepts starting scrub character in r16
+; returns selected character in r16 and any special characters / other button presses in r17
 text_kbd_start:
     .irp param,18,20,21,22
         push r\param

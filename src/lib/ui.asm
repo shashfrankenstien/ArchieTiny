@@ -151,8 +151,8 @@ _ui_menu_navigate_highlight:
 _ui_menu_nav_check:
     rcall nav_kbd_start                         ; start the navigation keyboard
                                                 ;   for now, we only care about UP, DOWN and OK presses
-    cpi r16, NAV_UP
-    brne _ui_menu_nav_check_down                ; if nav is not UP, continue to check DOWN
+    sbrs r16, NAV_UP_BTN                        ; if UP is pressed, skip the next statement
+    rjmp _ui_menu_nav_check_down                ; if nav is not UP, continue to check DOWN
 
     mov r16, r21
     sub r16, r23
@@ -177,8 +177,8 @@ _ui_menu_nav_move_up:
 
 
 _ui_menu_nav_check_down:
-    cpi r16, NAV_DOWN
-    brne _ui_menu_nav_check_ok                  ; if nav is not DOWN, continue to check OK
+    sbrs r16, NAV_DOWN_BTN                      ; if DOWN is pressed, skip the next statement
+    rjmp _ui_menu_nav_check_ok                  ; if nav is not DOWN, continue to check OK
 
     inc r21                                     ; move selection down
     mov r16, r21
@@ -201,8 +201,8 @@ _ui_menu_nav_check_down:
 
 
 _ui_menu_nav_check_ok:
-    cpi r16, KBD_OK
-    brne _ui_menu_navigate                      ; if nav is not OK, go back and start over
+    sbrs r16, ENTER_BTN                         ; if enter is pressed, skip the next statement
+    rjmp _ui_menu_navigate                      ; if nav is not OK, go back and start over
 
     mov r16, r21                                ; if OK is pressed, return current selected item index to calling routine
     mov r17, r23                                ; also return current scroll position
@@ -361,8 +361,8 @@ ui_alert_popup_show:
 
 _ui_alert_wait:
     rcall nav_kbd_start                         ; start the navigation keyboard (blocking)
-    cpi r16, KBD_OK
-    brne _ui_alert_wait
+    sbrs r16, ENTER_BTN                         ; if enter is pressed, skip the next statement
+    rjmp _ui_alert_wait
 
     mov r16, r19                                ; restore screen from memory pointer
     rcall internal_ui_popup_util_restore_screen
@@ -426,10 +426,12 @@ _ui_input_wait:
 
 _ui_input_end_wait:
     rcall nav_kbd_start                         ; start the navigation keyboard (blocking)
-    cpi r16, KBD_OK
-    breq _ui_input_done
-    cpi r16, KBD_CANCEL
-    breq _ui_input_cancelled
+
+    sbrc r16, ENTER_BTN                         ; if enter is not pressed, skip the next statement
+    rjmp _ui_input_done
+
+    sbrc r16, EXIT_BTN                         ; if exit is not pressed, skip the next statement
+    rjmp _ui_input_cancelled
 
     rjmp _ui_input_end_wait
 
@@ -578,8 +580,8 @@ internal_ui_confirm_util_toggle_yn:
 _ui_confirm_util_toggle_yn_kbd:
     rcall nav_kbd_start                         ; start the navigation keyboard (blocking)
 
-    cpi r16, KBD_OK
-    breq _ui_confirm_util_toggle_yn_done
+    sbrc r16, ENTER_BTN                         ; if enter is not pressed, skip the next statement
+    rjmp _ui_confirm_util_toggle_yn_done
 
     rcall i2c_lock_acquire
     ldi r17, UI_POPUP_START_COL + UI_POPUP_YN_PADDING
