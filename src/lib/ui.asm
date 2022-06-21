@@ -81,6 +81,8 @@ ui_menu_show:
     ldi r18, OLED_MAX_COL - UI_MENU_HOR_PADDING ; r18 is the end column address for highlighting. this can be offset too!
     clr r19                                     ; r19 indicates the page (row) number the nav cursor is on (0 by default)
 
+    clr r26                                     ; r26 will hold the size of the menu. this is updated only once the last element is displayed
+
     rcall i2c_lock_acquire
     rcall oled_clr_screen
     rcall i2c_lock_release
@@ -184,6 +186,10 @@ _ui_menu_nav_check_down:
     rjmp _ui_menu_nav_check_ok                  ; if nav is not DOWN, continue to check OK
 
     inc r21                                     ; move selection down
+
+    tst r26
+    breq _ui_menu_nav_check_down_not_end        ; r26 is cleared. we don't know how big the menu is yet
+
     cp r21, r26                                 ; check if index overflowed the last element in the menu
     brlo _ui_menu_nav_check_down_not_end        ; haven't reached the end yet. continue on
 
@@ -193,7 +199,6 @@ _ui_menu_nav_check_down:
 _ui_menu_nav_check_down_not_end:
     mov r16, r21
     sub r16, r23
-
     cpi r16, OLED_MAX_PAGE + 1                  ; check if scroll down is required
     brne _ui_menu_navigate                      ; scroll not required
 
