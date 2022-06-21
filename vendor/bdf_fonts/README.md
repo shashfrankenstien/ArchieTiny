@@ -2,6 +2,7 @@
 
 - https://github.com/Tecate/bitmap-fonts
 - https://github.com/a780201/miniwi
+- https://github.com/Bananattack/omelette_font
 
 
 # Adobe BDF font documentation

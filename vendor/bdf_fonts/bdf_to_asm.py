@@ -174,6 +174,8 @@ def test(bdf_filepath, test_string):
     font = parse_bdf(bdf_filepath)
     for c in test_string:
         a = font.lut.get(ord(c))
+        print(a)
+        import pdb; pdb.set_trace()
         if a:
             # a = _transpose_bits(a)
             for i in range(len(a)):
@@ -192,17 +194,18 @@ def generate_all_asm_fonts():
     if os.path.isdir(build_dir):
         shutil.rmtree(build_dir)
 
-    bdf_filepath = os.path.join(root, 'bitocra7.bdf')
-    to_asm(bdf_filepath, ascii_range=[32, 127])
+    bdf_filepaths = [
+        'bitocra7.bdf',
+        "spleen.bdf",
+        "miniwi.bdf",
+        "unscii-8-fantasy.bdf",
+        "omelette.bdf",
+        # "omelette-icons.bdf",
+    ]
+    for f in bdf_filepaths:
+        to_asm(os.path.join(root, f), ascii_range=[32, 127])
 
-    bdf_filepath = os.path.join(root, "spleen.bdf")
-    to_asm(bdf_filepath, ascii_range=[32, 127])
-
-    bdf_filepath = os.path.join(root, "miniwi.bdf")
-    to_asm(bdf_filepath, ascii_range=[32, 127])
-
-    bdf_filepath = os.path.join(root, "unscii-8-fantasy.bdf")
-    to_asm(bdf_filepath, ascii_range=[32, 127])
+    # to_asm(os.path.join(root, "omelette-windows.bdf"), ascii_range=[65, 88])
 
 
 # =-=--=-=-=-=-=-=--=-=-=-=-=---==-=--=-=-=-=-=-=--=-=-=-=-=---=
@@ -231,8 +234,12 @@ if __name__ == '__main__':
     #     print(f'{int(c, 16):b}'.zfill(8))
     # print(ch)
 
-    # test("/home/shashankgopikrishna/projects/archie/ArchieTiny/vendor/bdf_fonts/creep.bdf", "Hello World asjydh []")
-    # test("/home/shashankgopikrishna/projects/archie/ArchieTiny/vendor/bdf_fonts/scientifica.bdf", "Hello World asjydh []")
-    # test("/home/shashankgopikrishna/projects/archie/ArchieTiny/vendor/bdf_fonts/unscii-8-alt.bdf", "Hello World asjydh []")
-    # test("/home/shashankgopikrishna/projects/archie/ArchieTiny/vendor/bdf_fonts/unscii-8-thin.bdf", "Hello World asjydh []")
-    # test("/home/shashankgopikrishna/projects/archie/ArchieTiny/vendor/bdf_fonts/unscii-8-fantasy.bdf", "Hello World asjydh []")
+    # test(os.path.join(root, "creep.bdf"), "Hello World asjydh []")
+    # test(os.path.join(root, "scientifica.bdf"), "Hello World asjydh []")
+    # test(os.path.join(root, "unscii-8-alt.bdf"), "Hello World asjydh []")
+    # test(os.path.join(root, "unscii-8-thin.bdf"), "Hello World asjydh []")
+    # test(os.path.join(root, "unscii-8-fantasy.bdf"), "Hello World asjydh []")
+
+    t = ''.join([chr(i) for i in range(33, 127)])
+    print(t)
+    test(os.path.join(root, "omelette-icons.bdf"), t)
