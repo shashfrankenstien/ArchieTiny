@@ -174,16 +174,16 @@ def test(bdf_filepath, test_string):
     font = parse_bdf(bdf_filepath)
     for c in test_string:
         a = font.lut.get(ord(c))
-        print(a)
-        import pdb; pdb.set_trace()
+        # print(a)
+        # import pdb; pdb.set_trace()
         if a:
             # a = _transpose_bits(a)
             for i in range(len(a)):
                 b = a[i]
                 bin_str = f'{b:b}'.zfill(8)[:font.bbx['WIDTH']]
                 for bit in bin_str:
-                    bit = 'X' if bit == '1' else ' '
-                    print(bit, end = ' ', flush=True)
+                    bit = f'{chr(9608)}{chr(9608)}{chr(9608)}' if bit == '1' else '   '
+                    print(bit, end = '', flush=True)
                 print()
         print()
 

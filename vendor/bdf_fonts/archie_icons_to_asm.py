@@ -24,38 +24,44 @@ def transpose(data):
     return data
 
 
-def to_asm(fpath, ascii_range=[0,256]):
+def to_asm(fpath):
     data = transpose(parse_json(fpath))
 
     build_dir = os.path.join(root, 'build')
     if not os.path.isdir(build_dir):
         os.makedirs(build_dir)
 
-    out_file = [
+    out_file_header = [
         "; This file contains " + data['name'] + " font lookup table (font_lut)\n\n",
         f".equ\tICON_WIDTH,   \t\t{data['width']}\t\t\t; number of bytes per character",
-        f".equ\tICON_LUT_SIZE,\t\t{ascii_range[1]-ascii_range[0]}\t\t\t; max supported ascii value\n\n\n",
+        f".equ\tICON_LUT_SIZE,\t\t{len(data['lut'])}\t\t\t; max supported value\n\n\n",
+    ]
+
+    out_file_vars = [
+    ]
+
+    out_file_lut = [
         f"icon_lut:"
     ]
 
-    for i in range(ascii_range[0], ascii_range[1]):
-        ch = data['lut'].get(str(i))
+    for idx, (name, ch) in enumerate(data['lut'].items()):
         if not ch:
             ch = [0]*data['height']
-        out_file.append('\t.byte ' + ', '.join(ch) + f'\t\t; {str(i)}')
+        out_file_lut.append('\t.byte ' + ', '.join(ch) + f'\t\t; {str(idx)}')
+        out_file_vars.append(f'.equ\tICON_IDX_{name:15}, {idx}\t\t\t; index of {name} in icon_lut')
 
-    out_file.append("\n.balign 2")
+    out_file_vars.append("\n\n")
+    out_file_lut.append("\n.balign 2")
 
     with open(os.path.join(build_dir, data['name'] + ".asm"), 'w') as f:
-        f.write('\n'.join(out_file) + "\n")
+        f.write('\n'.join(out_file_header + out_file_vars+ out_file_lut) + "\n")
 
 
 
-def test(bdf_filepath, test_list):
+def test(bdf_filepath):
     data = parse_json(bdf_filepath)
 
-    for c in test_list:
-        a = data['lut'].get(str(c))
+    for a in data['lut'].values():
         # print(a)
         if a:
             # a = _transpose_bits(a)
@@ -70,9 +76,8 @@ def test(bdf_filepath, test_list):
 # =-=--=-=-=-=-=-=--=-=-=-=-=---==-=--=-=-=-=-=-=--=-=-=-=-=---=
 
 if __name__ == '__main__':
-    rng = [0, 9]
     input_fname = "archie_icons.json"
 
-    to_asm(os.path.join(root, input_fname), rng)
+    to_asm(os.path.join(root, input_fname))
 
-    test(os.path.join(root, input_fname), range(rng[-1]))
+    test(os.path.join(root, input_fname))
