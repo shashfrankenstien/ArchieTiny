@@ -67,7 +67,7 @@
 ;       - once we scroll up, to find the item that needs to be printed, we use current scroll position register (r23)
 ;        - just as before, set r16 and print item with icall
 ui_menu_show:
-    .irp param,18,19,20,21,22,23
+    .irp param,18,19,20,21,22,23,26
         push r\param
     .endr
 
@@ -126,6 +126,9 @@ _ui_menu_scroll_prev:
 
 _ui_menu_last_item_shown:
     sbr r20, (1<<0)                             ; flag that end of menu reached
+    mov r26, r19                                ; store count of total items in the menu
+    inc r26                                     ; r19 will have the last page address. increment this to get the count
+    add r26, r23                                ; add current scroll position
 
 _ui_menu_navigate:
     sbrs r20, 1                                 ; check if any row is highlighted
@@ -181,13 +184,20 @@ _ui_menu_nav_check_down:
     rjmp _ui_menu_nav_check_ok                  ; if nav is not DOWN, continue to check OK
 
     inc r21                                     ; move selection down
+    cp r21, r26                                 ; check if index overflowed the last element in the menu
+    brlo _ui_menu_nav_check_down_not_end        ; haven't reached the end yet. continue on
+
+    dec r21                                     ; cursor overflowed last element. resetting
+    brne _ui_menu_navigate
+
+_ui_menu_nav_check_down_not_end:
     mov r16, r21
     sub r16, r23
 
     cpi r16, OLED_MAX_PAGE + 1                  ; check if scroll down is required
     brne _ui_menu_navigate                      ; scroll not required
 
-    sbrc r20, 0                                 ; if bottom of menu is reached, set selection back (essentially do nothing)
+    sbrc r20, 0                                 ; if bottom of menu is reached, set selection back (essentially do nothing to r21)
     dec r21
     sbrc r20, 0
     rjmp _ui_menu_navigate
@@ -208,7 +218,7 @@ _ui_menu_nav_check_ok:
     mov r17, r23                                ; also return current scroll position
                                                 ; menu can be recalled back to the previous state by passing back r16 and r17
 _ui_menu_done:
-    .irp param,23,22,21,20,19,18
+    .irp param,26,23,22,21,20,19,18
         pop r\param
     .endr
     ret
@@ -242,15 +252,13 @@ _ui_menu_print_flash_goto_n:
     tst r17
     brne _ui_menu_print_flash_goto_n
 
-    tst r18                                         ; if we encounter a 0, r18 will be 0
+    tst r18                                         ; if we encounter a 0, and r18 is 0, then we've failed to find the index
     breq _ui_menu_print_flash_failed
     dec r16
     brne _ui_menu_print_flash_goto_n
 
 _ui_menu_print_flash_print_Z:
-    rcall oled_io_open_write_data
     rcall oled_print_flash                      ; print one entry from the list pointed by Z pointer (until \0 is encountered)
-    rcall oled_io_close
 
     lpm r16, Z                                  ; peek next byte to check if we reached the end of list
     rjmp _ui_menu_print_flash_done
@@ -380,7 +388,7 @@ _ui_alert_wait:
 ; takes address to the input prompt message in Z pointer
 ; should be limited to UI_POPUP_WINDOW_CHAR_WIDTH characters
 ui_input_popup_show:
-    .irp param,16,17,18,19,20
+    .irp param,17,18,19,20,21
         push r\param
     .endr
 
@@ -399,20 +407,24 @@ ui_input_popup_show:
     mov r18, r16
     rcall mem_alloc
     mov r20, r16                                 ; save mem pointer to be used later
+    mov r21, r16                                 ; save mem pointer to be returned
 
     ldi r16, 'a'
 _ui_input_wait:
     rcall internal_ui_display_popup_bottom_border
     rcall text_kbd_start                         ; start the navigation keyboard (blocking)
     cpi r17, KBD_OK
-    breq _ui_input_done
+    breq _ui_input_ok
     cpi r17, '\n'
-    breq _ui_input_done
+    breq _ui_input_ok
     cpi r17, KBD_CANCEL
     breq _ui_input_cancelled
 
     tst r18
     breq _ui_input_wait
+
+    tst r17
+    brne _ui_input_wait
 
     rcall textmode_put_char
     mov r17, r16
@@ -428,24 +440,30 @@ _ui_input_end_wait:
     rcall nav_kbd_start                         ; start the navigation keyboard (blocking)
 
     sbrc r16, ENTER_BTN                         ; if enter is not pressed, skip the next statement
-    rjmp _ui_input_done
+    rjmp _ui_input_ok
 
     sbrc r16, EXIT_BTN                         ; if exit is not pressed, skip the next statement
     rjmp _ui_input_cancelled
 
     rjmp _ui_input_end_wait
 
+_ui_input_ok:
+    mov r16, r20                                ; add ending '0'
+    clr r17
+    rcall mem_store
+    rjmp _ui_input_done
+
 _ui_input_cancelled:
-    mov r16, r20
+    mov r16, r21
     rcall mem_free
-    ldi r20, 0xff                               ; load cancelled code
+    ldi r21, 0xff                               ; load cancelled code
 
 _ui_input_done:
     mov r16, r19                                ; restore screen from memory pointer
     rcall internal_ui_popup_util_restore_screen
 
-    mov r16, r20
-    .irp param,20,19,18,17,16
+    mov r16, r21
+    .irp param,21,20,19,18,17
         pop r\param
     .endr
     ret

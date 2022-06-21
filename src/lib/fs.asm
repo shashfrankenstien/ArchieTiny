@@ -60,15 +60,15 @@
 ;             - also, r17 index needs to skip over deleted items??? Ugh
 ;
 ; signature byte
-;      --------------------------------------------------------------------------------------------
-;      |  IS_EXT_MOUNT  |  N/A  |  N/A  |  N/A  |  N/A  |  IS_DIR  |  IS_DELETED  |  IS_FS_ENTRY  |
-;      --------------------------------------------------------------------------------------------
-.equ    IS_FS_ENTRY,                0               ; this bit is always set -> purely to avoid a 0x00 signature
-.equ    IS_DELETED,                 1
-.equ    IS_DIR,                     2
+;      --------------------------------------------------------------------------------------------------
+;      |  IS_EXT_MOUNT  |  N/A  |  N/A  |  N/A  |  N/A  |  FS_IS_DIR  |  FS_IS_DELETED  |  FS_IS_ENTRY  |
+;      --------------------------------------------------------------------------------------------------
+.equ    FS_IS_ENTRY,                   0               ; this bit is always set -> purely to avoid a 0x00 signature
+.equ    FS_IS_DELETED,                 1
+.equ    FS_IS_DIR,                     2
 
-.equ    FS_DIR_SIGNATURE,           (1<<IS_FS_ENTRY) | (1<<IS_DIR)
-.equ    FS_FILE_SIGNATURE,          (1<<IS_FS_ENTRY) | (0<<IS_DIR)
+.equ    FS_DIR_SIGNATURE,           (1<<FS_IS_ENTRY) | (1<<FS_IS_DIR)
+.equ    FS_FILE_SIGNATURE,          (1<<FS_IS_ENTRY) | (0<<FS_IS_DIR)
 
 
 
@@ -230,7 +230,7 @@ _fs_dir_item_to_raw_index:
     tst r16
     breq _fs_dir_item_not_found
 
-    sbrs r16, IS_DELETED
+    sbrs r16, FS_IS_DELETED
     dec r17
 
     tst r17
@@ -413,7 +413,35 @@ _fs_create_item_find_slot:
 _fs_create_item_slot_found:
     mov r16, r18                               ; write signature byte
     rcall eeprom_write                         ; eeprom contains 0 at this address. so use eeprom_write instead of eeprom_update
-    adiw r24, FS_DIR_ENTRY_NAME_MAX_LEN + 1
+    adiw r24, 1
+
+    mov r16, r17                               ; get pointer to name
+    ldi r18, FS_DIR_ENTRY_NAME_MAX_LEN
+_fs_create_item_write_name:
+    rcall mem_load
+    rcall mem_pointer_inc
+
+    mov r21, r16                               ; save pointer
+    mov r16, r17
+    rcall eeprom_write
+    adiw r24, 1
+    mov r16, r21                               ; save pointer
+
+    tst r17
+    breq _fs_create_item_write_name_done
+
+    dec r18
+    brne _fs_create_item_write_name
+
+_fs_create_item_write_name_done:
+    tst r18
+    breq _fs_create_item_write_addr
+    dec r18                                    ; if r18 hasn't reached 0, that means a '\0' string was encountered. so we need to dec r18 once and add to r25:r24
+    add r24, r18
+    clr r18
+    adc r25, r18
+
+_fs_create_item_write_addr:
     mov r16, r19
     rcall eeprom_write                         ; use eeprom_write instead of eeprom_update
 
@@ -463,7 +491,7 @@ internal_fs_remove_item:
     tst r16                                     ; test signature byte
     breq _fs_remove_item_done ; NOT!
 
-    ori r16, (1<<IS_DELETED)
+    ori r16, (1<<FS_IS_DELETED)
     rcall eeprom_write
 
     adiw r24, FS_DIR_ENTRY_NAME_MAX_LEN + 1

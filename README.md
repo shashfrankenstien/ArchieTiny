@@ -75,13 +75,14 @@ GND | GND | pin 4
 ### change to 16 MHz clock
 - Low fuse: 0xe1  -- 16 MHz mode with no clock divide
 
-### change to preserve eeprom
+### change to preserve eeprom + brownout detection
 - High fuse: 0xd7  -- EEPROM preserved
+- High fuse: 0xd6  -- EEPROM preserved + brown out detection at 1.8 volts
 
 
 # Power Management
 - disable Timer1 since we are not using that for anything at the moment (PRR bit 3)
-- disable brown-out detection (maybe worth setting to 1.8 volts. see high fuse)
+- disable brown-out detection through software while deep sleep
 - MCUCR – MCU Control Register - Bit 5 – SE: Sleep Enable
     - The SE bit must be written to logic one to make the MCU enter the sleep mode when the SLEEP instruction is executed
 -----

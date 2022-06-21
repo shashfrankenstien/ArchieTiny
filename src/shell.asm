@@ -1,9 +1,9 @@
 ; this module implements the main user interface shell
 
 
-hello_world:
-    .ascii " Hello World \0"
-    .equ   hello_world_len ,    . - hello_world      ; calculates the string length
+shell_splash_msg:
+    .ascii " Archie Tiny v0.1 \0"
+    .equ   shell_splash_msg_len ,    . - shell_splash_msg      ; calculates the string length
 
 .balign 2
 
@@ -17,22 +17,22 @@ shell_splash_screen:
     rcall oled_clr_screen
 
     ; =========
-    ldi r16, 0x66
-    ldi r17, ((OLED_MAX_COL - (FONT_WIDTH * hello_world_len) - 8) / 2)          ; x1 - position at the center with 8/2 pixels of padding on either side
-    ldi r18, OLED_MAX_COL - ((OLED_MAX_COL - (FONT_WIDTH * hello_world_len) - 8) / 2)    ; x2
-    ldi r19, (1 * 8) + 5                                ; y1
-    ldi r20, (5 * 8) + 3                                ; y2
+    ldi r16, 0x99
+    ldi r17, ((OLED_MAX_COL - (FONT_WIDTH * shell_splash_msg_len) - 8) / 2)          ; x1 - position at the center with 8/2 pixels of padding on either side
+    ldi r18, OLED_MAX_COL - ((OLED_MAX_COL - (FONT_WIDTH * shell_splash_msg_len) - 8) / 2)    ; x2
+    ldi r19, (1 * 8) + 6                                ; y1
+    ldi r20, (5 * 8) + 2                                ; y2
     rcall oled_fill_rect_by_pixel                       ; fill oled with data in r16
 
     ; =========
     ; Hello World! :D
     ldi r16, 3
-    ldi r17, ((OLED_MAX_COL - (FONT_WIDTH * hello_world_len)) / 2) + 2   ; center the hello world message. +2 to account for some rounding error
+    ldi r17, ((OLED_MAX_COL - (FONT_WIDTH * shell_splash_msg_len)) / 2) + 2   ; center the hello world message. +2 to account for some rounding error
     rcall oled_set_cursor                      ; set cursor to start writing data
 
     rcall oled_color_inv_start
-    ldi r31, hi8(hello_world)                  ; Initialize Z-pointer to the start of the hello_world label
-    ldi r30, lo8(hello_world)
+    ldi r31, hi8(shell_splash_msg)                  ; Initialize Z-pointer to the start of the shell_splash_msg label
+    ldi r30, lo8(shell_splash_msg)
     rcall oled_print_flash
     rcall oled_color_inv_stop
 
@@ -62,7 +62,7 @@ _shell_splash_wait:                            ; wait for button press and exit
 shell_menu_apps_list:
     .asciz "splash"                            ; index 0
     .asciz "terminal"                          ; index 1
-    .asciz "malloc 1"                          ; index 2
+    .asciz "file manager"                      ; index 2
     .asciz "malloc 2"                          ; index 3
     .asciz "fs test"                           ; index 4
     .asciz "fs format"                         ; index 5
@@ -80,6 +80,8 @@ shell_menu_apps_list:
 shell_menu_confirm_test:
     .asciz "test!!"
 
+shell_menu_no_dir_name_msg:
+    .asciz "name:"
 
 .balign 2
 
@@ -121,11 +123,7 @@ _shell_home_menu_1:
 _shell_home_menu_2:
     cpi r16, 2
     brne _shell_home_menu_3
-    mov r20, r16
-    ldi r30, lo8(shell_menu_confirm_test)
-    ldi r31, hi8(shell_menu_confirm_test)
-    rcall ui_confirm_popup_show
-    mov r16, r20
+    rcall fm_app_open
     rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 _shell_home_menu_3:
@@ -152,9 +150,23 @@ _shell_home_menu_6:
     cpi r16, 6
     brne _shell_home_menu_7
     mov r20, r16
+    mov r21, r17
+
+    ldi r30, lo8(shell_menu_no_dir_name_msg)
+    ldi r31, hi8(shell_menu_no_dir_name_msg)
+    rcall ui_input_popup_show
+
+    cpi r16, 0xff
+    breq _shell_home_menu_6_done
+    mov r17, r16
     clr r16
     rcall fs_dir_make
+    mov r16, r17
+    rcall mem_free
+
+_shell_home_menu_6_done:
     mov r16, r20
+    mov r17, r21
     rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 _shell_home_menu_7:
@@ -191,9 +203,11 @@ _shell_home_menu_10:
 _shell_home_menu_11:
     cpi r16, 11
     brne _shell_home_menu_done
+    mov r20, r16
     ldi r30, lo8(shell_menu_confirm_test)
     ldi r31, hi8(shell_menu_confirm_test)
     rcall ui_input_popup_show
+    mov r16, r20
 
 _shell_home_menu_done:
     rjmp _shell_home_show_menu                 ; show menu after running selected option
