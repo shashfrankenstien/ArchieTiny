@@ -21,7 +21,8 @@ SRC=src/kernel.asm \
 	src/apps/terminal.asm \
 	src/apps/file_manager.asm \
 	src/shell.asm \
-	src/fonts/spleen.asm
+	src/fonts/spleen.asm \
+	src/fonts/archie_icons.asm
 
 
 # SRC=ignore/i2c_tester/main.asm \

@@ -30,10 +30,15 @@ fm_menu_print_dir_entry_cb:
     ldi r18, FS_DIR_ENTRY_NAME_MAX_LEN
     rcall oled_io_open_write_data
 
-    ldi r16, '|'
-    rcall oled_io_put_char
-    ldi r16, '-'
-    rcall oled_io_put_char
+    ldi r16, ICON_IDX_TREE
+    rcall oled_io_put_icon
+
+    sbrs r17, FS_IS_DIR
+    rjmp _fm_print_dir_entry_cb_print_start
+    ldi r16, ICON_IDX_FOLDER
+    rcall oled_io_put_icon
+
+_fm_print_dir_entry_cb_print_start:
     ldi r16, ' '
     rcall oled_io_put_char
 _fm_print_dir_entry_cb_print:
@@ -47,12 +52,6 @@ _fm_print_dir_entry_cb_print:
     brne _fm_print_dir_entry_cb_print
 
 _fm_print_dir_entry_cb_print_done:
-    sbrs r17, FS_IS_DIR
-    rjmp _fm_print_dir_entry_cb_close
-    ldi r16, '/'
-    rcall oled_io_put_char
-
-_fm_print_dir_entry_cb_close:
     rcall oled_io_close
 
     pop r17

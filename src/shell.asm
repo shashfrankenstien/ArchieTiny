@@ -22,7 +22,7 @@ shell_splash_screen:
     ldi r18, OLED_MAX_COL - ((OLED_MAX_COL - (FONT_WIDTH * shell_splash_msg_len) - 8) / 2)    ; x2
     ldi r19, (1 * 8) + 6                                ; y1
     ldi r20, (5 * 8) + 2                                ; y2
-    rcall oled_fill_rect_by_pixel                       ; fill oled with data in r16
+    rcall oled_fill_rect                       ; fill oled with data in r16
 
     ; =========
     ; Hello World! :D

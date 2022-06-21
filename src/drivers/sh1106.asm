@@ -64,8 +64,9 @@
 .equ    OLED_LOCK,               4         ; oled lock can be acquired by setting bit 4 of SREG_OLED register
 
 ; --------------------------------------------------
-.equ    OLED_MAX_COL,            127                ; max column index (128 x 64)
-.equ    OLED_MAX_PAGE,           7                  ; max page index (each page has 8 rows)
+.equ    OLED_MAX_COL,            127                        ; max column index (128 x 64)
+.equ    OLED_MAX_PAGE,           7                          ; max page index (each page has 8 rows)
+.equ    OLED_MAX_ROWS,           ((OLED_MAX_PAGE + 1) * 8)  ; each page has 8 rows. OLED_MAX_ROWS = number of pages * 8
 ; --------------------------------------------------
 
 
@@ -423,8 +424,8 @@ oled_clr_screen:
     clr r17                                    ; x1 = 0
     ldi r18, OLED_MAX_COL                      ; x2 = OLED_MAX_COL
     clr r19                                    ; y2 = 0
-    ldi r20, OLED_MAX_PAGE                     ; y2 = OLED_MAX_PAGE
-    rcall oled_fill_rect_by_page               ; fill oled with data in r16
+    ldi r20, OLED_MAX_ROWS                     ; y2 = OLED_MAX_ROWS (64 on the regular oled)
+    rcall oled_fill_rect              ; fill oled with data in r16
 
     rcall oled_scroll_page_reset               ; reset scroll position
 
@@ -541,50 +542,9 @@ _invert_inplace_next_column:
 
 
 
-; oled_fill_rect_by_page takes 4 coordinates - x1, x2, y1, y2
-; it will fill the rectangle between (x1,y1) (x1,y2) (x2,y1) (x2,y2)
-; input registers -
-;   r16 - byte to fill
-;   r17 - x1
-;   r18 - x2
-;   r19 - y1
-;   r20 - y2
-;
-; so
-;   x1 and x2 indicate column addresses
-;   y1 and y2 indicate row addresses between 0 and 7 (this is page address resolution; for pixel resolution, see oled_fill_rect_by_pixel)
-oled_fill_rect_by_page:                                ; fill rect on screen with value in r16
-                                               ; r16 through r20 are inputs. calling routine should push and pop these
-    push r21
-    push r22
-    in r21, SREG
-
-    ; pre calc some stuff
-    mov r22, r16                               ; save away page fill byte till later because we need r16 for other stuff
-    lds r16, SREG_OLED
-    sbrc r16, OLED_COLOR_INVERT                ; check if needs to be inverted
-    com r22                                    ; invert!
-
-    inc r20                                    ; increment y2 so that we can break the loop once y1 overflows original y2
-    mov r16, r22                               ; load back the fill byte that was originally saved away
-_next_page:                                    ; iterate pages y1 to y2
-    rcall oled_fill_page_row
-    inc r19
-    cp r19, r20
-    brne _next_page
-
-    out SREG, r21
-    pop r22
-    pop r21                                    ; r16 through r20 are inputs. calling routine should push and pop these
-    ret                                        ; return value r16 will contain ACK from last byte transfered
 
 
-
-
-
-
-
-; oled_fill_rect_by_pixel takes 4 coordinates - x1, x2, y1, y2
+; oled_fill_rect takes 4 coordinates - x1, x2, y1, y2
 ; it will fill the rectangle between (x1,y1) (x1,y2) (x2,y1) (x2,y2)
 ; input registers -
 ;   r16 - byte to fill
@@ -602,7 +562,7 @@ _next_page:                                    ; iterate pages y1 to y2
 ;
 ; first, we will fill the pages associated with y1 and y2 with corresponding bit addr masked fill byte
 ; then, we will check if there are pages between y1 and y2 that needs filling, and fill those with the raw fill byte
-oled_fill_rect_by_pixel:                               ; fill rect on screen with value in r16
+oled_fill_rect:                               ; fill rect on screen with value in r16
                                                ; r16 through r20 are inputs. calling routine should push and pop these
     push r21
     push r22
@@ -700,7 +660,7 @@ _rect_done:
 
 ; oled_draw_h_line_overlay takes 2 coordinates - x1, x2 and y
 ; it will draw a vertical line between x1 and x2 on row y
-; input registers follow oled_fill_rect_by_pixel convention -
+; input registers follow oled_fill_rect convention -
 ;   r16 - y
 ;   r17 - x1
 ;   r18 - x2
@@ -753,7 +713,7 @@ _draw_h_line_next_column:
 
 ; ; oled_draw_line_overlay takes 4 coordinates - x1, x2, y1, y2
 ; ; it will fill the rectangle between (x1,y1) (x1,y2) (x2,y1) (x2,y2)
-; ; input registers follow oled_fill_rect_by_pixel convention -
+; ; input registers follow oled_fill_rect convention -
 ; ;   r17 - x1
 ; ;   r18 - x2
 ; ;   r19 - y1
@@ -807,14 +767,61 @@ oled_io_put_char:
     adc r31, r17                    ; add the character index to Z pointer
 
     ldi r17, FONT_WIDTH             ; load loop counter
-_next_font_byte:
+_oled_io_put_char_next_byte:
     lpm r16, Z+                     ; load constant from flash
                                     ; memory pointed to by Z (r31:r30)
     sbrc r19, OLED_COLOR_INVERT     ; check if needs to be inverted
     com r16                         ; invert!
     rcall i2c_send_byte
     dec r17
-    brne _next_font_byte
+    brne _oled_io_put_char_next_byte
+
+    out SREG, r18
+    .irp param,31,30,19,18,17
+        pop r\param
+    .endr
+    ret                             ; return value r16 will contain ACK from last byte transfered
+
+
+
+
+; oled_io_put_icon depends on a custom icon set being included. it will expect
+;   - a label 'icon_lut' that contains the lookup table for icons
+;   - ICON_WIDTH constant which indicates how many bytes need to be written per icon
+;           consequent icons can be reached by incrementing by ICON_WIDTH
+;
+; it take one icon value in r16
+; to write the icon, we need to find the index of the icon in icon_lut
+;   - index = addr of icon_lut + (r16 * ICON_WIDTH)
+;
+; oled_io_put_icon assumes that start condition has been signaled and cursor address is set before being called
+; it also expects that the oled is in OLED_WRITE_DATA_LIST mode
+; - these conditions can be met by just calling oled_io_open_write_data before, and oled_io_close after oled_io_put_icon
+oled_io_put_icon:
+    .irp param,17,18,19,30,31
+        push r\param
+    .endr
+    in r18, SREG
+    lds r19, SREG_OLED
+
+    ldi r31, hi8(icon_lut)          ; initialize Z-pointer to the start of the icon lookup table
+    ldi r30, lo8(icon_lut)
+
+    ldi r17, ICON_WIDTH             ; r16 * ICON_WIDTH
+    rcall mul8                      ; output is stored in r17:r16 (icon index)
+
+    add r30, r16                    ; add the icon index to Z pointer
+    adc r31, r17                    ; add the icon index to Z pointer
+
+    ldi r17, ICON_WIDTH             ; load loop counter
+_oled_io_put_icon_next_byte:
+    lpm r16, Z+                     ; load constant from flash
+                                    ; memory pointed to by Z (r31:r30)
+    sbrc r19, OLED_COLOR_INVERT     ; check if needs to be inverted
+    com r16                         ; invert!
+    rcall i2c_send_byte
+    dec r17
+    brne _oled_io_put_icon_next_byte
 
     out SREG, r18
     .irp param,31,30,19,18,17
