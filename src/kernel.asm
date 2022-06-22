@@ -41,8 +41,8 @@ main:                               ; initialize
     ldi r16, hi8(RAMEND)            ; set stack pointer high bits to high(RAMEND)
     out SPH, r16
 
-    rcall init_onboard_led          ; set LED output pin
-    sbi PORTB, LED_PIN
+    rcall buzzer_init               ; set buzzer output pin
+    sbi PORTB, BUZZER_PIN
 
     rcall timer_init                ; set timer / counter options and intialize 24bit software counter
     rcall i2c_init                  ; initialize i2c bus
@@ -61,7 +61,7 @@ main:                               ; initialize
     ldi r16, lo8(pm(test3))
     rcall taskmanager_add
 
-    cbi PORTB, LED_PIN
+    cbi PORTB, BUZZER_PIN
     sei
 pool:
     sleep                           ; wait for interrupts (required for simavr to perform correctly. good idea anyway)

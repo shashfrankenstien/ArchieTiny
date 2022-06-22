@@ -1,4 +1,4 @@
-.include "config.inc"                       ; LED_PIN, GPIO_BTN_0, ADC_CHAN_0, SREG_GPIO_PC, ...
+.include "config.inc"                       ; BUZZER_PIN, GPIO_BTN_0, ADC_CHAN_0, SREG_GPIO_PC, ...
 
 ; gpio mode, write and read registers
 .equ    DDRB,               0x17
@@ -67,14 +67,6 @@
 
 
 ; --------------------------------------------------------------------------------
-
-; digital IO routines
-init_onboard_led:
-    clr r16
-    out PORTB, r16
-    out DDRB, r16
-    sbi DDRB, LED_PIN                          ; setup output pin 1 (P1)
-    ret
 
 
 ; intialize PC interrupt

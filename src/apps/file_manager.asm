@@ -71,7 +71,7 @@ _fm_print_dir_entry_cb_print_failed:
 
 ; opens root directory as a menu
 fm_app_open:
-    .irp param,16,17,24,25,30,31
+    .irp param,16,17,18,24,25,30,31
         push r\param
     .endr
 
@@ -84,10 +84,18 @@ _fm_app_show_menu:
     ldi r31, hi8(pm(fm_menu_print_dir_entry_cb))
     rcall ui_menu_show                         ; show apps menu
 
+    sbrs r18, EXIT_BTN
     rjmp _fm_app_show_menu
 
+    push r16
+    ldi r30, lo8(msg_ui_exit_confirm)
+    ldi r31, hi8(msg_ui_exit_confirm)
+    rcall ui_confirm_popup_show
+    tst r16
+    pop r16
+    breq _fm_app_show_menu
 
-    .irp param,31,30,25,24,17,16
+    .irp param,31,30,25,24,18,17,16
         pop r\param
     .endr
     ret

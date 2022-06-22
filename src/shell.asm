@@ -89,12 +89,12 @@ shell_menu_no_dir_name_msg:
 
 ; main gui entry point
 shell_home_task:
-    sbi PORTB, LED_PIN
+    sbi PORTB, BUZZER_PIN
     ldi r20, 0x32                              ; power on debounce delay (0x32 = 50 ms)
     rcall timer_delay_ms_short                 ; short delay before resetting SREG_GPIO_PC at start up (need time for debouncing capacitors to charge)
     clr r20
     sts SREG_GPIO_PC, r20                      ; clear gpio button status register
-    cbi PORTB, LED_PIN
+    cbi PORTB, BUZZER_PIN
 
     rcall shell_splash_screen
     sts SREG_GPIO_PC, r20                      ; clear gpio button status register again
@@ -108,6 +108,15 @@ _shell_home_show_menu:
     ldi r31, hi8(pm(ui_menu_print_flash_item_cb))
     rcall ui_menu_show                         ; show apps menu
                                                ; let user select from shell_menu_apps_list list. rcall appropriate routine using selected index
+
+    sbrc r18, ENTER_BTN
+    rjmp _shell_home_menu_0
+
+    sbrc r18, EXIT_BTN
+    rcall shell_splash_screen
+
+    rjmp _shell_home_show_menu
+
 _shell_home_menu_0:
     cpi r16, 0
     brne _shell_home_menu_1

@@ -10,13 +10,6 @@
 ;   - parsing can be done as a stream until we hit character 10 (\n)
 
 
-terminal_exit_confirm_msg:
-    .asciz "  Exit?"
-
-.balign 2
-
-
-
 
 terminal_app_open:
     .irp param,16,17,18,19
@@ -50,8 +43,8 @@ _terminal_char_wait:
     brne _terminal_char_print
 
     mov r18, r16
-    ldi r30, lo8(terminal_exit_confirm_msg)
-    ldi r31, hi8(terminal_exit_confirm_msg)
+    ldi r30, lo8(msg_ui_exit_confirm)
+    ldi r31, hi8(msg_ui_exit_confirm)
     rcall ui_confirm_popup_show
     tst r16
     brne _terminal_exit

@@ -113,7 +113,7 @@
 ; -------------------------------------------------
 
 ; gpio config
-.equ    LED_PIN,            1
+.equ    BUZZER_PIN,         1
 .equ    GPIO_BTN_0,         4
 ; ADC voltage divider buttons
 .equ    ADC_CHAN_0,         0                               ; channel 0 is mapped to ADC hardware channel 0

@@ -66,6 +66,8 @@
 ;   - task manager stores and restores the above list of registers during task swapping
 ;   - registers r2 through r15 can be used for sharing data between tasks
 ;       see global register variables - https://gcc.gnu.org/onlinedocs/gcc-4.6.1/gcc/Global-Reg-Vars.html#Global-Reg-Vars
+.equ    TSKMAN_PUSHED_REGS_COUNT,     18
+
 
 
 taskmanager_init:
@@ -139,11 +141,11 @@ _next_slot:
 _slot_found:
     sbiw r26, 2                                 ; move X back 2 bytes to reach the slot
 
-    ldi r23, TASK_STACK_SIZE -1 -3 -18 -1 -1    ; finding where the stack pointer should point -
+    ldi r23, TASK_STACK_SIZE -1 -3 -TSKMAN_PUSHED_REGS_COUNT -1 -1    ; finding where the stack pointer should point -
                                                 ;   -1 to reach the last byte
                                                 ;   -3 from there to allow for 4 bytes to be filled (entry and return addresses)
                                                 ; registers will be popped as soon as the task starts (.irp param,0,1,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31)
-                                                ;   -18 bytes for these registers => len([0,1,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31])
+                                                ;   -TSKMAN_PUSHED_REGS_COUNT bytes for these registers => len([0,1,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31])
                                                 ;   -1 for SREG
                                                 ;   -1 because the SP should point to the next location
     add r28, r23                                ; add this offset to the start of stack
@@ -153,18 +155,18 @@ _slot_found:
     st X, r29
 
     clr r23
-    ldi r22, 18 + 1 + 1
+    ldi r22, TSKMAN_PUSHED_REGS_COUNT + 1 + 1
 _taskmanager_add_clr_reg_spaces:
     st Y+, r23                              ; clear spaces for registers
-    dec r22                                 ;   +18 bytes for these registers => len([0,1,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31])
+    dec r22                                 ;   +TSKMAN_PUSHED_REGS_COUNT bytes for these registers => len([0,1,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31])
     brne _taskmanager_add_clr_reg_spaces    ;   +1 byte for SREG
                                             ;   +1 because the SP will be point to the next location
 
     st Y+, r17                              ; store function entry point address high and low bytes
     st Y+, r16                              ; note - stack should be in reverse
 
-    ldi r18, hi8(pm(_taskmanager_task_complete))  ; store function final return address high and low bytes
-    ldi r19, lo8(pm(_taskmanager_task_complete))  ; store function final return address high and low bytes
+    ldi r18, hi8(pm(internal_taskmanager_task_complete))  ; store function final return address high and low bytes
+    ldi r19, lo8(pm(internal_taskmanager_task_complete))  ; store function final return address high and low bytes
 
     st Y+, r18
     st Y, r19
@@ -201,7 +203,7 @@ _add_done:
 
 
 
-_get_sp_slot_addr_in_X:                ; takes a task index in r16,
+internal_get_sp_slot_addr_in_X:                ; takes a task index in r16,
                                       ; returns corresponding task stack pointer slot addr in X
     push r16
 
@@ -262,7 +264,7 @@ _save_running_task:
     .endr                           ; rest are not stored in order to conserver space
 
     lds r16, TASKPTR
-    rcall _get_sp_slot_addr_in_X
+    rcall internal_get_sp_slot_addr_in_X
 
     in r17, SPL                     ; read in current stack pointer low
     st X+, r17                      ; store stack pointer at the vector
@@ -276,7 +278,7 @@ _start_next_task:                   ; r16 contains pointer to the next task's ad
     brlo _check_addr
     clr r16                         ; if overflowed, reset to 0
 _check_addr:
-    rcall _get_sp_slot_addr_in_X
+    rcall internal_get_sp_slot_addr_in_X
 
     ld r18, X+                      ; read stack pointer from vector
     ld r19, X                       ; load r19:r18 with the value of the stack pointer
@@ -308,7 +310,7 @@ _tasks_done:
 
 
 
-_taskmanager_task_complete:
+internal_taskmanager_task_complete:
     in r26, SPL
     in r27, SPH
 

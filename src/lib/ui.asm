@@ -66,8 +66,13 @@
 ;   - scroll up action:
 ;       - once we scroll up, to find the item that needs to be printed, we use current scroll position register (r23)
 ;        - just as before, set r16 and print item with icall
+;
+; returns
+;   - selected index in r16
+;   - current scroll position in r17
+;   - nav buttons state byte in r18 (see SREG_ADC_VD_HLD desc in gpio.asm)
 ui_menu_show:
-    .irp param,18,19,20,21,22,23,26
+    .irp param,19,20,21,22,23,26
         push r\param
     .endr
 
@@ -96,7 +101,7 @@ _ui_menu_next:
 
     mov r16, r19
     add r16, r23
-    icall                                       ; call routine pointed to by r31:r30 (Z)
+    icall                                       ; callback routine pointed to by r31:r30 (Z)
     rcall oled_lock_release
 
     tst r16                                     ; peek next byte to check if we reached the end of list
@@ -120,7 +125,7 @@ _ui_menu_scroll_prev:
 
     clr r16
     add r16, r23
-    icall                                       ; call routine pointed to by r31:r30 (Z)
+    icall                                       ; callback routine pointed to by r31:r30 (Z)
     rcall oled_lock_release
 
     rjmp _ui_menu_navigate
@@ -183,7 +188,7 @@ _ui_menu_nav_move_up:
 
 _ui_menu_nav_check_down:
     sbrs r16, NAV_DOWN_BTN                      ; if DOWN is pressed, skip the next statement
-    rjmp _ui_menu_nav_check_ok                  ; if nav is not DOWN, continue to check OK
+    rjmp _ui_menu_nav_check_actions                  ; if nav is not DOWN, continue to check OK
 
     inc r21                                     ; move selection down
 
@@ -215,15 +220,17 @@ _ui_menu_nav_check_down_not_end:
     rjmp _ui_menu_next                          ; jump all the way back to print the next item
 
 
-_ui_menu_nav_check_ok:
-    sbrs r16, ENTER_BTN                         ; if enter is pressed, skip the next statement
-    rjmp _ui_menu_navigate                      ; if nav is not OK, go back and start over
+_ui_menu_nav_check_actions:
+    andi r16, (1<<ENTER_BTN) | (1<<EXIT_BTN) | (1<<OPTIONS_BTN)
+    tst r16
+    breq _ui_menu_navigate                      ; if any action buttons are pressed, go to done. else, go back and start over
 
+_ui_menu_done:
+    mov r18, r16                                ; setup nav button state register return value
     mov r16, r21                                ; if OK is pressed, return current selected item index to calling routine
     mov r17, r23                                ; also return current scroll position
                                                 ; menu can be recalled back to the previous state by passing back r16 and r17
-_ui_menu_done:
-    .irp param,26,23,22,21,20,19,18
+    .irp param,26,23,22,21,20,19
         pop r\param
     .endr
     ret
@@ -282,12 +289,15 @@ _ui_menu_print_flash_done:
 
 
 ; ------------------------------------------------------------------------------------------------
-str_ui_confirm_popup_YN:
+msg_ui_confirm_popup_YN:
     .asciz " Y "
     .asciz " N "
 
-str_ui_alert_popup_OK:
+msg_ui_alert_popup_OK:
     .asciz " OK "
+
+msg_ui_exit_confirm:
+    .asciz "  Exit?"
 
 .balign 2
 
@@ -312,8 +322,8 @@ ui_confirm_popup_show:
     ldi r17, UI_POPUP_START_COL + UI_POPUP_YN_PADDING
     rcall oled_set_relative_cursor
 
-    ldi r30, lo8(str_ui_confirm_popup_YN)
-    ldi r31, hi8(str_ui_confirm_popup_YN)
+    ldi r30, lo8(msg_ui_confirm_popup_YN)
+    ldi r31, hi8(msg_ui_confirm_popup_YN)
     rcall oled_print_flash                                                  ; print Y
 
     rcall oled_color_inv_start                                              ; show as selected by default
@@ -360,8 +370,8 @@ ui_alert_popup_show:
     ldi r17, UI_POPUP_START_COL + (UI_POPUP_WINDOW_WIDTH / 2) - UI_POPUP_OK_PADDING
     rcall oled_set_relative_cursor
 
-    ldi r30, lo8(str_ui_alert_popup_OK)
-    ldi r31, hi8(str_ui_alert_popup_OK)
+    ldi r30, lo8(msg_ui_alert_popup_OK)
+    ldi r31, hi8(msg_ui_alert_popup_OK)
 
     rcall oled_color_inv_start                                              ; show as selected by default
     rcall oled_print_flash                                                  ; print OK

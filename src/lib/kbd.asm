@@ -13,6 +13,7 @@
 ; general button aliases
 .equ    ENTER_BTN,          ADC_VD_CH1_BTN_0
 .equ    EXIT_BTN,           ADC_VD_CH1_BTN_1
+.equ    OPTIONS_BTN,        ADC_VD_CH1_BTN_2
 
 ; button aliases for nav_kbd_start
 .equ    NAV_UP_BTN,         ADC_VD_CH0_BTN_0
