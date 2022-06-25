@@ -144,9 +144,10 @@ i2c_do_stop_condition:
     ldi r20, I2C_DELAY_CC               ; set delay
     rcall timer_delay_clock_cycles
 
-    ldi r20, 0xff
-    out USIDR, r20
-    sbi USICR, 0
+    cbi PORTB, I2C_SDA_PIN              ; set SDA to low
+    sbi USICR, 0                        ; bring clock high
+    rcall timer_delay_clock_cycles
+    sbi PORTB, I2C_SDA_PIN              ; set SDA to high
     ldi r20, 0xf0                       ; Cleaning the flags and the counter is reset
     out USISR, r20
 

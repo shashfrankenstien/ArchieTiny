@@ -46,18 +46,23 @@ _fm_print_file_icon:
 _fm_print_dir_entry_cb_print_start:
     ldi r16, ' '
     rcall oled_io_put_char
+    rcall oled_io_close
 _fm_print_dir_entry_cb_print:
-    rcall eeprom_read
+    rcall fs_wrapper_read
     tst r16
     breq _fm_print_dir_entry_cb_print_end
+    push r16
+    rcall oled_io_open_write_data
+    pop r16
     rcall oled_io_put_char
+    rcall oled_io_close
 
     adiw r24, 1
     dec r18
     brne _fm_print_dir_entry_cb_print
 
 _fm_print_dir_entry_cb_print_end:
-    rcall oled_io_close
+    ; rcall oled_io_close
 
     pop r17
     pop r16

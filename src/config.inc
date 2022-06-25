@@ -98,8 +98,8 @@
 .equ    FS_MAX_CLUSTERS,        FS_FREE_SIZE / (FS_CLUSTER_SIZE + 2)  ; +2 for doubly linked FAT
 .equ    FAT_BYTE_SIZE,          FS_MAX_CLUSTERS * 2
 
-; error handling for FS_MAX_CLUSTERS greater than 250
-.iflt 250 - FS_MAX_CLUSTERS         ; test if 250 - FS_MAX_CLUSTERS is less than 0
+; error handling for FAT_BYTE_SIZE greater than 250
+.iflt 250 - FAT_BYTE_SIZE           ; test if 250 - FAT_BYTE_SIZE is less than 0
     .err                            ; address overflow!
 .endif
 

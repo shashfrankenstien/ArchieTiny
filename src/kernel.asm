@@ -115,7 +115,7 @@ test3_loop:
     ; rcall oled_set_cursor                      ; set cursor to start writing data
     ; clr r24
     ; clr r25
-    ; rcall eeprom_read
+    ; rcall fs_wrapper_read
     ; rcall oled_print_hex_digits
 
 ;     ldi r16, 1

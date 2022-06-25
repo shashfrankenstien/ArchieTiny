@@ -71,6 +71,42 @@
 .equ    FS_FILE_SIGNATURE,          (1<<FS_IS_ENTRY) | (0<<FS_IS_DIR)
 
 
+; ------------------------------------------------------------------------------------------------
+; fs_wrapper_* methods are wrappers around eeprom_* or fram_* routines
+; we can use these accross the board, and have the ability to switch between internal eeprom and external fram
+;   - all take address in r25:r24 pair and either read a byte into r16 or write a byte from r16
+fs_wrapper_read:
+    rcall eeprom_read
+    ; rcall i2c_lock_acquire
+    ; rcall fram_io_open_reader
+    ; rcall i2c_read_byte_nack
+    ; rcall fram_io_close
+    ; rcall i2c_lock_release
+    ret
+
+
+
+fs_wrapper_write:
+    rcall eeprom_write
+    ; push r16
+    ; rcall i2c_lock_acquire
+    ; rcall fram_io_open_writer
+    ; rcall i2c_send_byte
+    ; rcall fram_io_close
+    ; rcall i2c_lock_release
+    ; pop r16
+    ret
+
+
+
+fs_wrapper_update:
+    rcall eeprom_update
+    ; rcall fs_wrapper_write
+    ret
+
+; ------------------------------------------------------------------------------------------------
+
+
 
 fs_format:
     .irp param,16,17,24,25
@@ -80,27 +116,27 @@ fs_format:
     ldi r24, lo8(FAT_END)                      ; load address low byte into register pair r25:r24
     ldi r25, hi8(FAT_END)                      ; load address high byte into register pair r25:r24
     clr r16
-    rcall eeprom_update                        ; set cluster as allocated, but empty by setting the first byte to 0
+    rcall fs_wrapper_update                        ; set cluster as allocated, but empty by setting the first byte to 0
 
     ldi r24, lo8(FAT_START)                    ; load address low byte into register pair r25:r24
     ldi r25, hi8(FAT_START)                    ; load address high byte into register pair r25:r24
     ldi r16, FAT_END_CLUSTER_VAL               ; create empty root directory
-    rcall eeprom_update                        ; update PREV_IDX
+    rcall fs_wrapper_update                        ; update PREV_IDX
     adiw r24, 1
-    rcall eeprom_update                        ; update NEXT_IDX
+    rcall fs_wrapper_update                        ; update NEXT_IDX
 
     ldi r17, FAT_BYTE_SIZE - 2                 ; iterate through FAT (first cluster is occupied by root dir)
     ldi r16, FAT_FREE_CLUSTER_VAL
 _fs_format_wipe:
     adiw r24, 1                                ; go to next address
-    rcall eeprom_update                        ; wipe FAT
+    rcall fs_wrapper_update                        ; wipe FAT
     dec r17
     brne _fs_format_wipe
 
     ldi r16, FS_MAX_CLUSTERS - 1               ; intially, this is set to FS_MAX_CLUSTERS - 1 (first cluster is occupied by root dir)
     ldi r24, lo8(FATFREECTR)
     ldi r25, hi8(FATFREECTR)
-    rcall eeprom_update
+    rcall fs_wrapper_update
 
     .irp param,25,24,17,16
         pop r\param
@@ -123,7 +159,7 @@ fs_raw_read:
     add r24, r17
     clr r18
     adc r25, r18
-    rcall eeprom_read
+    rcall fs_wrapper_read
     mov r18, r16                                ; return valu in r18
 
     .irp param,25,24,16
@@ -179,6 +215,7 @@ fs_dir_open:
 
 
 
+; ------------------------------------------------------------------------------------------------
 
 ; translates cluster index to FAT table entry address (r25:r24)
 internal_fs_cluster_idx_to_fat:
@@ -199,7 +236,7 @@ internal_fs_cluster_idx_to_fat:
     ret
 
 
-; translates cluster index in r16 to eeprom fs address (r25:r24) compatible with eeprom_read, eeprom_write, eeprom_update
+; translates cluster index in r16 to eeprom fs address (r25:r24) compatible with fs_wrapper_read, fs_wrapper_write, fs_wrapper_update
 internal_fs_cluster_idx_to_raw:
     push r16
     push r17
@@ -218,7 +255,7 @@ internal_fs_cluster_idx_to_raw:
 
 
 ; translates cluster index in r16 and directory item index in r17
-;   - to eeprom fs address (r25:r24) compatible with eeprom_read, eeprom_write, eeprom_update
+;   - to eeprom fs address (r25:r24) compatible with fs_wrapper_read, fs_wrapper_write, fs_wrapper_update
 ;   - returns signature byte in r16
 internal_fs_dir_item_idx_to_raw:
     push r17
@@ -234,7 +271,7 @@ internal_fs_dir_item_idx_to_raw:
 _fs_dir_item_to_raw_index_next_cluster:
     clr r20
 _fs_dir_item_to_raw_index:
-    rcall eeprom_read                       ; read signature byte
+    rcall fs_wrapper_read                       ; read signature byte
     tst r16
     breq _fs_dir_item_not_found
 
@@ -255,7 +292,7 @@ _fs_dir_item_to_raw_index:
     mov r16, r19
     rcall internal_fs_cluster_idx_to_fat
     adiw r24, 1
-    rcall eeprom_read                       ; read NEXT_IDX
+    rcall fs_wrapper_read                       ; read NEXT_IDX
     cpi r16, FAT_END_CLUSTER_VAL
     brsh _fs_dir_item_not_found             ; checks for both FAT_END_CLUSTER_VAL and FAT_FREE_CLUSTER_VAL
 
@@ -295,7 +332,7 @@ internal_fs_search_alloc_cluster:
 
     ldi r24, lo8(FATFREECTR)
     ldi r25, hi8(FATFREECTR)
-    rcall eeprom_read
+    rcall fs_wrapper_read
     mov r18, r16
     tst r16
     brne _fs_util_search_start
@@ -312,7 +349,7 @@ _fs_util_search_start:
 
     clr r17
 _fs_util_search_next:
-    rcall eeprom_read
+    rcall fs_wrapper_read
     cpi r16, FAT_FREE_CLUSTER_VAL
     breq _fs_util_search_cluster_found
 
@@ -325,7 +362,7 @@ _fs_util_search_next:
 
 _fs_util_search_cluster_found:
     pop r16                                    ; retrieve prev cluster index input
-    rcall eeprom_update                        ; r25:r24 are now pointing to the new clusted in FAT. update r16 into PREV_IDX
+    rcall fs_wrapper_update                        ; r25:r24 are now pointing to the new clusted in FAT. update r16 into PREV_IDX
 
     cpi r16, FAT_END_CLUSTER_VAL
     breq _fs_util_search_prev_cluster_done
@@ -334,25 +371,25 @@ _fs_util_search_cluster_found:
     rcall internal_fs_cluster_idx_to_fat       ; convert r16 to FAT address (previous cluster)
     adiw r24, 1
     mov r16, r17
-    rcall eeprom_update                        ; update previous cluster NEXT_IDX byte
+    rcall fs_wrapper_update                        ; update previous cluster NEXT_IDX byte
     rcall internal_fs_cluster_idx_to_fat       ; convert r16 to FAT address (new cluster)
 
 _fs_util_search_prev_cluster_done:
     adiw r24, 1
     ldi r16, FAT_END_CLUSTER_VAL               ; mark FAT entry as occupied
-    rcall eeprom_update                        ; update NEXT_IDX with FAT_END_CLUSTER_VAL
+    rcall fs_wrapper_update                        ; update NEXT_IDX with FAT_END_CLUSTER_VAL
 
     ldi r24, lo8(FATFREECTR)
     ldi r25, hi8(FATFREECTR)
     mov r16, r18
     dec r16
-    rcall eeprom_update                        ; decrement FATFREECTR
+    rcall fs_wrapper_update                        ; decrement FATFREECTR
 
     mov r16, r17
     rcall internal_fs_cluster_idx_to_raw       ; set r25:r24 to raw address of the cluster
 
     clr r16
-    rcall eeprom_update                        ; set cluster as allocated, but empty by setting the first byte to 0
+    rcall fs_wrapper_update                        ; set cluster as allocated, but empty by setting the first byte to 0
 
     mov r16, r17                               ; restore index return value into r16
 
@@ -391,7 +428,7 @@ _fs_create_item_find_end_cluster:
     mov r20, r16
     rcall internal_fs_cluster_idx_to_fat
     adiw r24, 1                                 ; just read the next address
-    rcall eeprom_read
+    rcall fs_wrapper_read
     cpi r16, FAT_END_CLUSTER_VAL
     brlo _fs_create_item_find_end_cluster       ; checks for both FAT_END_CLUSTER_VAL and FAT_FREE_CLUSTER_VAL
 
@@ -401,7 +438,7 @@ _fs_create_item_find_end_cluster:
     ldi r21, FS_DIR_ENTRY_SIZE                  ; look for bottom of the directory contents
     clr r22
 _fs_create_item_find_slot:
-    rcall eeprom_read                           ; read signature byte
+    rcall fs_wrapper_read                           ; read signature byte
     tst r16
     breq _fs_create_item_slot_found
 
@@ -420,7 +457,7 @@ _fs_create_item_find_slot:
 
 _fs_create_item_slot_found:
     mov r16, r18                               ; write signature byte
-    rcall eeprom_write                         ; eeprom contains 0 at this address. so use eeprom_write instead of eeprom_update
+    rcall fs_wrapper_write                         ; eeprom contains 0 at this address. so use fs_wrapper_write instead of fs_wrapper_update
     adiw r24, 1
 
     mov r16, r17                               ; get pointer to name
@@ -431,7 +468,7 @@ _fs_create_item_write_name:
 
     mov r21, r16                               ; save pointer
     mov r16, r17
-    rcall eeprom_write
+    rcall fs_wrapper_write
     adiw r24, 1
     mov r16, r21                               ; save pointer
 
@@ -451,14 +488,14 @@ _fs_create_item_write_name_done:
 
 _fs_create_item_write_addr:
     mov r16, r19
-    rcall eeprom_write                         ; use eeprom_write instead of eeprom_update
+    rcall fs_wrapper_write                         ; use fs_wrapper_write instead of fs_wrapper_update
 
     cpi r22, (FS_CLUSTER_SIZE / FS_DIR_ENTRY_SIZE) - 1
     breq _fs_create_item_done
 
     adiw r24, 1
     clr r16
-    rcall eeprom_update
+    rcall fs_wrapper_update
     mov r16, r19
 
 _fs_create_item_done:
@@ -487,7 +524,7 @@ internal_fs_remove_item:
     push r16
     ldi r24, lo8(FATFREECTR)
     ldi r25, hi8(FATFREECTR)
-    rcall eeprom_read
+    rcall fs_wrapper_read
     mov r18, r16
     pop r16
 
@@ -500,20 +537,20 @@ internal_fs_remove_item:
     breq _fs_remove_item_done ; NOT!
 
     ori r16, (1<<FS_IS_DELETED)
-    rcall eeprom_write
+    rcall fs_wrapper_write
 
     adiw r24, FS_DIR_ENTRY_NAME_MAX_LEN + 1
-    rcall eeprom_read
+    rcall fs_wrapper_read
 
 _fs_remove_item_clean_fat:
     rcall internal_fs_cluster_idx_to_fat
     ldi r16, FAT_FREE_CLUSTER_VAL
-    rcall eeprom_write
+    rcall fs_wrapper_write
     adiw r24, 1                                 ; read NEXT_IDX
-    rcall eeprom_read
+    rcall fs_wrapper_read
     mov r17, r16
     ldi r16, FAT_FREE_CLUSTER_VAL
-    rcall eeprom_write
+    rcall fs_wrapper_write
     mov r16, r17
     inc r18
     cpi r16, FAT_END_CLUSTER_VAL
@@ -522,7 +559,7 @@ _fs_remove_item_clean_fat:
     ldi r24, lo8(FATFREECTR)
     ldi r25, hi8(FATFREECTR)
     mov r16, r18
-    rcall eeprom_write
+    rcall fs_wrapper_write
 
 _fs_remove_item_done:
     .irp param,25,24,18,17,16

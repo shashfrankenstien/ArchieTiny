@@ -260,7 +260,7 @@ _fs_test_next_line:
     ldi r18, 8
 _fs_test_next:
     mov r19, r16
-    rcall eeprom_read
+    rcall fs_wrapper_read
     rcall oled_print_hex_digits
     mov r16, r19
     adiw r24, 1
