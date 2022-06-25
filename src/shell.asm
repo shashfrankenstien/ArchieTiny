@@ -306,7 +306,7 @@ fram_test_write:
     ldi r17, 25
 
 _fram_test_write_next:
-    mov r16, r17
+    clr r16
     rcall i2c_send_byte
     dec r17
     brne _fram_test_write_next
@@ -331,7 +331,6 @@ fram_test_print:
     clr r25                    ; load address high byte into register pair r25:r24
 
 _fram_test_next_section:
-    rcall oled_lock_acquire
     rcall i2c_lock_acquire
     rcall oled_clr_screen
     rcall i2c_lock_release
@@ -341,25 +340,24 @@ _fram_test_next_line:
     clr r17
     rcall i2c_lock_acquire
     rcall oled_set_cursor
-    rcall i2c_lock_release
 
-    ldi r18, 8
-_fram_test_next:
     mov r19, r16
-    rcall fram_read
-    rcall i2c_lock_acquire
+    ldi r18, 8                  ; read 7 bytes with ack and last one with nack
+_fram_test_next:
+    rcall fram_io_open_reader
+    rcall i2c_read_byte_nack
+    rcall fram_io_close
     rcall oled_print_hex_digits
-    rcall i2c_lock_release
-    mov r16, r19
     adiw r24, 1
     dec r18
     brne _fram_test_next
 
+    rcall i2c_lock_release
+    mov r16, r19
     inc r16
     cpi r16, OLED_MAX_PAGE + 1
     brlo _fram_test_next_line
 
-    rcall oled_lock_release
 
 _fram_test_wait:                            ; wait for button press and exit
     sleep

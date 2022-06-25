@@ -11,8 +11,8 @@
 
 ; -------------------------------------------------
 ; resource status / utility registers
-.equ    SREG_I2C,                 TIME_SOFT_COUNTER + 3       ; set this to TIME_SOFT_COUNTER + 3 since the time counter is 24 bits (3 bytes)
-.equ    SREG_OLED,                SREG_I2C + 1
+.equ    I2C_BUS_LOCK,             TIME_SOFT_COUNTER + 3       ; set this to TIME_SOFT_COUNTER + 3 since the time counter is 24 bits (3 bytes)
+.equ    SREG_OLED,                I2C_BUS_LOCK + 1
 .equ    SREG_GPIO_PC,             SREG_OLED + 1
 .equ    SREG_ADC_VD_HLD,          SREG_GPIO_PC + 1
 ; ADC utility

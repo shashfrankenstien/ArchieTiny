@@ -42,9 +42,9 @@
 
 ; SREG_OLED - oled status register (1)
 ;   - register holds 8 oled status flags
-;      ----------------------------------------------------------------------------------------------------
-;      |  N/A  |  N/A  |  N/A  |  OLED_LOCK  |  OLED_COLOR_INVERT  |  SCRL_PG2  |  SCRL_PG1  |  SCRL_PG0  |
-;      ----------------------------------------------------------------------------------------------------
+;      ----------------------------------------------------------------------------------------------
+;      |  N/A  |  N/A  |  N/A  |  N/A  |  OLED_COLOR_INVERT  |  SCRL_PG2  |  SCRL_PG1  |  SCRL_PG0  |
+;      ----------------------------------------------------------------------------------------------
 ;
 ; SCRL_PG[2:0] - display scroll page (bits 2:0)
 ;   - this is a 3 bit number indicating current page scroll position on the screen (0 - 7)
@@ -58,11 +58,6 @@
 ;       if OLED_COLOR_INVERT is cleared, it writes without 1's complement
 .equ    OLED_COLOR_INVERT,       3
 ;
-; OLED_LOCK (bit 4)
-; if we add a second i2c device and we want to read from it and write to oled, I2C_BUS_LOCK will not work
-;   - while we acquire and release the i2c lock for every operation, cursor can be reset by another task
-.equ    OLED_LOCK,               4         ; oled lock can be acquired by setting bit 4 of SREG_OLED register
-
 ; --------------------------------------------------
 .equ    OLED_MAX_COL,            127                        ; max column index (128 x 64)
 .equ    OLED_MAX_PAGE,           7                          ; max page index (each page has 8 rows)
@@ -107,38 +102,6 @@ oled_init:
     rcall oled_io_close
     rcall oled_clr_screen
 
-    pop r16
-    ret
-
-
-; -----------------------------
-; oled_lock_acquire will sleep till lock can be acquired
-;   it returns once it is able to acquire the lock
-oled_lock_acquire:
-    push r16
-    rjmp _oled_locked_wait
-
-_oled_lock_wait_sleep:
-    sei
-    sleep
-_oled_locked_wait:
-    cli                              ; stop interrupts while checking and trying to acquire lock bits
-    lds r16, SREG_OLED
-    sbrc r16, OLED_LOCK              ; check if lock is available to acquire
-    rjmp _oled_lock_wait_sleep       ; sleep till lock available
-
-    sbr r16, (1 << OLED_LOCK)        ; acquire lock
-    sts SREG_OLED, r16
-    sei                              ; enable interrupts and return
-    pop r16
-    ret
-
-
-oled_lock_release:
-    push r16
-    lds r16, SREG_OLED               ; release the lock
-    cbr r16, (1 << OLED_LOCK)
-    sts SREG_OLED, r16
     pop r16
     ret
 
@@ -234,7 +197,7 @@ oled_read_mod_write_end:
 
 
 
-; -------------- SREG_I2C wrappers ----------------
+; -------------- SREG_OLED wrappers ----------------
 
 oled_color_inv_start:
     push r16

@@ -1,4 +1,4 @@
-.include "config.inc"                                   ; SREG_I2C
+.include "config.inc"                                   ; I2C_BUS_LOCK
 
 ; hardware I2C interface using USI
 
@@ -21,24 +21,6 @@
                                         ; * see 'timer_delay_clock_cycles' in the 'timer' module
 
 
-; SREG_I2C - i2c status register (1)
-;   - register holds 8 i2c status flags
-;   - currently only 1 bit is assigned - I2C bus lock bit (I2C_BUS_LOCK)
-;      --------------------------------------------------------------------------
-;      |  N/A  |  N/A  |  N/A  |  N/A  |  N/A  |  N/A  |  N/A  |  I2C_BUS_LOCK  |
-;      --------------------------------------------------------------------------
-;
-; I2C_BUS_LOCK (bit 0)
-;   - a lock can be acquired by setting I2C_BUS_LOCK bit in SREG_I2C to 1, and released by clearing it to 0
-;   - tasks using i2c should use i2c_lock_acquire and i2c_lock_release
-;       these routines facilitate wait-aquire-release workflow
-.equ    I2C_BUS_LOCK,         0         ; i2c bus lock can be acquired by setting bit 0 of SREG_I2C register
-
-
-
-
-
-
 
 i2c_init:
     sbi PORTB, I2C_SDA_PIN              ; set SDA to high
@@ -55,7 +37,7 @@ i2c_init:
     ldi r16, I2C_MODE
     out USICR, r16
     clr r16
-    sts SREG_I2C, r16                   ; clear i2c status register
+    sts I2C_BUS_LOCK, r16               ; clear i2c status register
     pop r16
 
     rcall i2c_lock_release
@@ -81,33 +63,47 @@ i2c_init:
 ; -----------------------------
 ; I2C can only be used by one task at a time
 ; before using I2C, a task has to acquire the lock
+;
+; I2C_BUS_LOCK - i2c lock register (1)
+;   - a lock can be acquired by setting I2C_BUS_LOCK to current (TASKPTR + 1), and released by clearing it to 0
+;   - (TASKPTR + 1) is used as 0 is a valid task index, but we want to treat that value as a released lock
+;   - tasks using i2c should use i2c_lock_acquire and i2c_lock_release
+;       these routines facilitate wait-aquire-release workflow
+;   - if the same task calls i2c_lock_acquire twice, lock will be checked against TASKPTR and acquired
+;
 ; i2c_lock_acquire will sleep till lock can be acquired
 ;   it returns once it is able to acquire the lock
 i2c_lock_acquire:
     push r16
+    push r17
     rjmp _locked_wait
 
 _lock_wait_sleep:
     sei
     sleep
 _locked_wait:
-    cli                                 ; stop interrupts while checking and trying to acquire lock bits
-    lds r16, SREG_I2C
-    sbrc r16, I2C_BUS_LOCK              ; check if lock is available to acquire
+    cli                                 ; stop interrupts while checking and trying to acquire lock
+    lds r17, TASKPTR
+    inc r17                             ; (TASKPRT + 1)
+    lds r16, I2C_BUS_LOCK
+    tst r16
+    breq _lock_available
+    cp r16, r17
+    breq _lock_available
     rjmp _lock_wait_sleep               ; sleep till lock available
 
-    sbr r16, (1 << I2C_BUS_LOCK)        ; acquire lock
-    sts SREG_I2C, r16
+_lock_available:
+    sts I2C_BUS_LOCK, r17               ; acquire lock
     sei                                 ; enable interrupts and return
+    pop r17
     pop r16
     ret
 
 
 i2c_lock_release:
     push r16
-    lds r16, SREG_I2C                    ; release the lock
-    cbr r16, (1 << I2C_BUS_LOCK)
-    sts SREG_I2C, r16
+    clr r16                             ; release the lock
+    sts I2C_BUS_LOCK, r16
     pop r16
     ret
 

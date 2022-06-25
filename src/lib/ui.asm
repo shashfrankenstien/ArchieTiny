@@ -94,15 +94,13 @@ ui_menu_show:
 
 _ui_menu_next:
     mov r16, r19                                ; move page (row) address from r19 into t16. r17 already points to start column
-    rcall oled_lock_acquire                     ; routine pointed by Z can acquire i2c lock internally, but oled lock is held externally to maintain oled cursor position
     rcall i2c_lock_acquire
     rcall oled_set_relative_cursor              ; set cursor to start writing data
-    rcall i2c_lock_release
 
     mov r16, r19
     add r16, r23
     icall                                       ; callback routine pointed to by r31:r30 (Z)
-    rcall oled_lock_release
+    rcall i2c_lock_release
 
     tst r16                                     ; peek next byte to check if we reached the end of list
     breq _ui_menu_last_item_shown
@@ -118,15 +116,13 @@ _ui_menu_scroll_prev:
     cbr r20, (1<<0)                             ; remove end of menu flag since while scrolling up, we're most likely not showing end of menu anymore
 
     clr r16
-    rcall oled_lock_acquire                     ; routine pointed by Z can acquire i2c lock internally, but oled lock is held externally to maintain oled cursor position
     rcall i2c_lock_acquire
     rcall oled_set_relative_cursor              ; set cursor to start writing data
-    rcall i2c_lock_release
 
     clr r16
     add r16, r23
     icall                                       ; callback routine pointed to by r31:r30 (Z)
-    rcall oled_lock_release
+    rcall i2c_lock_release
 
     rjmp _ui_menu_navigate
 ; ------

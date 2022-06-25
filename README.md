@@ -108,9 +108,9 @@ GND | GND | pin 4
 
 Resource | Register config name | Module
 ---------|----------------------|-------------
-I2C      | SREG_I2C             | usi_i2c.asm
 Oled     | SREG_OLED            | sh1106.asm
 GPIO     | SREG_GPIO_PC         | gpio.asm
+I2C      | I2C_BUS_LOCK         | usi_i2c.asm
 
 
 ## Task Manager (lib/tasks.asm)
@@ -161,12 +161,13 @@ Tasks Table is set up starting at RAM address TASK_RAM_START (Should be greater 
     - slave devices read on rising edge of SCL
     - slave addresses seem to be shifted left
         - for example, in SH1106, documentation says addresses are 0111100 and 0111101, but in reality, device only reponds to 01111000 and 01111001
-- SREG_I2C - i2c status register
-    - register holds 8 i2c status flags
-    - currently only 1 bit is assigned - I2C bus lock bit (I2C_BUS_LOCK)
-- I2C_BUS_LOCK (bit 0)
-    - a lock can be acquired by setting I2C_BUS_LOCK bit in SREG_I2C to 1, and released by clearing it to 0
-    - tasks using i2c should use i2c_lock_acquire and i2c_lock_release. these routines facilitate wait-aquire-release workflow
+- I2C can only be used by one task at a time. Before using I2C, a task has to acquire a lock
+- I2C_BUS_LOCK - i2c lock register (1)
+    - a lock can be acquired by setting I2C_BUS_LOCK to current (TASKPTR + 1), and released by clearing it to 0
+    - (TASKPTR + 1) is used as 0 is a valid task index, but we want to treat that value as a released lock
+    - tasks using i2c should use i2c_lock_acquire and i2c_lock_release. These routines facilitate wait-aquire-release workflow
+    - if the same task calls i2c_lock_acquire twice, lock will be checked against TASKPTR and acquired
+- i2c_lock_acquire will sleep till lock can be acquired. It returns once it is able to acquire the lock
 
 
 ## OLED display (using I2C)
