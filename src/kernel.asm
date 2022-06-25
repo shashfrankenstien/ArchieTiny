@@ -81,6 +81,18 @@ test3_loop:
     rcall oled_lock_acquire
     rcall i2c_lock_acquire
 
+    ldi r16, 6
+    ldi r17, OLED_MAX_COL - (FONT_WIDTH * 2)            ; right position
+    rcall oled_set_cursor                      ; set cursor to start writing data
+
+    ldi r26, lo8(TASK_SP_VECTOR)                ; set XL to start of task stack pointers vector
+    ldi r27, hi8(TASK_SP_VECTOR)                ; set XH to start of task stack pointers vector
+
+    ld r16, X+
+    subi r16, lo8(TASK_STACKS_TOP)
+    rcall oled_print_hex_digits
+
+
     ; ldi r16, 6
     ; ldi r17, OLED_MAX_COL - (FONT_WIDTH * 8)            ; right position
     ; rcall oled_set_cursor                      ; set cursor to start writing data

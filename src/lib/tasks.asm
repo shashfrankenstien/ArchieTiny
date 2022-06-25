@@ -163,13 +163,13 @@ _taskmanager_add_clr_reg_spaces:
                                             ;   +1 because the SP will be point to the next location
 
     st Y+, r17                              ; store function entry point address high and low bytes
-    st Y+, r16                              ; note - stack should be in reverse
+    st Y+, r16                              ; NOTE - stack byte order should be in reverse
 
-    ldi r18, hi8(pm(internal_taskmanager_task_complete))  ; store function final return address high and low bytes
-    ldi r19, lo8(pm(internal_taskmanager_task_complete))  ; store function final return address high and low bytes
+    ldi r19, hi8(pm(internal_taskmanager_task_complete))  ; store function final return address high and low bytes
+    ldi r18, lo8(pm(internal_taskmanager_task_complete))  ; store function final return address high and low bytes
 
-    st Y+, r18
-    st Y, r19
+    st Y+, r19                              ; NOTE - stack byte order should be in reverse
+    st Y, r18
 
     lds r16, TASKCTS                        ; don't forget to increment task counter
     inc r16

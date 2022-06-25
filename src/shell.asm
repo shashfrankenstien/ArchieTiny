@@ -66,22 +66,18 @@ shell_menu_apps_list:
     .asciz "malloc 2"                          ; index 3
     .asciz "fs test"                           ; index 4
     .asciz "fs format"                         ; index 5
-    .asciz "fs_dir_make"                       ; index 6
-    .asciz "fs_dir_remove"                     ; index 7
-    .asciz "scan i2c"                          ; index 8
-    .asciz "fram test"                         ; index 9
-    .asciz "fram write"                        ; index 10
-    .asciz "malloc 3"                          ; index 11
-    .asciz "test2"                             ; index 12
-    .asciz "test3"                             ; index 13
+    .asciz "scan i2c"                          ; index 6
+    .asciz "fram test"                         ; index 7
+    .asciz "fram write"                        ; index 8
+    .asciz "malloc 3"                          ; index 9
+    .asciz "test2"                             ; index 10
+    .asciz "test3"                             ; index 11
     .byte 0                                    ; end of list
 
 
 shell_menu_confirm_test:
     .asciz "test!!"
 
-shell_menu_no_dir_name_msg:
-    .asciz "name:"
 
 .balign 2
 
@@ -158,59 +154,23 @@ _shell_home_menu_5:
 _shell_home_menu_6:
     cpi r16, 6
     brne _shell_home_menu_7
-    mov r20, r16
-    mov r21, r17
-
-    ldi r30, lo8(shell_menu_no_dir_name_msg)
-    ldi r31, hi8(shell_menu_no_dir_name_msg)
-    rcall ui_input_popup_show
-
-    cpi r16, 0xff
-    breq _shell_home_menu_6_done
-    mov r17, r16
-    clr r16
-    rcall fs_dir_make
-    mov r16, r17
-    rcall mem_free
-
-_shell_home_menu_6_done:
-    mov r16, r20
-    mov r17, r21
+    rcall shell_i2c_scanner
     rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 _shell_home_menu_7:
     cpi r16, 7
     brne _shell_home_menu_8
-    mov r20, r16
-    mov r21, r17
-    clr r16
-    clr r17
-    rcall fs_dir_remove
-    mov r16, r20
-    mov r17, r21
+    rcall fram_test_print
     rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 _shell_home_menu_8:
     cpi r16, 8
     brne _shell_home_menu_9
-    rcall shell_i2c_scanner
-    rjmp _shell_home_show_menu                 ; show menu after running selected option
-
-
-_shell_home_menu_9:
-    cpi r16, 9
-    brne _shell_home_menu_10
-    rcall fram_test_print
-    rjmp _shell_home_show_menu                 ; show menu after running selected option
-
-_shell_home_menu_10:
-    cpi r16, 10
-    brne _shell_home_menu_11
     rcall fram_test_write
     rjmp _shell_home_show_menu                 ; show menu after running selected option
 
-_shell_home_menu_11:
-    cpi r16, 11
+_shell_home_menu_9:
+    cpi r16, 9
     brne _shell_home_menu_done
     mov r20, r16
     ldi r30, lo8(shell_menu_confirm_test)

@@ -133,7 +133,15 @@ fs_raw_read:
 
 
 
-
+; create a new file
+;   - take a pointer to the parent directory cluster in r16
+;   - we also need the name (limited to 8 bytes) - sounds like a job for malloc pointer in r17
+fs_file_make:
+    push r18
+    ldi r18, FS_FILE_SIGNATURE
+    rcall internal_fs_create_item
+    pop r18
+    ret
 
 
 ; create a new directory
@@ -147,10 +155,10 @@ fs_dir_make:
     ret
 
 
-; is the wrapper necessary?
+; is the wrapper necessary? - maybe to implement recursive remove
 ;   - take a pointer to the parent directory cluster in r16
 ;   - take index to item in r17
-fs_dir_remove:
+fs_remove_item:
     rcall internal_fs_remove_item
     ret
 
