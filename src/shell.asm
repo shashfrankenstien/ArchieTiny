@@ -98,20 +98,13 @@ shell_home_task:
     clr r16
     clr r17
 _shell_home_show_menu:
+    ldi r18, (1<<ENTER_BTN)                    ; register ENTER_BTN action
     ldi r24, lo8(shell_menu_apps_list)
     ldi r25, hi8(shell_menu_apps_list)
     ldi r30, lo8(pm(ui_menu_print_flash_item_cb))
     ldi r31, hi8(pm(ui_menu_print_flash_item_cb))
     rcall ui_menu_show                         ; show apps menu
                                                ; let user select from shell_menu_apps_list list. rcall appropriate routine using selected index
-
-    sbrc r18, ENTER_BTN
-    rjmp _shell_home_menu_0
-
-    sbrc r18, EXIT_BTN
-    rcall shell_splash_screen
-
-    rjmp _shell_home_show_menu
 
 _shell_home_menu_0:
     cpi r16, 0

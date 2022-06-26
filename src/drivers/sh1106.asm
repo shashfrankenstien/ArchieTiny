@@ -527,12 +527,10 @@ _invert_inplace_next_column:
 ; then, we will check if there are pages between y1 and y2 that needs filling, and fill those with the raw fill byte
 oled_fill_rect:                               ; fill rect on screen with value in r16
                                                ; r16 through r20 are inputs. calling routine should push and pop these
-    push r21
     push r22
     push r23
     push r24
     push r25
-    in r21, SREG
 
     ; pre calc some stuff
     mov r22, r16                               ; save away page fill byte till later because we need r16 for other stuff
@@ -610,12 +608,10 @@ _rect_next_page2:                              ; iterate intermediate pages
     brne _rect_next_page2
 
 _rect_done:
-    out SREG, r21
     pop r25
     pop r24
     pop r23
-    pop r22
-    pop r21                                    ; r16 through r20 are inputs. calling routine should push and pop these
+    pop r22                                    ; r16 through r20 are inputs. calling routine should push and pop these
     ret                                        ; return value r16 will contain ACK from last byte transfered
 
 
@@ -716,8 +712,8 @@ oled_io_put_char:
     .irp param,17,18,19,30,31
         push r\param
     .endr
-    in r18, SREG
-    lds r19, SREG_OLED
+    in r19, SREG
+    lds r18, SREG_OLED
 
     ldi r31, hi8(font_lut)          ; initialize Z-pointer to the start of the font lookup table
     ldi r30, lo8(font_lut)
@@ -733,13 +729,13 @@ oled_io_put_char:
 _oled_io_put_char_next_byte:
     lpm r16, Z+                     ; load constant from flash
                                     ; memory pointed to by Z (r31:r30)
-    sbrc r19, OLED_COLOR_INVERT     ; check if needs to be inverted
+    sbrc r18, OLED_COLOR_INVERT     ; check if needs to be inverted
     com r16                         ; invert!
     rcall i2c_send_byte
     dec r17
     brne _oled_io_put_char_next_byte
 
-    out SREG, r18
+    out SREG, r19
     .irp param,31,30,19,18,17
         pop r\param
     .endr
@@ -764,8 +760,8 @@ oled_io_put_icon:
     .irp param,17,18,19,30,31
         push r\param
     .endr
-    in r18, SREG
-    lds r19, SREG_OLED
+    in r19, SREG
+    lds r18, SREG_OLED
 
     ldi r31, hi8(icon_lut)          ; initialize Z-pointer to the start of the icon lookup table
     ldi r30, lo8(icon_lut)
@@ -780,13 +776,13 @@ oled_io_put_icon:
 _oled_io_put_icon_next_byte:
     lpm r16, Z+                     ; load constant from flash
                                     ; memory pointed to by Z (r31:r30)
-    sbrc r19, OLED_COLOR_INVERT     ; check if needs to be inverted
+    sbrc r18, OLED_COLOR_INVERT     ; check if needs to be inverted
     com r16                         ; invert!
     rcall i2c_send_byte
     dec r17
     brne _oled_io_put_icon_next_byte
 
-    out SREG, r18
+    out SREG, r19
     .irp param,31,30,19,18,17
         pop r\param
     .endr
@@ -827,39 +823,37 @@ _print_flash_done:
 
 
 
-; oled_print_binary_digits converts r16 to is and 0s and writes to oled
-oled_print_binary_digits:
-    .irp param,17,18,19,20
-        push r\param
-    .endr
-    in r17, SREG
-    mov r18, r16                               ; save r16 for later
+; ; oled_print_binary_digits converts r16 to is and 0s and writes to oled
+; oled_print_binary_digits:
+;     .irp param,18,19,20
+;         push r\param
+;     .endr
+;     mov r18, r16                               ; save r16 for later
 
-    rcall oled_io_open_write_data               ; this tells the device to expect a list of data bytes until stop condition
+;     rcall oled_io_open_write_data               ; this tells the device to expect a list of data bytes until stop condition
 
-    ldi r19, 8
-    ldi r20, 48
-_next_bin_char:
-    clr r16
-    lsl r18
-    rol r16
-    add r16, r20
-    rcall oled_io_put_char
-    dec r19
-    brne _next_bin_char
+;     ldi r19, 8
+;     ldi r20, 48
+; _next_bin_char:
+;     clr r16
+;     lsl r18
+;     rol r16
+;     add r16, r20
+;     rcall oled_io_put_char
+;     dec r19
+;     brne _next_bin_char
 
-    rcall oled_io_close
+;     rcall oled_io_close
 
-    out SREG, r17
-    .irp param,20,19,18,17
-        pop r\param
-    .endr
-    ret                             ; return value r16 will contain ACK from last byte transfered
+;     .irp param,20,19,18
+;         pop r\param
+;     .endr
+;     ret                             ; return value r16 will contain ACK from last byte transfered
 
 
 
 
-oled_low_nibble_to_hex_char:
+internal_oled_low_nibble_to_hex_char:
     push r17
     andi r16, 0b00001111                    ; only lower nibble
     cpi r16, 10
@@ -877,7 +871,7 @@ _hex_write_low:
 
 ; oled_print_hex_digits converts r16 to hex and writes to oled
 oled_print_hex_digits:
-    .irp param,17,18,19,20
+    .irp param,17,18,20
         push r\param
     .endr
     in r17, SREG
@@ -886,21 +880,18 @@ oled_print_hex_digits:
     rcall oled_io_open_write_data               ; this tells the device to expect a list of data bytes until stop condition
 
     mov r16, r18
-    lsr r16
-    lsr r16
-    lsr r16
-    lsr r16
-    rcall oled_low_nibble_to_hex_char
+    swap r16
+    rcall internal_oled_low_nibble_to_hex_char
     rcall oled_io_put_char
 
     mov r16, r18
-    rcall oled_low_nibble_to_hex_char
+    rcall internal_oled_low_nibble_to_hex_char
     rcall oled_io_put_char
 
     rcall oled_io_close
 
     out SREG, r17
-    .irp param,20,19,18,17
+    .irp param,20,18,17
         pop r\param
     .endr
     ret                             ; return value r16 will contain ACK from last byte transfered

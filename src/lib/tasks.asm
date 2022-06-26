@@ -14,15 +14,15 @@
 ;
 ; TASKCTS - task counter and status register (1)
 ;   - register holds task manager status in top 4 bits and a task counter in the bottom 4
-;      ----------------------------------------------------------------------
-;      | RUNNING | FULL | EMPTY | ERROR | COUNT3 | COUNT2 | COUNT1 | COUNT0 |
-;      ----------------------------------------------------------------------
+;      -------------------------------------------------------------------------
+;      | RUNNING | FULL | EMPTY | COMPLETE | COUNT3 | COUNT2 | COUNT1 | COUNT0 |
+;      -------------------------------------------------------------------------
 
 ; TASKCTS bits
 .equ    RUNNING,                7
 .equ    FULL,                   6
 .equ    EMPTY,                  5
-.equ    ERROR,                  4
+.equ    COMPLETE,               4       ; flag to indicate that a task has finished and should be removed
 .equ    COUNT3,                 3
 .equ    COUNT2,                 2
 .equ    COUNT1,                 1
@@ -240,10 +240,19 @@ _no_action_required:
 
 _tasks_available:
     sbrc r16, RUNNING               ; if RUNNING bit of r16 is clear, then the task manager is not yet running
-    rjmp _check_swap_required       ; if task manager has been running, we check if task swapping is required
+    rjmp _check_task_completion     ; check if a task just completed. if it did, task swapping will not be required
 
     sbr r16, (1<<RUNNING)           ; we run the following code only on the first call of this routine
     sts TASKCTS, r16                ; set RUNNING bit in TASKCTS to flag that the first call has been handled
+    lds r16, TASKPTR
+    rjmp _start_next_task
+
+_check_task_completion:
+    sbrs r16, COMPLETE
+    rjmp _check_swap_required       ; check if task swapping is required
+
+    cbr r16, (1<<COMPLETE)          ; we run the following code only if a task just completed
+    sts TASKCTS, r16                ; clear COMPLETE bit in TASKCTS
     lds r16, TASKPTR
     rjmp _start_next_task
 
@@ -311,18 +320,20 @@ _tasks_done:
 
 
 internal_taskmanager_task_complete:
-    in r26, SPL
-    in r27, SPH
+    cli                                 ; stop interrupts removing task
+    lds r16, TASKPTR
+    rcall internal_get_sp_slot_addr_in_X
 
-    ld r16, X
+    clr r16
+    st X+, r16
+    st X, r16
 
-
-    lds r16, TASKCTS                ; decrement task counter
+    lds r16, TASKCTS                    ; decrement task counter
     dec r16
+    sbr r16, (1<<COMPLETE)              ; flag current task as complete
     sts TASKCTS, r16
+    sei                                 ; enable interrupts
 
-                                    ; TODO: also need to remove task from task vector
-
-_wait_loop:
+_wait_loop:                             ; once this task is switched out,
     sleep
     rjmp _wait_loop

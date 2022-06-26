@@ -180,7 +180,7 @@ _i2c_pulse_till_overflow:
     push r20
     push r16
 
-    ldi r20, I2C_DELAY_CC            ; set delay
+    ldi r20, I2C_DELAY_CC           ; set delay
 
 _next_pulse:
     rcall timer_delay_clock_cycles
@@ -198,7 +198,7 @@ _next_pulse:
 
 
 
-i2c_send_byte:                           ; send one byte and return ACK / NACK
+i2c_send_byte:                          ; send one byte and return ACK / NACK
     push r17
 
     out USIDR, r16

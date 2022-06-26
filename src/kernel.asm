@@ -73,7 +73,7 @@ pool:
 
 
 test3:
-    ldi r20, 150                                       ; set delay
+    ldi r20, 250                                       ; set delay
 
 test3_loop:
     rcall timer_delay_ms_short

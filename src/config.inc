@@ -169,7 +169,7 @@
 .equ    ADC_BTN_NUM_RE_READS,      15
 .equ    ADC_BTN_RE_READ_INTERVAL,  3           ; milli seconds
 ; -------------------------------------------------
-.equ    PC_BTN_WAIT_INTERVAL,      76          ; 20 us -> see timer_delay_clock_cycles
+.equ    PC_BTN_WAIT_INTERVAL,      100         ; 20 to 30 us -> see timer_delay_clock_cycles
 ; -------------------------------------------------
 
 

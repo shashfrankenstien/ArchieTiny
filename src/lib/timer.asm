@@ -28,25 +28,6 @@
                                             ; however, this interrupt will not reset the counter. It will always count up to TIMER_COMPVAL_A
                                             ; hence, the compare match B interrupt has the same frequency as compare match A
 
-
-
-_timer0_init:
-    ldi r16, COUNTER_CTRL_A
-    out TCCR0A, r16                 ; mode select
-
-    ldi r16, COUNTER_CTRL_B
-    out TCCR0B, r16                 ; clk select
-
-    ldi r16, TIMER_COMPVAL_A
-    out OCR0A, r16                  ; load compare A register
-
-    ldi r16, TIMER_COMPVAL_B
-    out OCR0B, r16                  ; load compare B register
-
-    ldi r16, TIMER_INT_MASK
-    out TIMSK, r16                  ; enable interrupt
-    ret
-
 ; -------------------------------------------------
 
 ; 24 bit software time counter
@@ -61,7 +42,22 @@ _timer0_init:
 
 
 timer_init:
-    rcall _timer0_init
+    ; initialize timer 0
+    ldi r16, COUNTER_CTRL_A
+    out TCCR0A, r16                 ; mode select
+
+    ldi r16, COUNTER_CTRL_B
+    out TCCR0B, r16                 ; clk select
+
+    ldi r16, TIMER_COMPVAL_A
+    out OCR0A, r16                  ; load compare A register
+
+    ldi r16, TIMER_COMPVAL_B
+    out OCR0B, r16                  ; load compare B register
+
+    ldi r16, TIMER_INT_MASK
+    out TIMSK, r16                  ; enable interrupt
+
     clr r16
     sts LOW_BYTE, r16                         ; intialize counter registers to 0
     sts MIDDLE_BYTE, r16
@@ -72,8 +68,6 @@ timer_init:
 
 timer_tick_isr:
     push r16
-    push r17
-    in r17, SREG
 
     lds r16, LOW_BYTE
     inc r16                                 ; increment may cause zero flag to be set
@@ -94,8 +88,6 @@ _tick_high:
     sts HIGH_BYTE, r16
 
 _tick_done:
-    out SREG, r17
-    pop r17
     pop r16
     reti
 

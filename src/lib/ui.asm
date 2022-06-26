@@ -4,8 +4,8 @@
 
 ; ------------------------------------------------------------------------------------------------
 
-.equ    UI_MENU_HOR_PADDING,        15          ; menu padding in pixels
-.equ    UI_MENU_BORDER_OFFSET,      2
+.equ    UI_MENU_HOR_PADDING,          15          ; menu padding in pixels
+.equ    UI_MENU_BORDER_OFFSET,        2
 
 
 
@@ -29,6 +29,8 @@
 ; the callback function should:
 ;   - take pointer to menu in r25:r24
 ;   - take the index of the menu item in r16 and print 1 item at current cursor
+;   - take supported actions in r18 (these actions will trigger a return from menu. we can use r18 to register ENTER_BTN, EXIT_BTN and OPTIONS_BTN actions)
+;       - example: ldi r18, (1<<ENTER_BTN) | (1<<EXIT_BTN) ; this will register the two actions
 ;   - return 0 in r16 if index is out of menu bounds
 ;   - return 0 in r16 if the last item was reached and printed. else return whatever
 ;
@@ -72,9 +74,11 @@
 ;   - current scroll position in r17
 ;   - nav buttons state byte in r18 (see SREG_ADC_VD_HLD desc in gpio.asm)
 ui_menu_show:
-    .irp param,19,20,21,22,23,26
+    .irp param,19,20,21,22,23,26,27
         push r\param
     .endr
+
+    mov r27, r18                                ; r18 (and now r27) contains action bits that need to be handled. saving for later
 
     clr r20                                     ; flags register - end of menu reached flag, row highlighted flag
     mov r21, r16                                ; r21 contains the current item number that the nav cursor is on
@@ -217,16 +221,17 @@ _ui_menu_nav_check_down_not_end:
 
 
 _ui_menu_nav_check_actions:
-    andi r16, (1<<ENTER_BTN) | (1<<EXIT_BTN) | (1<<OPTIONS_BTN)
+    and r16, r27
     tst r16
     breq _ui_menu_navigate                      ; if any action buttons are pressed, go to done. else, go back and start over
+    rjmp _ui_menu_done
 
 _ui_menu_done:
     mov r18, r16                                ; setup nav button state register return value
     mov r16, r21                                ; if OK is pressed, return current selected item index to calling routine
     mov r17, r23                                ; also return current scroll position
                                                 ; menu can be recalled back to the previous state by passing back r16 and r17
-    .irp param,26,23,22,21,20,19
+    .irp param,27,26,23,22,21,20,19
         pop r\param
     .endr
     ret

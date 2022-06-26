@@ -149,8 +149,6 @@ gpio_adc_init:
 ; - a new conversion is triggered before reti
 gpio_adc_conv_isr:
     push r16
-    push r17
-    in r17, SREG
 
     in r16, ADMUX
     andi r16, 0x0f                            ; check MUX[3:0]
@@ -173,8 +171,6 @@ gpio_adc_conv_isr_chan1:
     out ADMUX, r16
 
 gpio_adc_conv_isr_done:
-    out SREG, r17
-    pop r17
     pop r16
     sbi ADCSRA, ADSC                          ; start next ADC conversion
     reti

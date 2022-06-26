@@ -97,6 +97,7 @@ fm_app_open:
     clr r24
     clr r25
 _fm_app_show_menu:
+    ldi r18, (1<<ENTER_BTN) | (1<<EXIT_BTN) | (1<<OPTIONS_BTN)         ; register all (ENTER_BTN, EXIT_BTN and OPTIONS_BTN) actions
     ldi r30, lo8(pm(fm_menu_print_dir_entry_cb))
     ldi r31, hi8(pm(fm_menu_print_dir_entry_cb))
     rcall ui_menu_show                         ; show dir listing
@@ -163,6 +164,7 @@ internal_fm_options_show:
     ldi r24, lo8(msg_fm_options)
     ldi r25, hi8(msg_fm_options)
 _fm_options_show_menu:
+    ldi r18, (1<<ENTER_BTN) | (1<<EXIT_BTN)    ; register ENTER_BTN and EXIT_BTN action
     ldi r30, lo8(pm(ui_menu_print_flash_item_cb))
     ldi r31, hi8(pm(ui_menu_print_flash_item_cb))
     rcall ui_menu_show                         ; show options menu
@@ -191,7 +193,7 @@ _fm_options_make_item:
     rcall ui_input_popup_show
 
     cpi r16, 0xff
-    breq _fm_options_show_menu
+    breq _fm_options_done
 
     mov r17, r16
     mov r16, r24                                ; r24 is what fm_app_open uses to track current directory cluster index
