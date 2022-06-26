@@ -78,7 +78,7 @@ test3:
 test3_loop:
     rcall timer_delay_ms_short
 
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
 
     ldi r16, 6
     ldi r17, OLED_MAX_COL - (FONT_WIDTH * 2)            ; right position
@@ -145,7 +145,7 @@ test3_loop:
 ;     dec r18
 ;     brne test3_write_loop
 
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
     rjmp test3_loop
 
 
@@ -158,13 +158,13 @@ test3_loop:
 
 ;     mov r22, r16
 
-;     rcall i2c_lock_acquire
+;     rcall i2c_rlock_acquire
 ;     ldi r16, 7
 ;     ldi r17, 0            ; right top position
 ;     rcall oled_set_cursor                      ; set cursor to start writing data
 ;     mov r16, r22
 ;     rcall oled_print_hex_digits
-;     rcall i2c_lock_release
+;     rcall i2c_rlock_release
 ;     pop r22
 ;     pop r18
 ;     pop r17
@@ -179,13 +179,13 @@ test3_loop:
 ;     push r22
 ;     mov r22, r16
 
-;     rcall i2c_lock_acquire
+;     rcall i2c_rlock_acquire
 ;     ldi r16, 6
 ;     ldi r17, 0            ; right top position
 ;     rcall oled_set_cursor                      ; set cursor to start writing data
 ;     mov r16, r22
 ;     rcall oled_print_hex_digits
-;     rcall i2c_lock_release
+;     rcall i2c_rlock_release
 ;     pop r22
 ;     pop r18
 ;     pop r17

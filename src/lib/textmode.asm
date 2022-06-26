@@ -116,18 +116,18 @@ _textmode_put_char_done:
 ; textmode_put_char take one character ascii value in r16
 ;   this is a simple wrapper routine
 textmode_put_char:
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
     rcall textmode_put_char_internal
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
     ret
 
 
 ; textmode_put_char_inv take one character ascii value in r16
 ;   this is a simple wrapper routine
 textmode_put_char_inv:
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
     rcall oled_color_inv_start
     rcall textmode_put_char_internal
     rcall oled_color_inv_stop
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
     ret

@@ -110,7 +110,7 @@ Resource | Register config name | Module
 ---------|----------------------|-------------
 Oled     | SREG_OLED            | sh1106.asm
 GPIO     | SREG_GPIO_PC         | gpio.asm
-I2C      | I2C_BUS_LOCK         | usi_i2c.asm
+I2C      | I2C_BUS_RLOCK        | usi_i2c.asm
 
 
 ## Task Manager (lib/tasks.asm)
@@ -162,12 +162,22 @@ Tasks Table is set up starting at RAM address TASK_RAM_START (Should be greater 
     - slave addresses seem to be shifted left
         - for example, in SH1106, documentation says addresses are 0111100 and 0111101, but in reality, device only reponds to 01111000 and 01111001
 - I2C can only be used by one task at a time. Before using I2C, a task has to acquire a lock
-- I2C_BUS_LOCK - i2c lock register (1)
-    - a lock can be acquired by setting I2C_BUS_LOCK to current (TASKPTR + 1), and released by clearing it to 0
-    - (TASKPTR + 1) is used as 0 is a valid task index, but we want to treat that value as a released lock
-    - tasks using i2c should use i2c_lock_acquire and i2c_lock_release. These routines facilitate wait-aquire-release workflow
-    - if the same task calls i2c_lock_acquire twice, lock will be checked against TASKPTR and acquired
-- i2c_lock_acquire will sleep till lock can be acquired. It returns once it is able to acquire the lock
+
+- I2C_BUS_RLOCK - i2c reentrant lock register (1)
+```
+   -------------------------------------------------------------------------------------
+   | RLKCNT3 | RLKCNT2 | RLKCNT1 | RLKCNT0 | TASKPTR3 | TASKPTR2 | TASKPTR1 | TASKPTR0 |
+   -------------------------------------------------------------------------------------
+```
+  - i2c lock is task specific - meaning, each task can acquire locks multiple times (reentrant)
+          they only need to release it as many times to fully release the i2c lock
+  - a lock can be acquired only if RLKCNT (I2C_BUS_RLOCK[7:4]) is 0
+  - when a lock is acquired, I2C_BUS_RLOCK[3:0] is set to current TASKPTR value, and RLKCNT is incremented
+  - when a lock is released, RLKCNT is decremented. When it reaches 0, the lock is fully released
+  - tasks using i2c should use i2c_rlock_acquire and i2c_rlock_release
+      these routines facilitate wait-aquire-release workflow
+- i2c_rlock_acquire will sleep till lock can be acquired
+  it returns once it is able to acquire the lock
 
 
 ## OLED display (using I2C)
@@ -339,6 +349,6 @@ r31     | “call-used” | Can freely use | Save and restore if using
 - https://www.youtube.com/watch?v=DBftApUQ8QI
 
 
-# Did he beat me to it?
+# Similar projects
 
 - https://hackaday.com/2019/12/25/circuit-sculpture-teaches-binary-plays-pong/

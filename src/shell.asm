@@ -13,7 +13,7 @@ shell_splash_screen:
     .irp param,16,17,18,19,20,30,31
         push r\param
     .endr
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
     rcall oled_clr_screen
 
     ; =========
@@ -37,7 +37,7 @@ shell_splash_screen:
     rcall oled_color_inv_stop
 
     ; =========
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
 
 _shell_splash_wait:                            ; wait for button press and exit
     sleep
@@ -195,7 +195,7 @@ shell_i2c_scanner:
 
     clr r16
     clr r17
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
 
     rcall oled_clr_screen
     rcall oled_set_cursor
@@ -223,7 +223,7 @@ _shell_i2c_scanner_noprint:
     dec r16
     brne _shell_i2c_scanner_next
 
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
 _shell_i2c_scanner_wait:                        ; wait for button press and exit
     sleep
     rcall nav_kbd_start
@@ -249,7 +249,7 @@ fs_test_print:
     clr r25                    ; load address high byte into register pair r25:r24
 
 _fs_test_next_section:
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
     rcall oled_clr_screen
 
     clr r16
@@ -271,7 +271,7 @@ _fs_test_next:
     cpi r16, OLED_MAX_PAGE + 1
     brlo _fs_test_next_line
 
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
 
 _fs_test_wait:                            ; wait for button press and exit
     sleep
@@ -301,7 +301,7 @@ fram_test_write:
     clr r24                    ; load address low byte into register pair r25:r24
     clr r25                    ; load address high byte into register pair r25:r24
 
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
     rcall fram_io_open_writer
     ldi r17, 25
 
@@ -312,7 +312,7 @@ _fram_test_write_next:
     brne _fram_test_write_next
 
     rcall fram_io_close
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
 
     .irp param,25,24,17,16
         pop r\param
@@ -331,14 +331,14 @@ fram_test_print:
     clr r25                    ; load address high byte into register pair r25:r24
 
 _fram_test_next_section:
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
     rcall oled_clr_screen
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
 
     clr r16
 _fram_test_next_line:
     clr r17
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
     rcall oled_set_cursor
 
     mov r19, r16
@@ -352,7 +352,7 @@ _fram_test_next:
     dec r18
     brne _fram_test_next
 
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
     mov r16, r19
     inc r16
     cpi r16, OLED_MAX_PAGE + 1

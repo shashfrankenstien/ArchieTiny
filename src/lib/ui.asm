@@ -88,19 +88,19 @@ ui_menu_show:
 
     clr r26                                     ; r26 will hold the size of the menu. this is updated only once the last element is displayed
 
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
     rcall oled_clr_screen
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
 
 _ui_menu_next:
     mov r16, r19                                ; move page (row) address from r19 into t16. r17 already points to start column
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
     rcall oled_set_relative_cursor              ; set cursor to start writing data
 
     mov r16, r19
     add r16, r23
     icall                                       ; callback routine pointed to by r31:r30 (Z)
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
 
     tst r16                                     ; peek next byte to check if we reached the end of list
     breq _ui_menu_last_item_shown
@@ -116,13 +116,13 @@ _ui_menu_scroll_prev:
     cbr r20, (1<<0)                             ; remove end of menu flag since while scrolling up, we're most likely not showing end of menu anymore
 
     clr r16
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
     rcall oled_set_relative_cursor              ; set cursor to start writing data
 
     clr r16
     add r16, r23
     icall                                       ; callback routine pointed to by r31:r30 (Z)
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
 
     rjmp _ui_menu_navigate
 ; ------
@@ -142,16 +142,16 @@ _ui_menu_navigate:
 
     mov r19, r22
     sub r19, r23
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
     rcall oled_invert_inplace_relative_page_row ; uninvert prev item using r19
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
 _ui_menu_navigate_highlight:
     mov r22, r21                                ; update prev item number tracker with new number
     mov r19, r21
     sub r19, r23
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
     rcall oled_invert_inplace_relative_page_row ; invert using r19!
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
     sbr r20, (1<<1)                             ; flag that a row is currently highlighted
 
 _ui_menu_nav_check:
@@ -172,9 +172,9 @@ _ui_menu_nav_check:
     ; scroll up
     dec r21                                     ; move current selection up
     dec r23                                     ; indicate that scroll up is performed
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
     rcall oled_scroll_page_up
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
     rjmp _ui_menu_scroll_prev
 
 _ui_menu_nav_move_up:
@@ -210,9 +210,9 @@ _ui_menu_nav_check_down_not_end:
 
     ; scroll
     inc r23                                     ; scroll down to next item
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
     rcall oled_scroll_page_down
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
     rjmp _ui_menu_next                          ; jump all the way back to print the next item
 
 
@@ -313,7 +313,7 @@ ui_confirm_popup_show:
     ; -----------------
     rcall internal_ui_display_popup_frame
 
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
     ldi r16, UI_POPUP_START_PAGE + 1                                              ; next row
     ldi r17, UI_POPUP_START_COL + UI_POPUP_YN_PADDING
     rcall oled_set_relative_cursor
@@ -326,7 +326,7 @@ ui_confirm_popup_show:
     rcall oled_print_flash                                                  ; print N
     rcall oled_color_inv_stop
 
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
     rcall internal_ui_display_popup_bottom_border
 
     ; -----------------
@@ -361,7 +361,7 @@ ui_alert_popup_show:
     ; -----------------
     rcall internal_ui_display_popup_frame
 
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
     ldi r16, UI_POPUP_START_PAGE + 1                                              ; next row
     ldi r17, UI_POPUP_START_COL + (UI_POPUP_WINDOW_WIDTH / 2) - UI_POPUP_OK_PADDING
     rcall oled_set_relative_cursor
@@ -373,7 +373,7 @@ ui_alert_popup_show:
     rcall oled_print_flash                                                  ; print OK
     rcall oled_color_inv_stop
 
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
     rcall internal_ui_display_popup_bottom_border
 
     ; -----------------
@@ -502,7 +502,7 @@ internal_ui_popup_util_save_screen:
     ldi r16, UI_POPUP_START_PAGE
     ldi r17, UI_POPUP_START_COL
 
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
 _ui_popup_util_read_next_row:
     push r16
     push r17
@@ -533,7 +533,7 @@ _ui_popup_util_read_loop:
     dec r21
     brne _ui_popup_util_read_next_row
 
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
     mov r16, r20                                ; return pointer in r16
 
     .irp param,21,20,19,18,17
@@ -559,7 +559,7 @@ internal_ui_popup_util_restore_screen:
     ldi r16, UI_POPUP_START_PAGE
     ldi r17, UI_POPUP_START_COL
 
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
 _ui_popup_util_write_next_row:
     push r16
     push r17
@@ -584,7 +584,7 @@ _ui_popup_util_write_loop:
     dec r21
     brne _ui_popup_util_write_next_row
 
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
 
     mov r16, r20                                ; restore memory pointer
     rcall mem_free                              ; release memory
@@ -612,12 +612,12 @@ _ui_confirm_util_toggle_yn_kbd:
     sbrc r16, ENTER_BTN                         ; if enter is not pressed, skip the next statement
     rjmp _ui_confirm_util_toggle_yn_done
 
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
     ldi r17, UI_POPUP_START_COL + UI_POPUP_YN_PADDING
     ldi r18, UI_POPUP_START_COL + UI_POPUP_YN_PADDING + (UI_POPUP_YN_CHAR_WIDTH * FONT_WIDTH) - 1   ; -1 because ugh.
     ldi r19, UI_POPUP_START_PAGE + 1
     rcall oled_invert_inplace_relative_page_row
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
 
     rcall internal_ui_display_popup_bottom_border
 
@@ -647,7 +647,7 @@ internal_ui_display_popup_frame:
     push r17
     push r18
 
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
 
     ldi r16, UI_POPUP_START_PAGE
     ldi r17, UI_POPUP_START_COL
@@ -707,7 +707,7 @@ _ui_display_popup_frame_blanks1:
     ldi r16, (UI_POPUP_START_PAGE * 8)
     rcall oled_draw_h_line_overlay
 
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
     pop r18
     pop r17
     pop r16
@@ -719,14 +719,14 @@ internal_ui_display_popup_bottom_border:
     push r16
     push r17
     push r18
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
 
     ldi r18, UI_POPUP_START_COL + UI_POPUP_WINDOW_WIDTH
     ldi r17, UI_POPUP_START_COL
     ldi r16, ((UI_POPUP_START_PAGE + UI_POPUP_WINDOW_HEIGHT) * 8) - 1
     rcall oled_draw_h_line_overlay
 
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
     pop r18
     pop r17
     pop r16

@@ -17,9 +17,9 @@ terminal_app_open:
     .endr
 
     ; console entered
-    rcall i2c_lock_acquire
+    rcall i2c_rlock_acquire
     rcall oled_clr_screen
-    rcall i2c_lock_release
+    rcall i2c_rlock_release
 
     clr r16                                    ; textmode_set_cursor expects page index in r16 and column index in r17. start shell at 0,0
     clr r17

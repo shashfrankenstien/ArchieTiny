@@ -77,11 +77,11 @@
 ;   - all take address in r25:r24 pair and either read a byte into r16 or write a byte from r16
 fs_wrapper_read:
     rcall eeprom_read
-    ; rcall i2c_lock_acquire
+    ; rcall i2c_rlock_acquire
     ; rcall fram_io_open_reader
     ; rcall i2c_read_byte_nack
     ; rcall fram_io_close
-    ; rcall i2c_lock_release
+    ; rcall i2c_rlock_release
     ret
 
 
@@ -89,11 +89,11 @@ fs_wrapper_read:
 fs_wrapper_write:
     rcall eeprom_write
     ; push r16
-    ; rcall i2c_lock_acquire
+    ; rcall i2c_rlock_acquire
     ; rcall fram_io_open_writer
     ; rcall i2c_send_byte
     ; rcall fram_io_close
-    ; rcall i2c_lock_release
+    ; rcall i2c_rlock_release
     ; pop r16
     ret
 
