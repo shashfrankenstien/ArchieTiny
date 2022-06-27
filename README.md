@@ -3,9 +3,8 @@
 - https://hackaday.io/project/185844-archie-tiny
 
 <p align="center">
-  <img  src="imgs/ArchieTiny_01.jpg" height=500px>
+  <img  src="imgs/ArchieTiny_v0.1.jpg" height=500px>
 </p>
-
 
 - https://www.youtube.com/playlist?list=PLuCmHWky5GN4iyRNNchJ4GMcVCSOgdOvc
 - http://www.avr-asm-tutorial.net/
