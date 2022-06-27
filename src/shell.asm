@@ -69,7 +69,7 @@ shell_menu_apps_list:
     .asciz "scan i2c"                          ; index 6
     .asciz "fram test"                         ; index 7
     .asciz "fram write"                        ; index 8
-    .asciz "malloc 3"                          ; index 9
+    .asciz "contrast"                          ; index 9
     .asciz "test2"                             ; index 10
     .asciz "test3"                             ; index 11
     .byte 0                                    ; end of list
@@ -166,9 +166,12 @@ _shell_home_menu_9:
     cpi r16, 9
     brne _shell_home_menu_done
     mov r20, r16
-    ldi r30, lo8(shell_menu_confirm_test)
-    ldi r31, hi8(shell_menu_confirm_test)
-    rcall ui_input_popup_show
+    ldi r24, lo8(shell_menu_confirm_test)
+    ldi r25, hi8(shell_menu_confirm_test)
+    ldi r30, lo8(pm(oled_set_contrast))
+    ldi r31, hi8(pm(oled_set_contrast))
+    ldi r16, 0
+    rcall ui_slider_open
     mov r16, r20
 
 _shell_home_menu_done:

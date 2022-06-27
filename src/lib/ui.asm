@@ -22,12 +22,20 @@
 .equ    UI_POPUP_OK_PADDING,          4
 
 
+
+.equ    UI_SLIDER_PAGE_ADDR,             4
+.equ    UI_SLIDER_START_COLUMN_ADDR,     31
+.equ    UI_SLIDER_STEP_SIZE,             4
+.equ    UI_SLIDER_PATTHER,               0xff
+
+
 ; ------------------------------------------------------------------------------------------------
 ; reusable scrollable menu component
 ;
 ; ui_menu_show uses a callback function passed in Z pointer
 ; the callback function should:
 ;   - take pointer to menu in r25:r24
+;   - take pointer to the callback function in r31:r30 pair (Z)
 ;   - take the index of the menu item in r16 and print 1 item at current cursor
 ;   - take supported actions in r18 (these actions will trigger a return from menu. we can use r18 to register ENTER_BTN, EXIT_BTN and OPTIONS_BTN actions)
 ;       - example: ldi r18, (1<<ENTER_BTN) | (1<<EXIT_BTN) ; this will register the two actions
@@ -42,7 +50,11 @@
 ;   - address to the menu in r25:r24 pair
 ;   - address to the callback function in r31:r30 pair (Z)
 ;   - also previous selected item index in r16 and previous scroll position in r17 (state recall values)
-; returns the selected index out of the menu items in r16; and current scroll position in r17
+; returns
+;   - the selected index out of the menu items in r16
+;   - current scroll position in r17
+;   - nav buttons state byte in r18 (see SREG_ADC_VD_HLD desc in gpio.asm)
+;
 ;
 ; workflow:
 ;   - setup variable registers and clear screen
@@ -54,11 +66,15 @@
 ;   - use scrolling if more than OLED_MAX_PAGE items exist in the menu (described separately below) - max menu length is 256??
 ;
 ;   - use bit 1 of the flags register to indicate if the nav cursor has been highlighted
+;   - use bit 1 of the flags register to indicate if end of menu is reached
+;   - save menu count when end of menu is reached
 ;
 ;   - enable controls - UP, DOWN, OK using nav_kbd_start
 ;       - move the nav cursor and handle scrolling as required using UP and DOWN actions
-;       - on OK action, return the item number selected by the nav cursor in r16
+;       - use r18 input (supported actions) to check if control needs to be returned
+;       - on any registered action, return the item number selected by the nav cursor in r16
 ;           also return current scroll position in r17 - menu can be recalled back to the previous state by passing back r16 and r17
+;           and nav state byte indicating the action that was triggered
 ;
 ; scrolling:
 ;   - scroll down action:
@@ -69,10 +85,6 @@
 ;       - once we scroll up, to find the item that needs to be printed, we use current scroll position register (r23)
 ;        - just as before, set r16 and print item with icall
 ;
-; returns
-;   - selected index in r16
-;   - current scroll position in r17
-;   - nav buttons state byte in r18 (see SREG_ADC_VD_HLD desc in gpio.asm)
 ui_menu_show:
     .irp param,19,20,21,22,23,26,27
         push r\param
@@ -287,6 +299,118 @@ _ui_menu_print_flash_done:
     ret
 
 
+
+
+; ------------------------------------------------------------------------------------------------
+; ui_slider_open implements a reusable slider control to set any value
+; slider value is between 0 and 15
+;
+; ui_slider_open takes
+;   - starting value in r16
+;   - address to title in r25:r24
+;   - address to callback function in r31:r30
+; returns
+;   - on ENTER_BTN, new slider value in r16
+;   - on EXIT_BTN, old slider value in r16
+ui_slider_open:
+    push r17
+    push r18
+
+    mov r18, r16
+
+    rcall i2c_rlock_acquire
+    rcall oled_clr_screen
+
+    ldi r16, UI_SLIDER_PAGE_ADDR - 1
+    ldi r17, UI_SLIDER_START_COLUMN_ADDR
+    rcall oled_set_relative_cursor
+
+    push r30
+    push r31
+    mov r30, r24
+    mov r31, r25
+    rcall oled_print_flash
+    pop r31
+    pop r30
+    rcall i2c_rlock_release
+
+_ui_slider_update:
+    rcall i2c_rlock_acquire
+    tst r18
+    brpl ui_slider_value_verified_lower
+    clr r18
+ui_slider_value_verified_lower:
+    cpi r18, 16
+    brlo ui_slider_value_verified_upper
+    ldi r18, 15
+ui_slider_value_verified_upper:
+    mov r16, r18
+    icall
+    rcall internal_ui_slider_print_bar
+    rcall i2c_rlock_release
+
+_ui_slider_wait:
+    rcall nav_kbd_start                         ; start the navigation keyboard (blocking)
+
+_ui_slider_check_right:
+    sbrs r16, NAV_RIGHT_BTN
+    rjmp _ui_slider_check_left
+
+    inc r18
+    rjmp _ui_slider_update
+
+_ui_slider_check_left:
+    sbrs r16, NAV_LEFT_BTN
+    rjmp _ui_slider_check_action
+    dec r18
+    rjmp _ui_slider_update
+
+_ui_slider_check_action:
+    sbrs r16, ENTER_BTN                         ; if enter is pressed, skip the next statement
+    rjmp _ui_slider_wait
+
+    mov r16, r18
+    pop r18
+    pop r17
+    ret
+
+
+
+
+internal_ui_slider_print_bar:
+    push r19
+    push r18
+    ldi r16, UI_SLIDER_PAGE_ADDR
+    ldi r17, UI_SLIDER_START_COLUMN_ADDR
+
+    rcall oled_set_relative_cursor
+    rcall oled_io_open_write_data
+    inc r18
+_ui_slider_print_bar_outer:
+    dec r18
+    breq _ui_slider_print_bar_done
+    ldi r19, UI_SLIDER_STEP_SIZE
+_ui_slider_print_bar_inner:
+    ldi r16, UI_SLIDER_PATTHER
+    rcall i2c_send_byte
+    inc r17
+    dec r19
+    brne _ui_slider_print_bar_inner
+    rjmp _ui_slider_print_bar_outer
+
+_ui_slider_print_bar_done:
+    rcall oled_io_close
+    ldi r16, UI_SLIDER_PAGE_ADDR
+    rcall oled_wipe_eol
+
+    ldi r16, UI_SLIDER_PAGE_ADDR + 1
+    ldi r17, UI_SLIDER_START_COLUMN_ADDR + (UI_SLIDER_STEP_SIZE * 8) - FONT_WIDTH
+    rcall oled_set_relative_cursor
+    pop r18
+    mov r16, r18
+    rcall oled_print_hex_digits
+    pop r19
+    ret
 
 
 ; ------------------------------------------------------------------------------------------------

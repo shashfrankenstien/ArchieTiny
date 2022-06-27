@@ -35,9 +35,13 @@
 .equ SET_SEGMENT_REMAP_NORM, 0xa0                    ; column scanning direction left to right or right to left
 .equ SET_SEGMENT_REMAP_INV,  0xa1                    ; reverse of SET_SEGMENT_REMAP_NORM
 
-.equ SET_DISPLY_LINE_OFFSET, 0xd3                    ; set display offset (double bytes command) - followed by a number betwee 0 - 63
+.equ SET_DISPLY_LINE_OFFSET, 0xd3                    ; set display offset (double byte command) - followed by a number betwee 0 - 63
 
 .equ SET_DISPLY_START_LINE,  0x40                    ; set display start line: (0x40 - 0x7f) - ORed with a number betwee 0 - 63
+
+
+.equ SET_CONTRAST_CMD,      0x81                     ; set contrast (double byte command) - followed by a number betwee 0 - 255
+
 
 
 ; SREG_OLED - oled status register (1)
@@ -101,6 +105,9 @@ oled_init:
 
     rcall oled_io_close
     rcall oled_clr_screen
+
+    ldi r16, 8
+    rcall oled_set_contrast
 
     pop r16
     ret
@@ -373,6 +380,30 @@ oled_scroll_page_reset:
     ret
 
 
+; oled_set_contrast takes contrast value in r16
+;   - this routine scales the value down to 16 steps (takes 0 to 15 in r16)
+oled_set_contrast:
+    push r16
+    push r17
+
+    ldi r17, 16
+    rcall mul8                                  ; scale up: 0 to 15 => 0 to 255
+
+    cpi r16, 1
+    brsh _oled_set_contrast_ok
+    ldi r16, 1
+_oled_set_contrast_ok:
+    push r16
+    rcall oled_io_open_write_cmds
+    ldi r16, SET_CONTRAST_CMD
+    rcall i2c_send_byte
+    pop r16
+    rcall i2c_send_byte
+    rcall oled_io_close
+
+    pop r17
+    pop r16
+    ret
 
 ; -------------------------------------------------
 
