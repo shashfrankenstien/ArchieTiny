@@ -154,7 +154,7 @@ Tasks Table is set up starting at RAM address TASK_RAM_START (Should be greater 
     - reti
 
 
-## I2C
+## I2C (drivers/usi_i2c.asm)
 - Built-in USI I2C
     - outputs USIDR MSB on SDA line on falling edge of SCL
     - slave devices read on rising edge of SCL
@@ -199,7 +199,7 @@ Tasks Table is set up starting at RAM address TASK_RAM_START (Should be greater 
 - also manages page scrolling
 
 
-## Controls
+## Controls (drivers/gpio.asm)
 ### Button press event manager (PCINT)
 - digital pin change interrupts (active low) - interrupt triggers for both falling and rising edges
     - on falling edge (button press), both GPIO_BTN_x_PRS and GPIO_BTN_x_HLD bits are set in SREG_GPIO_PC
@@ -255,33 +255,35 @@ ADC_VD_CH1_BTN_1  | 20 K            | 1.035 v | 0x59    | 0b01011001
 ADC_VD_CH1_BTN_2  | 51 K            | 1.710 v | 0x94    | 0b10100101
 
 
+## Keyboard / Typing (lib/kbd.asm)
+- TODO: make notes here
 
 
-## Dynamic heap memory allocation (malloc)
+## Dynamic heap memory allocation - malloc (lib/mem.asm)
 - MALLOCFREECTR (1 byte)
     - this counter tracks the number of free blocks available
     - intially, this is set to MALLOC_MAX_BLOCKS
 
 - malloc table (MALLOC_TABLE_SIZE bytes)
 
-    ```
-        |_________|
-        |_________| --> MALLOCFREECTR
-        |         | --> malloc table index 0 (MALLOC_TABLE_START)
-        |         |     .
-        |         |     .
-        |         |     .
-        |_________|     malloc table index MALLOC_MAX_BLOCKS (MALLOC_TABLE_END - 1)
-        |         | --> start of malloc blocks (MALLOC_TABLE_END)
-    ```
+```
+    |_________|
+    |_________| --> MALLOCFREECTR
+    |         | --> malloc table index 0 (MALLOC_TABLE_START)
+    |         |     .
+    |         |     .
+    |         |     .
+    |_________|     malloc table index MALLOC_MAX_BLOCKS (MALLOC_TABLE_END - 1)
+    |         | --> start of malloc blocks (MALLOC_TABLE_END)
+```
 
-    - bytes in the malloc table are indexed starting with 0 and counting up to MALLOC_MAX_BLOCKS
-    - each byte corresponds to a block of memory of the same index
-    - if the value of the byte is 0xff, the block at the corresponding index is free
-    - if the value of the byte is 0xfe, it means that one block of data is allocated at the index
-    - if the value of the byte is any other number, that number is the index of the next block of the allocated memory
-        - a chain of blocks terminate when the value is 0xfe
-    - during allocation of multiple blocks, the final block is allocated first, all the way up to the first block
+- bytes in the malloc table are indexed starting with 0 and counting up to MALLOC_MAX_BLOCKS
+- each byte corresponds to a block of memory of the same index
+- if the value of the byte is 0xff, the block at the corresponding index is free
+- if the value of the byte is 0xfe, it means that one block of data is allocated at the index
+- if the value of the byte is any other number, that number is the index of the next block of the allocated memory
+    - a chain of blocks terminate when the value is 0xfe
+- during allocation of multiple blocks, the final block is allocated first, all the way up to the first block
     - this is just because it works with simpler code. should make no other difference
 
 - mallock blocks (MALLOC_BLOCK_SIZE * MALLOC_MAX_BLOCKS bytes)
@@ -292,7 +294,7 @@ ADC_VD_CH1_BTN_2  | 51 K            | 1.710 v | 0x94    | 0b10100101
         - capped at 256 so that we can use 8 bit pointers and 8 bit MALLOCFREECTR
 
 - MALLOC_MAX_BLOCKS can't be greater than 250 (never gonna happen on this device, but whatever)
-    - MALLOC_FREE_RAM is capped at 250 because the last few address values are used as control bytes in the malloc table (0xff, 0xfe, ..)
+    - MALLOC_MAX_BLOCKS is capped at 250 because the last few address values are used as control bytes in the malloc table (0xff, 0xfe, ..)
 
 
 
@@ -306,8 +308,91 @@ ADC_VD_CH1_BTN_2  | 51 K            | 1.710 v | 0x94    | 0b10100101
     - scrollable menu
 
 
-## EEPROM FAT-8 File System (TODO)
+## EEPROM FAT-8 File System (lib/fs.asm)
 - https://www.youtube.com/watch?v=HjVktRd35G8
+
+- file system (fat-8) - structure is basically very similar to mem.asm
+- uses driver/eeprom.asm to read and write
+
+- FATFREECTR (1 byte)
+    - this counter tracks the number of free clusters available
+    - intially, this is set to FS_MAX_CLUSTERS
+
+- file allocation table / FAT (FAT_BYTE_SIZE bytes)
+
+```
+    |_________|
+    |_________| --> FATFREECTR
+    |         | --> FAT index 0 (FAT_START) - 2 byte entries
+    |         |     .
+    |         |     .
+    |         |     .
+    |_________|     FAT index FAT_BYTE_SIZE (FAT_END - 1)
+    |         | --> start of fs clusters (FAT_END)
+```
+
+- this implementation of FAT is set of doubly linked lists. this makes it easier/faster to scroll (thinking i2c in the future)
+- a pair of bytes in the FAT are indexed starting with 0 and counting up to FS_MAX_CLUSTERS
+- each pair corresponds to a cluster of memory of the same index
+- first byte is the index of previous cluster (PREV_IDX), and second byte is the index of next cluster (NEXT_IDX)
+
+```
+    -------------------------------------------
+    | PREV_IDX(1) | NEXT_IDX(1) | .......
+    -------------------------------------------
+```
+- the cluster at the corresponding index is free if the value of both bytes (PREV_IDX and NEXT_IDX) are 0xff
+- if the value of both bytes are 0xfe, it means that one cluster of data is allocated at the index
+- if the value of either byte is any other number, that number is the index of the prev/next cluster of the allocated disk space
+    - the first cluster in a chain of clusters has PREV_IDX value of 0xfe
+    - a chain of clusters terminate when the NEXT_IDX value is 0xfe
+
+
+#### dirent
+- directories make up a tree structure across the file system
+- when formatted, the fs will have the first cluster allocated to be the root directory
+- the root directory may contain entries to more directories
+- directory entry cluster - 10 bytes per entry -> 2 entries per cluster of 20 bytes
+
+```
+    --------------------------------------------------
+    | SIGNATURE(1) |     NAME(8)     | START_ADDR(1) |
+    --------------------------------------------------
+```
+- description
+    - NAME (8 bytes)
+    - SIGNATURE (1 byte) -> information about the item (is_directory, read_only flags, external mount info)
+    - START_ADDR (1 byte) -> cluster address of the first cluster. use FAT to find additional clusters
+
+- unlike typical FAT file systems, directory clusters do not have a '.' or '..' entry (to save space)
+    - the caller should instead save parent directory pointers before opening a file or subdirectory
+
+
+#### fs pointers
+- to avoid 16 bit math, fs subroutines work on a pair of values
+- when reading raw data (file / directory names or file contents):
+    - r16 points to cluster index (possible values: 0 to FS_MAX_CLUSTERS - 1)
+    - r17 points to byte index within cluster (possible values: 0 to FS_CLUSTER_SIZE - 1)
+
+- for directory related operations:
+    - r16 will contain index to starting cluster
+    - r17 will be used to index an item within a directory (may span across clusters. max is 256 items in a dir??)
+        - also, r17 index needs to skip over deleted items??? Ugh
+
+- signature byte
+
+```
+    --------------------------------------------------------------------------------------------------
+    |  IS_EXT_MOUNT  |  N/A  |  N/A  |  N/A  |  N/A  |  FS_IS_DIR  |  FS_IS_DELETED  |  FS_IS_ENTRY  |
+    --------------------------------------------------------------------------------------------------
+```
+
+#### FRAM fs
+
+- fs_wrapper_* methods are wrappers around eeprom_* or fram_* routines
+- we use these accross the board, and have the ability to switch between internal eeprom and external fram
+
+
 
 ## EEPROM settings (file?) (TODO)
 
@@ -336,17 +421,24 @@ r31     | “call-used” | Can freely use | Save and restore if using
 
 -----
 
-# Some STM8S stuff
+# Related (and unrelated?)
+
+## Some STM8S stuff
 
 - https://lujji.github.io/blog/
 
 
------
 
-# Some PIC stuff
+## Some PIC stuff
 
 - https://www.youtube.com/watch?v=DBftApUQ8QI
 
+
+## Some NRF53832 stuff (PineTime)
+
+- https://infocenter.nordicsemi.com/pdf/nRF52832_PS_v1.8.pdf
+
+-----
 
 # Similar projects
 

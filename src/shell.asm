@@ -20,15 +20,15 @@ shell_splash_screen:
     ldi r16, 0x99
     ldi r17, ((OLED_MAX_COL - (FONT_WIDTH * shell_splash_msg_len) - 8) / 2)          ; x1 - position at the center with 8/2 pixels of padding on either side
     ldi r18, OLED_MAX_COL - ((OLED_MAX_COL - (FONT_WIDTH * shell_splash_msg_len) - 8) / 2)    ; x2
-    ldi r19, (1 * 8) + 6                                ; y1
-    ldi r20, (5 * 8) + 2                                ; y2
-    rcall oled_fill_rect                       ; fill oled with data in r16
+    ldi r19, (1 * 8) + 6                            ; y1
+    ldi r20, (5 * 8) + 2                            ; y2
+    rcall oled_fill_rect                            ; fill oled with data in r16
 
     ; =========
     ; Hello World! :D
     ldi r16, 3
     ldi r17, ((OLED_MAX_COL - (FONT_WIDTH * shell_splash_msg_len)) / 2) + 2   ; center the hello world message. +2 to account for some rounding error
-    rcall oled_set_cursor                      ; set cursor to start writing data
+    rcall oled_set_cursor                           ; set cursor to start writing data
 
     rcall oled_color_inv_start
     ldi r31, hi8(shell_splash_msg)                  ; Initialize Z-pointer to the start of the shell_splash_msg label
@@ -39,7 +39,7 @@ shell_splash_screen:
     ; =========
     rcall i2c_rlock_release
 
-_shell_splash_wait:                            ; wait for button press and exit
+_shell_splash_wait:                                 ; wait for button press and exit
     sleep
     lds r16, SREG_GPIO_PC
     sbrs r16, GPIO_BTN_0_PRS
@@ -355,7 +355,7 @@ _fram_test_next:
     brlo _fram_test_next_line
 
 
-_fram_test_wait:                            ; wait for button press and exit
+_fram_test_wait:                          ; wait for button press and exit
     sleep
     rcall nav_kbd_start
 
