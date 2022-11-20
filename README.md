@@ -222,41 +222,53 @@ Tasks Table is set up starting at RAM address TASK_RAM_START (Should be greater 
     - Given the ADC conversion period (110 micro seconds), we should make sure multiple readings are within threshold to confirm a button press
     - To be absolutely safe, we can take a bunch of readings waiting a few ms between them; report a press only if all the readings pass the same threshold
 
-- ADC voltage divider value calculation (RESET pin)
-    - tested on RESET pin (internal pull up resistance (R1))
-    - because we're using the reset pin, input voltage cannot be below ~1.3 v (documentation says 0.9 v :/)
-
+- ADC voltage divider value calculation (internal pull up resistance R1)
     - equations (only care about 8 MSB precision)
         - VOUT = lambda VIN, R1, R2: VIN * R2/(R1+R2)
         - ADC_VAL = lambda VREF, VOUT: int((VOUT * 1024) / VREF) >> 2
 
-    - approx measured / fudged values that worked out in tests
-        - VREF = Vcc = 2.78 v
-        - VIN = Vpin = 2.42 v
-        - R2 = RESET pin pull-up = 50 kilo ohm aprox (guess??)
+    - below are approx measured / fudged values that worked out in tests
+    - voltages are usually below these values. just to be sure, we set the
+        threshold to be a few counts above these values (see config.inc)
 
-- The voltages are usually below these values. just to be sure, we set the threshold to be a few counts above these values (see config.inc)
+    - channel 0: PIN 2
+        - VREF = Vcc = 2.85 v
+        - VIN = Vpin = 2.8 v
+        - R1 = 35 kilo ohm aprox (guess??)
 
-ADC button        | Resistance (R2) | Voltage | ADC threshold (8 MSB precision) | | V1 Mapping
-------------------|-----------------|---------|---------------------------------|-|-------------
-ADC_VD_CH0_BTN_0  | 51 K            | 1.222 v | 0x70    | 0b01110000            | NAV_UP_BTN
-ADC_VD_CH0_BTN_1  | 68 K            | 1.395 v | 0x80    | 0b10000000            | NAV_DOWN_BTN
-ADC_VD_CH0_BTN_2  | 100 K           | 1.613 v | 0x94    | 0b10010100            | NAV_LEFT_BTN
-ADC_VD_CH0_BTN_3  | 300 K           | 2.074 v | 0xbf    | 0b10111111            | NAV_RIGHT_BTN
-ADC_VD_CH0_BTN_4  | 1 M             | 2.305 v | 0xd4    | 0b11010100            | OK
+ADC button        | Resistance (R2) | Voltage | ADC threshold (8 MSB precision) | V1 Mapping
+------------------|-----------------|---------|--------------------------------|-------------
+ADC_VD_CH0_BTN_0  | 20 K            | 1.018 v | 0x5b           | OK
+ADC_VD_CH0_BTN_1  | 51 K            | 1.660 v | 0x95           | NAV_UP_BTN
+ADC_VD_CH0_BTN_2  | 68 K            | 1.849 v | 0xa6           | NAV_DOWN_BTN
+ADC_VD_CH0_BTN_3  | 100 K           | 2.074 v | 0xba           | NAV_LEFT_BTN
+ADC_VD_CH0_BTN_4  | 300 K           | 2.507 v | 0xe1           | NAV_RIGHT_BTN
 
+- similarly, chanel 1 - PIN 1 (reset pin)
+    - VREF = Vcc = 2.8 v
+    - VIN = Vpin = 2.45 v
+    - R1 = RESET pin pull-up = 50 kilo ohm aprox (guess??)
 
-- similarly, chanel 2 (R1 = 37 kilo ohm, VREF = VIN = vcc = 2.95 v)
+- when using the reset pin, input voltage cannot be below ~1.3 v (documentation says 0.9 v :/).
+    to remedy this, reset pin resistors are all connected in series (each are 68 K)
 
-ADC button        | Resistance (R2) | Voltage | ADC threshold (8 MSB precision)
-------------------|-----------------|---------|----------------------
-ADC_VD_CH1_BTN_0  | 5.1 K           | 0.357 v | 0x1f    | 0b00011111
-ADC_VD_CH1_BTN_1  | 20 K            | 1.035 v | 0x59    | 0b01011001
-ADC_VD_CH1_BTN_2  | 51 K            | 1.710 v | 0x94    | 0b10100101
+ADC button        | Resistance (R2) | Voltage | ADC threshold (8 MSB precision) | V1 Mapping
+------------------|-----------------|---------|--------------------------------|-------------
+ADC_VD_CH1_BTN_0  | 68 K            | 1.412 v | 0x81            | OPTIONS_BTN
+ADC_VD_CH1_BTN_1  | 136 K           | 1.791 v | 0xa3            | EXIT_BTN
+ADC_VD_CH1_BTN_2  | 204 K           | 1.968 v | 0xb3            | ENTER_BTN
+
 
 
 ## Keyboard / Typing (lib/kbd.asm)
-- TODO: make notes here
+- text kbd input is just a single character printed with inverted colors
+- provides ability to
+    - scrub through all characters (SCRUB_NEXT_BTN & SCRUB_PREV_BTN)
+    - select the current character (SCRUB_OK_BTN)
+    - remove previous character (SCRUB_BACKSP_BTN)
+    - add space character (SCRUB_SPACE_BTN)
+    - new line (ENTER_BTN)
+
 
 
 ## Dynamic heap memory allocation - malloc (lib/mem.asm)

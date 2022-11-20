@@ -1,43 +1,34 @@
 
-; text kbd is just a single character printed with inverted colors
-; one is able to scrub through all characters and either
-;   - select the current character (button - TBD)
-;   - remove previous character (button - TBD)
-;   - complete typing and return (button - TBD)
+; - text kbd input is just a single character printed with inverted colors
+; - provides ability to
+;   - scrub through all characters (SCRUB_NEXT_BTN & SCRUB_PREV_BTN)
+;   - select the current character (SCRUB_OK_BTN)
+;   - remove previous character (SCRUB_BACKSP_BTN)
+;   - add space character (SCRUB_SPACE_BTN)
+;   - new line (ENTER_BTN)
 
 
-; constants to behave as enum
+; constants
 .equ    KBD_OK,         0xff
 .equ    KBD_CANCEL,     0xfe
 
 ; general button aliases
-.equ    ENTER_BTN,          ADC_VD_CH1_BTN_0
+.equ    ENTER_BTN,          ADC_VD_CH1_BTN_2
 .equ    EXIT_BTN,           ADC_VD_CH1_BTN_1
-.equ    OPTIONS_BTN,        ADC_VD_CH1_BTN_2
+.equ    OPTIONS_BTN,        ADC_VD_CH1_BTN_0
 
 ; button aliases for nav_kbd_start
-.equ    NAV_UP_BTN,         ADC_VD_CH0_BTN_0
-.equ    NAV_DOWN_BTN,       ADC_VD_CH0_BTN_1
-.equ    NAV_LEFT_BTN,       ADC_VD_CH0_BTN_2
-.equ    NAV_RIGHT_BTN,      ADC_VD_CH0_BTN_3
-
-; .equ    NAV_UP_BTN,         ADC_VD_CH0_BTN_2
-; .equ    NAV_DOWN_BTN,       ADC_VD_CH0_BTN_3
-; .equ    NAV_LEFT_BTN,       ADC_VD_CH0_BTN_1
-; .equ    NAV_RIGHT_BTN,      ADC_VD_CH0_BTN_0
+.equ    NAV_UP_BTN,         ADC_VD_CH0_BTN_1
+.equ    NAV_DOWN_BTN,       ADC_VD_CH0_BTN_2
+.equ    NAV_LEFT_BTN,       ADC_VD_CH0_BTN_3
+.equ    NAV_RIGHT_BTN,      ADC_VD_CH0_BTN_4
 
 ; button aliases for text_kbd_start
-.equ    SCRUB_OK_BTN,       ADC_VD_CH0_BTN_4
-.equ    SCRUB_NEXT_BTN,     ADC_VD_CH0_BTN_0
-.equ    SCRUB_PREV_BTN,     ADC_VD_CH0_BTN_1
-.equ    SCRUB_BACKSP_BTN,   ADC_VD_CH0_BTN_2
-.equ    SCRUB_SPACE_BTN,    ADC_VD_CH0_BTN_3
-
-; .equ    SCRUB_OK_BTN,       ADC_VD_CH0_BTN_4
-; .equ    SCRUB_NEXT_BTN,     ADC_VD_CH0_BTN_2
-; .equ    SCRUB_PREV_BTN,     ADC_VD_CH0_BTN_3
-; .equ    SCRUB_BACKSP_BTN,   ADC_VD_CH0_BTN_1
-; .equ    SCRUB_SPACE_BTN,    ADC_VD_CH0_BTN_0
+.equ    SCRUB_OK_BTN,       ADC_VD_CH0_BTN_0
+.equ    SCRUB_NEXT_BTN,     ADC_VD_CH0_BTN_1
+.equ    SCRUB_PREV_BTN,     ADC_VD_CH0_BTN_2
+.equ    SCRUB_BACKSP_BTN,   ADC_VD_CH0_BTN_3
+.equ    SCRUB_SPACE_BTN,    ADC_VD_CH0_BTN_4
 
 
 

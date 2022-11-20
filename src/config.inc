@@ -95,37 +95,37 @@
 .equ    BUZZER_PIN,         1
 .equ    GPIO_BTN_0,         4
 ; ADC voltage divider buttons
-.equ    ADC_CHAN_0,         0                               ; channel 0 is mapped to ADC hardware channel 0
-.equ    ADC_CHAN_1,         3                               ; channel 1 is mapped to ADC hardware channel 3
+.equ    ADC_CHAN_0,         3                               ; channel 0 is mapped to ADC hardware channel 0
+.equ    ADC_CHAN_1,         0                               ; channel 1 is mapped to ADC hardware channel 3
 
 .equ    ADC_CHAN_0_PIN,     5
 .equ    ADC_CHAN_1_PIN,     3
 
 ; -------------------------------------------------
 
-; ADC voltage divider value calculation (RESET pin)
-;     - tested on RESET pin (internal pull up resistance R1)
-;     - because we're using the reset pin, input voltage cannot be below ~1.3 v (documentation says 0.9 v :/)
-
+; ADC voltage divider value calculation (internal pull up resistance R1)
+;     - when using the reset pin, input voltage cannot be below ~1.3 v (documentation says 0.9 v :/)
+;
 ;     - equations (only care about 8 MSB precision)
 ;         - VOUT = lambda VIN, R1, R2: VIN * R2/(R1+R2)
 ;         - ADC_VAL = lambda VREF, VOUT: int((VOUT * 1024) / VREF) >> 2
-
-;     - approx measured / fudged values that worked out in tests
-;         - VREF = Vcc = 2.78 v
-;         - VIN = Vpin = 2.42 v
-;         - R2 = RESET pin pull-up = 50 kilo ohm aprox (guess??)
 ;
-; - We set the threshold to be a few counts above these values
+;     - below are approx measured / fudged values that worked out in tests
+;     - voltages are usually below these values. just to be sure, we set the
+;           threshold to be a few counts above these values (see config.inc)
+;
+;     - channel 0: PIN 2
+;         - VREF = Vcc = 2.85 v
+;         - VIN = Vpin = 2.8 v
+;         - R1 = 35 kilo ohm aprox (guess??)
 ;
 ; ADC button        | Resistance (R2) | Voltage | ADC threshold (8 MSB precision)
 ; ------------------|-----------------|---------|----------------------
-; ADC_VD_CH0_BTN_0  | 51 K            | 1.222 v | 0x70    | 0b01110000
-; ADC_VD_CH0_BTN_1  | 68 K            | 1.395 v | 0x80    | 0b10000000
-; ADC_VD_CH0_BTN_2  | 100 K           | 1.613 v | 0x94    | 0b10010100
-; ADC_VD_CH0_BTN_3  | 300 K           | 2.074 v | 0xbf    | 0b10111111
-; ADC_VD_CH0_BTN_4  | 1 M             | 2.305 v | 0xd4    | 0b11010100
-
+; ADC_VD_CH0_BTN_0  | 20 K            | 1.018 v | 0x5b
+; ADC_VD_CH0_BTN_1  | 51 K            | 1.660 v | 0x95
+; ADC_VD_CH0_BTN_2  | 68 K            | 1.849 v | 0xa6
+; ADC_VD_CH0_BTN_3  | 100 K           | 2.074 v | 0xba
+; ADC_VD_CH0_BTN_4  | 300 K           | 2.507 v | 0xe1
 
 .equ    ADC_VD_CH0_BTN_0,       0                       ; bit corresponding to button 0
 .equ    ADC_VD_CH0_BTN_1,       1                       ; bit corresponding to button 1
@@ -133,27 +133,34 @@
 .equ    ADC_VD_CH0_BTN_3,       3                       ; bit corresponding to button 3
 .equ    ADC_VD_CH0_BTN_4,       4                       ; bit corresponding to button 4
 
-.equ    ADC_VD_CH0_BTN_0_TRESH, 0x70 + 16               ; ADC threshold for button 0
-.equ    ADC_VD_CH0_BTN_1_TRESH, 0x80 + 16               ; ADC threshold for button 1
-.equ    ADC_VD_CH0_BTN_2_TRESH, 0x94 + 16 + 8           ; ADC threshold for button 2 - slightly tuned up
-.equ    ADC_VD_CH0_BTN_3_TRESH, 0xbf + 16               ; ADC threshold for button 3
-.equ    ADC_VD_CH0_BTN_4_TRESH, 0xd4 + 16               ; ADC threshold for button 4
+.equ    ADC_VD_CH0_BTN_0_TRESH, 0x5b + 10               ; ADC threshold for button 0
+.equ    ADC_VD_CH0_BTN_1_TRESH, 0x95 + 10               ; ADC threshold for button 1
+.equ    ADC_VD_CH0_BTN_2_TRESH, 0xa6 + 10               ; ADC threshold for button 2
+.equ    ADC_VD_CH0_BTN_3_TRESH, 0xba + 10               ; ADC threshold for button 3
+.equ    ADC_VD_CH0_BTN_4_TRESH, 0xe1 + 10 + 4           ; ADC threshold for button 4 - slightly tuned up
 
 ; -------------------------------------------------
-; similarly, chanel 2 (R1 = 37 kilo ohm, VREF = VIN = vcc = 2.95 v)
+; similarly, chanel 1 - PIN 1 (reset pin)
+;         - VREF = Vcc = 2.8 v
+;         - VIN = Vpin = 2.45 v
+;         - R1 = RESET pin pull-up = 50 kilo ohm aprox (guess??)
+;
+;when using the reset pin, input voltage cannot be below ~1.3 v (documentation says 0.9 v :/).
+;       to remedy this, reset pin resistors are all connected in series (each are 68 K)
+;
 ; ADC button        | Resistance (R2) | Voltage | ADC threshold (8 MSB precision)
 ; ------------------|-----------------|---------|----------------------
-; ADC_VD_CH1_BTN_0  | 5.1 K           | 0.357 v | 0x1f    | 0b00011111
-; ADC_VD_CH1_BTN_1  | 20 K            | 1.035 v | 0x59    | 0b01011001
-; ADC_VD_CH1_BTN_2  | 51 K            | 1.710 v | 0x94    | 0b10100101
+; ADC_VD_CH1_BTN_0  | 68 K            | 1.412 v | 0x81
+; ADC_VD_CH1_BTN_1  | 136 K           | 1.791 v | 0xa3
+; ADC_VD_CH1_BTN_2  | 204 K           | 1.968 v | 0xb3
 
 .equ    ADC_VD_CH1_BTN_0,       5                       ; bit corresponding to channel 1 button 0
 .equ    ADC_VD_CH1_BTN_1,       6                       ; bit corresponding to channel 1 button 1
 .equ    ADC_VD_CH1_BTN_2,       7                       ; bit corresponding to channel 1 button 2
 
-.equ    ADC_VD_CH1_BTN_0_TRESH, 0x1f + 20               ; ADC threshold for channel 1 button 0
-.equ    ADC_VD_CH1_BTN_1_TRESH, 0x59 + 20               ; ADC threshold for channel 1 button 1
-.equ    ADC_VD_CH1_BTN_2_TRESH, 0x94 + 20               ; ADC threshold for channel 1 button 2
+.equ    ADC_VD_CH1_BTN_0_TRESH, 0x81 + 10               ; ADC threshold for channel 1 button 0
+.equ    ADC_VD_CH1_BTN_1_TRESH, 0xa3 + 10               ; ADC threshold for channel 1 button 1
+.equ    ADC_VD_CH1_BTN_2_TRESH, 0xb3 + 10 + 6           ; ADC threshold for channel 1 button 2 - slightly tuned up
 
 
 ; -------------------------------------------------
