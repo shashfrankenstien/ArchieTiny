@@ -231,7 +231,7 @@ Tasks Table is set up starting at RAM address TASK_RAM_START (Should be greater 
     - voltages are usually below these values. just to be sure, we set the
         threshold to be a few counts above these values (see config.inc)
 
-    - channel 0: PIN 2
+    - channel 0: PIN 2 (Attiny85 ADC 3)
         - VREF = Vcc = 2.85 v
         - VIN = Vpin = 2.8 v
         - R1 = 35 kilo ohm aprox (guess??)
@@ -244,7 +244,7 @@ ADC_VD_CH0_BTN_2  | 68 K            | 1.849 v | 0xa6           | NAV_DOWN_BTN
 ADC_VD_CH0_BTN_3  | 100 K           | 2.074 v | 0xba           | NAV_LEFT_BTN
 ADC_VD_CH0_BTN_4  | 300 K           | 2.507 v | 0xe1           | NAV_RIGHT_BTN
 
-- similarly, chanel 1 - PIN 1 (reset pin)
+- similarly, chanel 1 - PIN 1 (reset pin - Attiny85 ADC 0)
     - VREF = Vcc = 2.8 v
     - VIN = Vpin = 2.45 v
     - R1 = RESET pin pull-up = 50 kilo ohm aprox (guess??)
