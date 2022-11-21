@@ -113,7 +113,7 @@ test3_loop:
     ldi r16, 5
     ldi r17, OLED_MAX_COL - (FONT_WIDTH * 2)            ; right position
     rcall oled_set_cursor                      ; set cursor to start writing data
-    lds r16, ADC_CHAN_0_VAL
+    lds r16, ADC_CHAN_1_VAL
     rcall oled_print_hex_digits
 
 ;     ldi r16, 1
