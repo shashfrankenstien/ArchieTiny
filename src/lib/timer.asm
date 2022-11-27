@@ -59,7 +59,7 @@ timer_init:
     out TIMSK, r16                  ; enable interrupt
 
     clr r16
-    sts LOW_BYTE, r16                         ; intialize counter registers to 0
+    sts LOW_BYTE, r16               ; intialize counter registers to 0
     sts MIDDLE_BYTE, r16
     sts HIGH_BYTE, r16
     ret

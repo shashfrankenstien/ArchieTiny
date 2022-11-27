@@ -106,7 +106,7 @@ oled_init:
     rcall oled_io_close
     rcall oled_clr_screen
 
-    ldi r16, 8
+    ldi r16, 8                                 ; default contrast = 8 (possible values 0 - 15)
     rcall oled_set_contrast
 
     pop r16
@@ -389,7 +389,7 @@ oled_set_contrast:
     ldi r17, 16
     rcall mul8                                  ; scale up: 0 to 15 => 0 to 255
 
-    cpi r16, 1
+    cpi r16, 1                                  ; minimum allowed value is 1 (this will be used if input value is 0)
     brsh _oled_set_contrast_ok
     ldi r16, 1
 _oled_set_contrast_ok:

@@ -92,11 +92,11 @@
 ; -------------------------------------------------
 
 ; gpio config
-.equ    BUZZER_PIN,         1
-.equ    GPIO_BTN_0,         4
+.equ    BUZZER_PIN,         1                               ; physical pin 6 - this can't change if we use PWM
+.equ    GPIO_BTN_0,         4                               ; physical pin 3
 ; ADC voltage divider buttons
-.equ    ADC_CHAN_0,         3                               ; channel 0 is mapped to ADC hardware channel 0
-.equ    ADC_CHAN_1,         0                               ; channel 1 is mapped to ADC hardware channel 3
+.equ    ADC_CHAN_0,         3                               ; channel 0 is mapped to ADC hardware channel 3 - physical pin 2
+.equ    ADC_CHAN_1,         0                               ; channel 1 is mapped to ADC hardware channel 0 - physical pin 1 (RESET pin)
 
 .equ    ADC_CHAN_0_PIN,     5
 .equ    ADC_CHAN_1_PIN,     3

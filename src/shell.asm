@@ -70,7 +70,7 @@ shell_menu_apps_list:
     .asciz "fram test"                         ; index 7
     .asciz "fram write"                        ; index 8
     .asciz "contrast"                          ; index 9
-    .asciz "test2"                             ; index 10
+    .asciz "buzz"                             ; index 10
     .asciz "test3"                             ; index 11
     .byte 0                                    ; end of list
 
@@ -95,8 +95,8 @@ shell_home_task:
     rcall shell_splash_screen
     sts SREG_GPIO_PC, r20                      ; clear gpio button status register again
 
-    clr r16
-    clr r17
+    clr r16                                    ; first item in menu selected (0 indexed)
+    clr r17                                    ; menu scroll position top
 _shell_home_show_menu:
     ldi r18, (1<<ENTER_BTN)                    ; register ENTER_BTN action
     ldi r24, lo8(shell_menu_apps_list)
@@ -164,7 +164,7 @@ _shell_home_menu_8:
 
 _shell_home_menu_9:
     cpi r16, 9
-    brne _shell_home_menu_done
+    brne _shell_home_menu_10
     mov r20, r16
     ldi r24, lo8(shell_menu_confirm_test)
     ldi r25, hi8(shell_menu_confirm_test)
@@ -173,6 +173,41 @@ _shell_home_menu_9:
     ldi r16, 0
     rcall ui_slider_open
     mov r16, r20
+    rjmp _shell_home_show_menu                 ; show menu after running selected option
+
+_shell_home_menu_10:
+    cpi r16, 10
+    brne _shell_home_menu_done
+    mov r20, r16
+    ldi r16, BUZZ_NOTE_C4
+    rcall buzzer_buzz
+    ldi r16, BUZZ_NOTE_D4
+    rcall buzzer_buzz
+    ldi r16, BUZZ_NOTE_E4
+    rcall buzzer_buzz
+    ;
+    ldi r16, BUZZ_NOTE_C6
+    rcall buzzer_buzz
+    ldi r16, BUZZ_NOTE_B5
+    rcall buzzer_buzz
+    ldi r16, BUZZ_NOTE_A5
+    rcall buzzer_buzz
+    ;
+    ldi r16, BUZZ_NOTE_C7
+    rcall buzzer_buzz
+    ldi r16, BUZZ_NOTE_B6
+    rcall buzzer_buzz
+    ldi r16, BUZZ_NOTE_A6
+    rcall buzzer_buzz
+    ;
+    ldi r16, BUZZ_NOTE_C8
+    rcall buzzer_buzz
+    ldi r16, BUZZ_NOTE_B7
+    rcall buzzer_buzz
+    ldi r16, BUZZ_NOTE_A7
+    rcall buzzer_buzz
+    mov r16, r20
+    ; rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 _shell_home_menu_done:
     rjmp _shell_home_show_menu                 ; show menu after running selected option

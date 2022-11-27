@@ -336,11 +336,11 @@ ui_slider_open:
 
 _ui_slider_update:
     rcall i2c_rlock_acquire
-    tst r18
+    tst r18                                     ; 0 is the min value of the slider
     brpl ui_slider_value_verified_lower
     clr r18
 ui_slider_value_verified_lower:
-    cpi r18, 16
+    cpi r18, 16                                 ; 15 is the max value of the slider
     brlo ui_slider_value_verified_upper
     ldi r18, 15
 ui_slider_value_verified_upper:
@@ -366,7 +366,7 @@ _ui_slider_check_left:
     rjmp _ui_slider_update
 
 _ui_slider_check_action:
-    sbrs r16, ENTER_BTN                         ; if enter is pressed, skip the next statement
+    sbrs r16, ENTER_BTN                         ; if enter is pressed, skip the next statement and return
     rjmp _ui_slider_wait
 
     mov r16, r18
