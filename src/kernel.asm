@@ -41,12 +41,15 @@ main:                               ; initialize
     ldi r16, hi8(RAMEND)            ; set stack pointer high bits to high(RAMEND)
     out SPH, r16
 
-    rcall buzzer_init               ; set buzzer output pin
-    sbi PORTB, BUZZER_PIN
+    ; clear gpio - set all to input
+    clr r16
+    out PORTB, r16
+    out DDRB, r16
 
     rcall timer_init                ; set timer / counter options and intialize 24bit software counter
     rcall i2c_init                  ; initialize i2c bus
     rcall oled_init                 ; initialize i2c oled device (sh1107)
+    rcall rtc_init                  ; initialize i2c RTC device (ds1307)
     rcall gpio_btn_init             ; intialize buttons as input pins and attach pc interrupts
     rcall gpio_adc_init             ; intialize ADC to read thumb wheel potentiometer
     rcall taskmanager_init          ; initialize task manager table
@@ -110,10 +113,19 @@ test3_loop:
     lds r16, MALLOCFREECTR
     rcall oled_print_hex_digits
 
+    clr r17
+    rcall i2c_rlock_acquire
+    rcall rtc_io_open_reader
+    rcall i2c_read_byte_nack
+    mov r18, r16
+    rcall rtc_io_close
+    rcall i2c_rlock_release
+
     ldi r16, 5
     ldi r17, OLED_MAX_COL - (FONT_WIDTH * 2)            ; right position
     rcall oled_set_cursor                      ; set cursor to start writing data
-    lds r16, ADC_CHAN_1_VAL
+
+    mov r16, r18
     rcall oled_print_hex_digits
 
 ;     ldi r16, 1
