@@ -179,7 +179,7 @@ Tasks Table is set up starting at RAM address TASK_RAM_START (Should be greater 
   it returns once it is able to acquire the lock
 
 
-## OLED display (using I2C)
+## OLED display - I2C (drivers/sh1106.asm)
 - In SH1106 driver, 128x64 OLED is centered in most cases within the 132x64 ram, that means pixel (2,0) in ram is pixel (0,0) on the display
 - SH1106 Command Table is on page 30 of the datasheet
 - documentation and resources recommend sleeping for 100 ms before displaying anything on the screen
@@ -310,21 +310,11 @@ ADC_VD_CH1_BTN_2  | 204 K           | 1.968 v | 0xb3            | ENTER_BTN
 
 
 
-## The Shell!
-- shell_home_task is the entry point to user space. It is started through task manager
-    - starts with a splash screen
-    - on button press, shows main menu of applications
-- reusable ui components (lib/ui.asm)
-    - splash screen (shell.asm)
-    - confirm y/n popup
-    - scrollable menu
-
-
-## EEPROM FAT-8 File System (lib/fs.asm)
+## FAT-8 File System (lib/fs.asm)
 - https://www.youtube.com/watch?v=HjVktRd35G8
 
 - file system (fat-8) - structure is basically very similar to mem.asm
-- uses driver/eeprom.asm to read and write
+- uses driver/eeprom.asm (or optionally drivers/mb85rc64.asm) to read and write
 
 - FATFREECTR (1 byte)
     - this counter tracks the number of free clusters available
@@ -399,11 +389,51 @@ ADC_VD_CH1_BTN_2  | 204 K           | 1.968 v | 0xb3            | ENTER_BTN
     --------------------------------------------------------------------------------------------------
 ```
 
-#### FRAM fs
+#### FRAM fs - I2C
 
 - fs_wrapper_* methods are wrappers around eeprom_* or fram_* routines
 - we use these accross the board, and have the ability to switch between internal eeprom and external fram
 
+
+## File Manager app (based on fs)
+- `notes TODO`
+
+
+## Buzzer - PWM (drivers/buzzer.asm)
+- only PB1 (pysical pin 6) is currently supported for buzzer as it uses Timer/Counter1 in PWM1A mode
+- PWM_CTRL -> PWM1A enabled; PB1 cleared on compare match and set when TCNT1=0; prescaler at CK/256
+    prescaled clock frequency is determined by bits [3:0] of PWM_CTRL byte
+
+- per PWM_CTRL, while running Timer1 in PWM1A mode:
+    - a match on compare register A (OCR1A) triggers the PWM signal to go LOW
+    - a match on compare register C (OCR1C) triggers the PWM signal to go back HIGH
+
+- PWM_COMPVAL_C controls the frequency / pitch
+    - with a 16MHz clock (CK), PWM counter frequency is set to CK/256 in PWM_CTRL
+    - PWM_COMPVAL_C acts as the PWM signal divider. so final frequency at the BUZZER_PIN (OC1A) will be CK/256/PWM_COMPVAL_C
+    - middle-C musical note (262 Hz) can thus be obtained by setting PWM_COMPVAL_C = 238
+        - 16000000 / 256 / 238 = 262.605
+        - or more generally, PWM_COMPVAL_C = lambda NOTE_FREQ: int(16000000 / 256 / NOTE_FREQ)
+        - ( value floored so as to make the notes slightly sharp )
+
+- PWM_COMPVAL_A controls volume
+    - PWM signal at BUZZER_PIN will be HIGH till counter reaches PWM_COMPVAL_A, then goes low till PWM_COMPVAL_C
+    - if signal stays HIGH for just as long as it stays LOW, volume is maximum (PWM_COMPVAL_A = PWM_COMPVAL_C / 2)
+    - PWM_COMPVAL_A can be varied between 0 and PWM_COMPVAL_C/2 to change volume
+
+
+## Real Time Clock - I2C (based on fs)
+- `notes TODO`
+
+
+## The Shell!
+- shell_home_task is the entry point to user space. It is started through task manager
+    - starts with a splash screen
+    - on button press, shows main menu of applications
+- reusable ui components (lib/ui.asm)
+    - splash screen (shell.asm)
+    - confirm y/n popup
+    - scrollable menu
 
 
 ## EEPROM settings (file?) (TODO)

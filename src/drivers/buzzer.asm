@@ -1,8 +1,8 @@
 .include "config.inc"                       ; BUZZER_PIN
 
 
-.if BUZZER_PIN - 1                  ; only PB1 (pysical pin 6) is currently supported for buzzer
-    .err                            ; unsupported pin!
+.if BUZZER_PIN - 1                          ; only PB1 (pysical pin 6) is currently supported for buzzer
+    .err                                    ; unsupported pin!
 .endif
 
 
@@ -13,7 +13,7 @@
 .equ    OCR1A,              0x2e            ; OCR1A – Timer/Counter1 Output Compare RegisterA
 .equ    OCR1C,              0x2d            ; OCR1C – Timer/Counter1 Output Compare RegisterC
 
-.equ    PWM_CTRL,           0b01101001      ; PWM1A enabled, PB1 cleared on compare match. Set when TCNT1 = $00, prescaler at CK/256
+.equ    PWM_CTRL,           0b01101001      ; PWM1A enabled; PB1 cleared on compare match and set when TCNT1=0; prescaler at CK/256
                                             ; prescaled clock frequency is determined by bits [3:0] of PWM_CTRL byte
 
 ; per PWM_CTRL, while running Timer1 in PWM1A mode:
@@ -25,7 +25,8 @@
 ;   - PWM_COMPVAL_C acts as the PWM signal divider. so final frequency at the BUZZER_PIN (OC1A) will be CK/256/PWM_COMPVAL_C
 ;   - middle-C musical note (262 Hz) can thus be obtained by setting PWM_COMPVAL_C = 238
 ;       - 16000000 / 256 / 238 = 262.605
-;       - or more generally, PWM_COMPVAL_C = lambda NOTE_FREQ: int(16000000 / 256 / NOTE_FREQ) ( value floored so as to make the notes slightly sharp )
+;       - or more generally, PWM_COMPVAL_C = lambda NOTE_FREQ: int(16000000 / 256 / NOTE_FREQ)
+;       - ( value floored so as to make the notes slightly sharp )
 .equ    BUZZ_NOTE_C4,       238             ; C4 (262 Hz)
 .equ    BUZZ_NOTE_D4,       212             ; D4 (294 Hz)
 .equ    BUZZ_NOTE_E4,       189             ; E4 (330 Hz)
