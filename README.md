@@ -421,6 +421,14 @@ ADC_VD_CH1_BTN_2  | 204 K           | 1.968 v | 0xb3            | ENTER_BTN
     - if signal stays HIGH for just as long as it stays LOW, volume is maximum (PWM_COMPVAL_A = PWM_COMPVAL_C / 2)
     - PWM_COMPVAL_A can be varied between 0 and PWM_COMPVAL_C/2 to change volume
 
+- buzzer_macro_play_melody and buzzer melody format
+    - buzzer_macro_play_melody takes 2 arguments
+        - tempo in milliseconds (1 unit of duration to play a note)
+        - melody a sequence of pairs => a note, and duration units to play the note
+
+    - example usage
+        - buzzer_macro_play_melody 250 C4 1 D4 1 E4 2 D4 1 C4 1
+
 
 ## Real Time Clock - I2C (based on fs)
 - `notes TODO`

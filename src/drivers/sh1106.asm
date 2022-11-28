@@ -386,12 +386,14 @@ oled_set_contrast:
     push r16
     push r17
 
+    andi r16, 0b00001111                        ; only keep low 4 bits (0 to 15)
+    inc r16                                     ; change scale for multiplication to 1 to 16 - this eliminates 0 contrast
     ldi r17, 16
-    rcall mul8                                  ; scale up: 0 to 15 => 0 to 255
+    rcall mul8                                  ; scale up: 1 to 16 => 0 to 255
 
-    cpi r16, 1                                  ; minimum allowed value is 1 (this will be used if input value is 0)
-    brsh _oled_set_contrast_ok
-    ldi r16, 1
+    tst r17                                     ; if multiplication exceeded 255, set r16 to 255
+    breq _oled_set_contrast_ok
+    ldi r16, 255
 _oled_set_contrast_ok:
     push r16
     rcall oled_io_open_write_cmds

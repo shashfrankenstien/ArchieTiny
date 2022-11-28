@@ -39,6 +39,8 @@ shell_splash_screen:
     ; =========
     rcall i2c_rlock_release
 
+    buzzer_macro_play_melody 100 D6 1 G6 1 E6 1 C7 1 B7 2
+
 _shell_splash_wait:                                 ; wait for button press and exit
     sleep
     lds r16, SREG_GPIO_PC
@@ -70,8 +72,7 @@ shell_menu_apps_list:
     .asciz "fram test"                         ; index 7
     .asciz "fram write"                        ; index 8
     .asciz "contrast"                          ; index 9
-    .asciz "buzz"                             ; index 10
-    .asciz "test3"                             ; index 11
+    .asciz "buzzer mute"                       ; index 10
     .byte 0                                    ; end of list
 
 
@@ -178,35 +179,7 @@ _shell_home_menu_9:
 _shell_home_menu_10:
     cpi r16, 10
     brne _shell_home_menu_done
-    mov r20, r16
-    ldi r16, BUZZ_NOTE_C4
-    rcall buzzer_buzz
-    ldi r16, BUZZ_NOTE_D4
-    rcall buzzer_buzz
-    ldi r16, BUZZ_NOTE_E4
-    rcall buzzer_buzz
-    ;
-    ldi r16, BUZZ_NOTE_C6
-    rcall buzzer_buzz
-    ldi r16, BUZZ_NOTE_B5
-    rcall buzzer_buzz
-    ldi r16, BUZZ_NOTE_A5
-    rcall buzzer_buzz
-    ;
-    ldi r16, BUZZ_NOTE_C7
-    rcall buzzer_buzz
-    ldi r16, BUZZ_NOTE_B6
-    rcall buzzer_buzz
-    ldi r16, BUZZ_NOTE_A6
-    rcall buzzer_buzz
-    ;
-    ldi r16, BUZZ_NOTE_C8
-    rcall buzzer_buzz
-    ldi r16, BUZZ_NOTE_B7
-    rcall buzzer_buzz
-    ldi r16, BUZZ_NOTE_A7
-    rcall buzzer_buzz
-    mov r16, r20
+    rcall buzzer_toggle_mute
     ; rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 _shell_home_menu_done:

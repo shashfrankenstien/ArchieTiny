@@ -161,6 +161,9 @@ _ui_menu_navigate:
     rcall i2c_rlock_acquire
     rcall oled_invert_inplace_relative_page_row ; uninvert prev item using r19
     rcall i2c_rlock_release
+
+    rcall buzzer_nav_click                          ; make click sound when navigating [11/27/2022]
+
 _ui_menu_navigate_highlight:
     mov r22, r21                                ; update prev item number tracker with new number
     mov r19, r21
@@ -200,7 +203,7 @@ _ui_menu_nav_move_up:
 
 _ui_menu_nav_check_down:
     sbrs r16, NAV_DOWN_BTN                      ; if DOWN is pressed, skip the next statement
-    rjmp _ui_menu_nav_check_actions                  ; if nav is not DOWN, continue to check OK
+    rjmp _ui_menu_nav_check_actions             ; if nav is not DOWN, continue to check OK
 
     inc r21                                     ; move selection down
 
@@ -348,6 +351,8 @@ ui_slider_value_verified_upper:
     icall
     rcall internal_ui_slider_print_bar
     rcall i2c_rlock_release
+
+    rcall buzzer_nav_click                          ; make click sound when navigating [11/27/2022]
 
 _ui_slider_wait:
     rcall nav_kbd_start                         ; start the navigation keyboard (blocking)
@@ -752,6 +757,7 @@ _ui_confirm_util_toggle_yn_kbd:
 
     com r20
 
+    rcall buzzer_nav_click                          ; make click sound when navigating [11/27/2022]
     rjmp _ui_confirm_util_toggle_yn_kbd
 
 _ui_confirm_util_toggle_yn_done:

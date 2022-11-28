@@ -15,6 +15,7 @@
 .equ    SREG_OLED,                I2C_BUS_RLOCK + 1
 .equ    SREG_GPIO_PC,             SREG_OLED + 1
 .equ    SREG_ADC_VD_HLD,          SREG_GPIO_PC + 1
+
 ; ADC utility
 .equ    ADC_CHAN_0_VAL,           SREG_ADC_VD_HLD + 1
 .equ    ADC_CHAN_1_VAL,           ADC_CHAN_0_VAL + 1
@@ -23,10 +24,12 @@
 .equ    TEXTMODE_CURSOR_PAGE,     ADC_CHAN_1_VAL + 1          ; byte to track text-mode page address
 .equ    TEXTMODE_CURSOR_COL,      TEXTMODE_CURSOR_PAGE + 1    ; byte to track text-mode column address
 
+; buzzer / audio utility
+.equ    BUZZER_VOLUME_REG,        TEXTMODE_CURSOR_COL + 1
 
 ; -------------------------------------------------
 ; task manager table
-.equ    TASK_RAM_START,           TEXTMODE_CURSOR_COL + 1     ; Task vector start address
+.equ    TASK_RAM_START,           BUZZER_VOLUME_REG + 1       ; Task vector start address
 
 .equ    TASK_STACK_SIZE,          100                         ; Each task in the task manager get TASK_STACK_SIZE bytes of RAM
 .equ    TASK_MAX_TASKS,           2                           ;   some of these bytes are required for the task manager and the rest are available for the task
@@ -194,7 +197,7 @@
 
 ; error handling for TASK_MAX_TASKS greater than 16 - because TASKCTS has only a 4 bit task counter (and we don't have enough internal RAM of course)
 .iflt 16 - TASK_MAX_TASKS           ; test if 16 - TASK_MAX_TASKS is less than 0
-    .err                            ; max tasks overflow
+    .error "TASK_MAX_TASKS - max tasks overflow"
 .endif
 
 
@@ -202,17 +205,17 @@
 
 ; error handling for 0 MALLOC_MAX_BLOCKS
 .ifle MALLOC_MAX_BLOCKS
-    .err                            ; no malloc-able blocks. check task manager memory allocation
+    .error "MALLOC_MAX_BLOCKS - no malloc-able blocks. check task manager memory allocation"
 .endif
 
 ; error handling for MALLOC_MAX_BLOCKS greater than 250 (never gonna happen since MALLOC_FREE_RAM is restricted to 256, but whatever)
 .iflt 250 - MALLOC_MAX_BLOCKS       ; test if 250 - MALLOC_MAX_BLOCKS is less than 0
-    .err                            ; address overflow!
+    .error "MALLOC_MAX_BLOCKS - address overflow!"
 .endif
 
 ; error handling for overflow
 .ifle ((RAMEND - 8) - MALLOC_RAM_END)
-    .err                            ; memory overflow!
+    .error "MALLOC_RAM_END - memory overflow!"
 .endif
 
 
@@ -220,5 +223,5 @@
 
 ; error handling for FAT_BYTE_SIZE greater than 250
 .iflt 250 - FAT_BYTE_SIZE           ; test if 250 - FAT_BYTE_SIZE is less than 0
-    .err                            ; address overflow!
+    .error "FAT_BYTE_SIZE - address overflow!"
 .endif

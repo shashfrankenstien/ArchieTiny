@@ -52,10 +52,13 @@ main:                               ; initialize
     rcall rtc_init                  ; initialize i2c RTC device (ds1307)
     rcall gpio_btn_init             ; intialize buttons as input pins and attach pc interrupts
     rcall gpio_adc_init             ; intialize ADC to read thumb wheel potentiometer
-    rcall taskmanager_init          ; initialize task manager table
+    rcall buzzer_init               ; intialize piezo buzzer for audio
     rcall mem_init                  ; initialize dynamic memory management (malloc)
 
-    ; ui
+    ; finally, intialize, setup and start taskmanager
+    rcall taskmanager_init          ; initialize task manager table
+
+    ; add shell ui task
     ldi r17, hi8(pm(shell_home_task))   ; add task to task manager table
     ldi r16, lo8(pm(shell_home_task))   ; pm() divides r17:r16 (task subroutine address) by 2
     rcall taskmanager_add

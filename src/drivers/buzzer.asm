@@ -1,8 +1,9 @@
-.include "config.inc"                       ; BUZZER_PIN
+; piezo buzzer for audio
+.include "config.inc"                       ; BUZZER_VOLUME_REG, BUZZER_PIN
 
 
 .if BUZZER_PIN - 1                          ; only PB1 (pysical pin 6) is currently supported for buzzer
-    .err                                    ; unsupported pin!
+    .error "BUZZER_PIN - unsupported pin!"
 .endif
 
 
@@ -67,28 +68,154 @@
 ;   - PWM_COMPVAL_A can be varied between 0 and PWM_COMPVAL_C/2 to change volume
 
 
-; buzzer_buzz takes note value (BUZZ_NOTE_*) in r16 and playes the note for 250 ms
-buzzer_buzz:
+; BUZZER_VOLUME_REG (1)
+;   - buzzer volume register holds current volume level in 4 low bits [3:0] - can be set using buzzer_set_volume routine
+;   - it also has a flag to indicate if buzzer is muted (bit 7)
+;      -----------------------------------------------------------------------------------------------
+;      |  BUZZ_MUTE  |  N/A  |  N/A  |  N/A  |  BUZZ_VOL3  |  BUZZ_VOL2  |  BUZZ_VOL1  |  BUZZ_VOL0  |
+;      -----------------------------------------------------------------------------------------------
+.equ    BUZZ_MUTE_BIT,      7
+
+
+
+
+buzzer_init:
+    ldi r16, 10
+    rcall buzzer_set_volume
+    ret
+
+
+; buzzer_set_volume takes volume value in r16
+;   - supported values are between 0 and 15
+;   - has the effect of unmuting by clearing BUZZ_MUTE_BIT
+buzzer_set_volume:
+    andi r16, 0b00001111            ; only keep low 4 bits (0 to 15)
+    sts BUZZER_VOLUME_REG, r16      ; set BUZZER_VOLUME_REG
+    ret
+
+
+; buzzer_toggle_mute toggles the BUZZ_MUTE_BIT bit in BUZZER_VOLUME_REG
+buzzer_toggle_mute:
     push r16
-    push r20
+    push r17
+    lds r17, BUZZER_VOLUME_REG      ; read current volume register
+
+    ldi r16, (1<<BUZZ_MUTE_BIT)     ; toggle mute bit
+    eor r17, r16
+    sts BUZZER_VOLUME_REG, r17      ; set BUZZER_VOLUME_REG
+    pop r17
+    pop r16
+    ret
+
+
+
+; internal_buzzer_set_pwm_compare_A sets compare match A to a proportional value based on volume
+; - takes note value (compare match C) in r16
+; - takes volume level in r17 - scales volume from (0 to 15) to (1 to r16/2)
+;   - this is done by -> (r16 / 2) * (r17 / 15)
+internal_buzzer_set_pwm_compare_A:
+    push r18
+
+    lsr r16                         ; (r16 / 2)
+    rcall mul8                      ; (r16 / 2) * r17
+
+    ; r17:r16 contains a likely 16 bit result. this can be divided by 15 like below
+    ;   - (MSB * 256 / 15) + (LSB / 15)
+    push r16                    ; save LSB for later
+    mov r16, r17                ; get MSB in r16
+    ldi r17, (256 / 15)
+    rcall mul8                  ; (MSB * 256 / 15)
+    mov r18, r16                ; result will be less than 256. save in r18
+
+    pop r16                     ; restore previous LSB
+    ldi r17, 15
+    rcall div8                  ; (LSB / 15)
+
+    add r16, r18                ; (MSB * 256 / 15) + (LSB / 15) or rather, (r16 / 2) * (r17 / 15)
+
+    cpi r16, 1                  ; minimum allowed value is 1 (this will be used if output value is 0)
+    brsh _buzzer_set_pwm_compare_A_ok
+    ldi r16, 1
+_buzzer_set_pwm_compare_A_ok:
+    out OCR1A, r16                  ; load compare A register
+
+    pop r18
+    ret
+
+
+; buzzer_play_note_start starts playing the note (one of BUZZ_NOTE_*) provided in r16
+; plays note until buzzer_play_note_stop is called
+; clears r16 before return indicating note being consumed - just convenient to eliminate pushing to stack :P
+buzzer_play_note_start:
+    push r17
+    lds r17, BUZZER_VOLUME_REG      ; read current volume level
+
+    sbrc r17, BUZZ_MUTE_BIT         ; check if buzzer is muted
+    rjmp _buzzer_play_note_start_done
+
+    andi r17, 0b00001111            ; only keep low 4 bits (0 to 15)
+    tst r17                         ; check if volume is set to 0 (mute)
+    breq _buzzer_play_note_start_done
 
     sbi DDRB, BUZZER_PIN            ; setup output pin 1 (PB1)
 
     out OCR1C, r16                  ; load compare C register with input BUZZ_NOTE_* value
-
-    lsr r16                         ; load compare A register with 1/2 the value of OCR1C. This will ensure an even signal (max volume)
-    out OCR1A, r16                  ; load compare A register
+    rcall internal_buzzer_set_pwm_compare_A ; uses r16 and r17 to set OCR1A
 
     ldi r16, PWM_CTRL
     out TCCR1, r16                  ; start PWM
 
-    ldi r20, 150
-    rcall timer_delay_ms_short      ; sleep for 250 ms
+_buzzer_play_note_start_done:
+    clr r16                         ; return 0 in r16 - just convenient to eliminate pushing to stack :P
+    pop r17
+    ret
 
+
+; stops PWM and consequently ends any playing note
+buzzer_play_note_stop:
     clr r16
-    out TCCR1, r22                  ; stop PWM
+    out TCCR1, r16                  ; stop PWM
     cbi DDRB, BUZZER_PIN            ; disable output pin 1 (PB1)
+    ret
 
+
+
+
+; buzzer melody format
+; ---------------------------
+; buzzer_macro_play_melody takes 2 arguments
+;   - tempo in milliseconds (1 unit of duration to play a note)
+;   - melody a sequence of pairs => a note, and duration units to play the note
+;
+; example usage
+;   - buzzer_macro_play_melody 250 C4 1 D4 1 E4 2 D4 1 C4 1
+
+.macro buzzer_macro_play_melody tempo=150, melody:vararg
+    push r16
+    push r20
+    ldi r20, \tempo
+    internal_buzzer_macro_play_melody \melody
     pop r20
     pop r16
+.endm
+
+; this internally used macro recursively processes note and duration unit pairs for a given melody
+.macro internal_buzzer_macro_play_melody note, ntimes, remaining:vararg
+    ldi r16, BUZZ_NOTE_\note
+    rcall buzzer_play_note_start
+    .rept  \ntimes
+        rcall timer_delay_ms_short
+    .endr
+    rcall buzzer_play_note_stop
+    .ifnb \remaining
+        internal_buzzer_macro_play_melody \remaining
+    .endif
+.endm
+
+
+
+
+; buzzer_nav_click produces a very short click-like beep. can be used for navigation feedback
+buzzer_nav_click:
+    buzzer_macro_play_melody 10 C7 1
     ret

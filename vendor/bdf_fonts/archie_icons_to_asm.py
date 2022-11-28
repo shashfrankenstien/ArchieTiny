@@ -68,7 +68,9 @@ def test(bdf_filepath):
             for i in range(0, len(a), data['width']):
                 b = a[i:i+data['width']]
                 for bit in b:
-                    bit = f'{chr(9608)}{chr(9608)}{chr(9608)}' if bit == 1 else '   '
+                    # bit = f'{chr(9608)}{chr(9608)}{chr(9608)}' if bit == 1 else '   '
+                    bit = '***' if bit == 1 else '   '
+
                     print(bit, end = '', flush=True)
                 print()
         print()
