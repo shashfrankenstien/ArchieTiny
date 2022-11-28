@@ -22,6 +22,7 @@ SRC=src/kernel.asm \
 	src/lib/ui.asm \
 	src/apps/terminal.asm \
 	src/apps/file_manager.asm \
+	src/apps/settings.asm \
 	src/shell.asm \
 	src/fonts/spleen.asm \
 	src/fonts/archie_icons.asm

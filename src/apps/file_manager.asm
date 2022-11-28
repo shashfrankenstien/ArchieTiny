@@ -170,7 +170,7 @@ _fm_options_show_menu:
     rcall ui_menu_show                         ; show options menu
 
     sbrs r18, ENTER_BTN
-    rjmp _fm_options_exit_btn
+    rjmp _fm_options_exit_btn                  ; if ENTER_BTN was not pressed, then EXIT_BTN was
 
     mov r18, r16
     pop r25

@@ -65,20 +65,14 @@ shell_menu_apps_list:
     .asciz "splash"                            ; index 0
     .asciz "terminal"                          ; index 1
     .asciz "file manager"                      ; index 2
-    .asciz "malloc 2"                          ; index 3
-    .asciz "fs test"                           ; index 4
-    .asciz "fs format"                         ; index 5
-    .asciz "scan i2c"                          ; index 6
-    .asciz "fram test"                         ; index 7
-    .asciz "fram write"                        ; index 8
-    .asciz "contrast"                          ; index 9
-    .asciz "buzzer mute"                       ; index 10
+    .asciz "settings"                          ; index 3
+    .asciz "scan i2c"                          ; index 4
+    .asciz "malloc 2"                          ; index 5
+    .asciz "fs test"                           ; index 6
+    .asciz "fs format"                         ; index 7
+    .asciz "fram test"                         ; index 8
+    .asciz "fram write"                        ; index 9
     .byte 0                                    ; end of list
-
-
-shell_menu_confirm_test:
-    .asciz "test!!"
-
 
 .balign 2
 
@@ -128,58 +122,46 @@ _shell_home_menu_2:
 _shell_home_menu_3:
     cpi r16, 3
     brne _shell_home_menu_4
-    ldi r30, lo8(shell_menu_confirm_test)
-    ldi r31, hi8(shell_menu_confirm_test)
-    rcall ui_alert_popup_show
+    rcall settings_app_open
     rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 _shell_home_menu_4:
     cpi r16, 4
     brne _shell_home_menu_5
-    rcall fs_test_print
+    rcall shell_i2c_scanner
     rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 _shell_home_menu_5:
     cpi r16, 5
     brne _shell_home_menu_6
-    rcall fs_format
+    ldi r30, lo8(shell_menu_apps_list)         ; show first entry in shell_menu_apps_list as popup
+    ldi r31, hi8(shell_menu_apps_list)
+    rcall ui_alert_popup_show
+
     rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 _shell_home_menu_6:
     cpi r16, 6
     brne _shell_home_menu_7
-    rcall shell_i2c_scanner
+    rcall fs_test_print
     rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 _shell_home_menu_7:
     cpi r16, 7
     brne _shell_home_menu_8
-    rcall fram_test_print
+    rcall fs_format
     rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 _shell_home_menu_8:
     cpi r16, 8
     brne _shell_home_menu_9
-    rcall fram_test_write
+    rcall fram_test_print
     rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 _shell_home_menu_9:
     cpi r16, 9
-    brne _shell_home_menu_10
-    mov r20, r16
-    ldi r24, lo8(shell_menu_confirm_test)
-    ldi r25, hi8(shell_menu_confirm_test)
-    ldi r30, lo8(pm(oled_set_contrast))
-    ldi r31, hi8(pm(oled_set_contrast))
-    ldi r16, 0
-    rcall ui_slider_open
-    mov r16, r20
-    rjmp _shell_home_show_menu                 ; show menu after running selected option
-
-_shell_home_menu_10:
-    cpi r16, 10
     brne _shell_home_menu_done
-    rcall buzzer_toggle_mute
+    rcall fram_test_write
     ; rjmp _shell_home_show_menu                 ; show menu after running selected option
 
 _shell_home_menu_done:
