@@ -9,13 +9,16 @@ rtc_init:
     push r16
     push r17
 
-    clr r16
+    ; Bit 7 of Register 0 is the clock halt (CH) bit.
+    ; When this bit is set to 1, the oscillator is disabled
+    ; write 0 to address 0 to start the RTC and reset RTC clock
     clr r17
     rcall rtc_io_open_writer
+    clr r16
     rcall i2c_send_byte
     rcall rtc_io_close
     pop r17
-    pop r17
+    pop r16
     ret
 
 
@@ -55,3 +58,24 @@ rtc_io_open_writer:
 rtc_io_close:
     rcall i2c_do_stop_condition
     ret
+
+
+
+; rtc_read_time:
+;     push r16
+;     push r17
+;     clr r17
+;     rcall i2c_rlock_acquire
+;     rcall rtc_io_open_reader
+
+;     rcall i2c_read_byte_ack             ; read second
+;     sts RTC_SECOND, r16
+;     rcall i2c_read_byte_ack             ; read minute
+;     sts RTC_MINUTE, r16
+;     rcall i2c_read_byte_nack            ; read hour
+;     sts RTC_HOUR, r16
+;     rcall rtc_io_close
+;     rcall i2c_rlock_release
+;     pop r17
+;     pop r16
+;     ret

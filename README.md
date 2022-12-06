@@ -189,7 +189,12 @@ Tasks Table is set up starting at RAM address TASK_RAM_START (Should be greater 
     - unscii-fantasy
 - when including strings in program memory, we need to mind byte alignment.
     use `.balign 2` after each string definition
-- SREG_OLED is used to track color inversion (highlight) and page scroll position
+- SREG_OLED is used to track contrast, color inversion (highlight) and page scroll position
+```
+    --------------------------------------------------------------------------------------------------------------
+    |  CNTRST3  |  CNTRST2  |  CNTRST1  |  CNTRST0  |  OLED_COLOR_INVERT  |  SCRL_PG2  |  SCRL_PG1  |  SCRL_PG0  |
+    --------------------------------------------------------------------------------------------------------------
+```
 
 ## OLED text-mode (lib/textmode.asm)
 - this module wraps oled and provides helper routines to print continuous text

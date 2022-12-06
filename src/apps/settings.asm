@@ -11,7 +11,14 @@ settings_list_labels:
 _settings_contrast_label:       .asciz "contrast"                          ; index 0
 _settings_buzzer_volume_label:  .asciz "volume"                            ; index 1
 _settings_buzzer_mute_label:    .asciz "toggle mute"                       ; index 2
-    .byte 0                                    ; end of list
+    .byte 0                                    ; end of settings_list_labels
+
+
+_settings_unmuted_status_msg:
+    .ascii "un"                                ; this message is not terminated by 0. So it continues onto the next message giving "unmuted"
+_settings_muted_status_msg:
+    .asciz "muted"
+
 
 .balign 2
 
@@ -41,13 +48,13 @@ _settings_app_menu_0:
     cpi r16, 0
     brne _settings_app_menu_1
     push r16
-    ldi r24, lo8(_settings_contrast_label)
+    ldi r24, lo8(_settings_contrast_label)       ; setting label
     ldi r25, hi8(_settings_contrast_label)
-    ldi r30, lo8(pm(oled_set_contrast))
+    ldi r30, lo8(pm(oled_set_contrast))          ; setter callback
     ldi r31, hi8(pm(oled_set_contrast))
     lds r16, SREG_OLED
-    swap r16
-    andi r16, 0b00001111                         ; keep only 4 low bits that contain contrast value
+    swap r16                                     ; swap contrast value to low 4 bits
+    andi r16, 0b00001111                         ; keep only 4 low bits that now contain contrast value
     rcall ui_slider_open
     pop r16
 
@@ -57,9 +64,9 @@ _settings_app_menu_1:
     cpi r16, 1
     brne _settings_app_menu_2
     push r16
-    ldi r24, lo8(_settings_buzzer_volume_label)
+    ldi r24, lo8(_settings_buzzer_volume_label)  ; setting label
     ldi r25, hi8(_settings_buzzer_volume_label)
-    ldi r30, lo8(pm(buzzer_set_volume))
+    ldi r30, lo8(pm(buzzer_set_volume))          ; setter callback
     ldi r31, hi8(pm(buzzer_set_volume))
     lds r16, BUZZER_VOLUME_REG
     andi r16, 0b00001111                         ; keep only 4 low bits that contain volume value
@@ -71,7 +78,19 @@ _settings_app_menu_1:
 _settings_app_menu_2:
     cpi r16, 2
     brne _settings_app_menu_done
+    push r16
     rcall buzzer_toggle_mute
+    tst r16                                      ; r16 is returned as non-zero if muted
+    breq _settings_app_menu_unmuted
+    ldi r30, lo8(_settings_muted_status_msg)
+    ldi r31, hi8(_settings_muted_status_msg)
+    rjmp _settings_app_menu_mute_alert
+_settings_app_menu_unmuted:
+    ldi r30, lo8(_settings_unmuted_status_msg)
+    ldi r31, hi8(_settings_unmuted_status_msg)
+_settings_app_menu_mute_alert:
+    rcall ui_alert_popup_show
+    pop r16
     ; TODO: write to eeprom here
 
 _settings_app_menu_done:

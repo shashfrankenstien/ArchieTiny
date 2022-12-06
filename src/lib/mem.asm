@@ -38,6 +38,8 @@
 ; - MALLOC_MAX_BLOCKS can't be greater than 250 (never gonna happen on this device, but whatever)
 ;   - MALLOC_MAX_BLOCKS is capped at 250 because the last few address values are used as control bytes in the malloc table (0xff, 0xfe, ..)
 
+.equ    MEM_NULL_PTR,               0xff       ; use 0xff as null pointer for failure. highly likely this is never going to be a valid pointer
+
 
 mem_init:
     .irp param,16,17,26,27
@@ -66,7 +68,8 @@ _mem_init_wipe:
 
 
 ; allocate memory
-; number of bytes required is passed in through r16
+; - number of bytes required is passed in through r16
+; - return pointer to allocated memory in r16
 mem_alloc:
     .irp param,17,18,19,20,26,27
         push r\param
@@ -125,7 +128,7 @@ _mem_alloc_reserve_block:
 
 
 _mem_alloc_failed:
-    ldi r16, 0xff                              ; return 0xff for failure. highly likely this is never going to be a valid pointer
+    ldi r16, MEM_NULL_PTR                      ; return null pointer for failure
     rjmp _mem_alloc_done
 
 _mem_alloc_success:
@@ -146,8 +149,8 @@ _mem_alloc_done:
 ; free memory
 ; pointer is passed in r16
 ; pointer may be at any position of the allocated memory -
-;   - free walks forward till the last block
-;   - free also walks back till a block that is not referenced by any other block (first block)
+;   - mem_free walks forward till the last block
+;   - mem_free also walks back till a block that is not referenced by any other block (first block)
 mem_free:
     .irp param,17,18,19,20,26,27
         push r\param
@@ -211,10 +214,10 @@ _mem_free_done:
 ; increment pointer
 ; pointer is passed in r16
 ; if r17 is 0,
-; - return 0xff on overflow
+; - return MEM_NULL_PTR on overflow
 ; else if r17 is anything else (probably 0x01)
 ; - automatically allocate 1 new block on overflow
-; - return 0xff if a new block allocation failed
+; - return MEM_NULL_PTR if a new block allocation failed
 internal_mem_pointer_inc:
     .irp param,18,19,26,27
         push r\param
@@ -289,7 +292,7 @@ _mem_pointer_inc_find_free_block:
     rjmp _mem_pointer_inc_done
 
 _mem_pointer_inc_failed:
-    ldi r16, 0xff                               ; indicate failure by returning 0xff
+    ldi r16, MEM_NULL_PTR                       ; return null pointer for failure
 
 _mem_pointer_inc_done:
     .irp param,27,26,19,18

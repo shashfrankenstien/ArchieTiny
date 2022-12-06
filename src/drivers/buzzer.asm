@@ -95,16 +95,16 @@ buzzer_set_volume:
 
 
 ; buzzer_toggle_mute toggles the BUZZ_MUTE_BIT bit in BUZZER_VOLUME_REG
+;  - returns non-zero for muted and 0 for unmuted in r16
 buzzer_toggle_mute:
-    push r16
     push r17
-    lds r17, BUZZER_VOLUME_REG      ; read current volume register
+    lds r16, BUZZER_VOLUME_REG      ; read current volume register
 
-    ldi r16, (1<<BUZZ_MUTE_BIT)     ; toggle mute bit
-    eor r17, r16
-    sts BUZZER_VOLUME_REG, r17      ; set BUZZER_VOLUME_REG
+    ldi r17, (1<<BUZZ_MUTE_BIT)     ; toggle mute bit
+    eor r16, r17
+    sts BUZZER_VOLUME_REG, r16      ; set BUZZER_VOLUME_REG
     pop r17
-    pop r16
+    andi r16, 0b10000000            ; r16 is returned as non-zero if muted
     ret
 
 

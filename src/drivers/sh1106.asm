@@ -46,9 +46,9 @@
 
 ; SREG_OLED - oled status register (1)
 ;   - register holds 8 oled status flags
-;      ----------------------------------------------------------------------------------------------
-;      |  N/A  |  N/A  |  N/A  |  N/A  |  OLED_COLOR_INVERT  |  SCRL_PG2  |  SCRL_PG1  |  SCRL_PG0  |
-;      ----------------------------------------------------------------------------------------------
+;      --------------------------------------------------------------------------------------------------------------
+;      |  CNTRST3  |  CNTRST2  |  CNTRST1  |  CNTRST0  |  OLED_COLOR_INVERT  |  SCRL_PG2  |  SCRL_PG1  |  SCRL_PG0  |
+;      --------------------------------------------------------------------------------------------------------------
 ;
 ; SCRL_PG[2:0] - display scroll page (bits 2:0)
 ;   - this is a 3 bit number indicating current page scroll position on the screen (0 - 7)
@@ -61,6 +61,10 @@
 ;   - if OLED_COLOR_INVERT is set, anything written through the oled routines will be inverted (1's complement using COM instruction)
 ;       if OLED_COLOR_INVERT is cleared, it writes without 1's complement
 .equ    OLED_COLOR_INVERT,       3
+;
+; OLED contrast level - SREG_OLED[7:4] (CNTRST[3:0])
+;   - location to store current contrast level set by oled_set_contrast
+
 ;
 ; --------------------------------------------------
 .equ    OLED_MAX_COL,            127                        ; max column index (128 x 64)
@@ -106,7 +110,7 @@ oled_init:
     rcall oled_io_close
     rcall oled_clr_screen
 
-    ldi r16, 8                                 ; default contrast = 8 (possible values 0 - 15)
+    ldi r16, 5                                 ; default contrast = 5 (possible values 0 - 15)
     rcall oled_set_contrast
 
     pop r16
